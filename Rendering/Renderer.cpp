@@ -4,13 +4,81 @@
 #include <immintrin.h>
 
 #include "Renderer.h"
+#include "../Level/Quadtree/Quadtree.h"
 
 namespace Renderer {
-    Renderer::Renderer(std::shared_ptr<Camera::Camera> camera) {
-        this->camera   = std::move(camera);
-        this->vertices = std::make_unique<std::vector<Vertex>>();
-        this->indices  = std::make_unique<std::vector<u32>>();
+    Renderer::Renderer(std::shared_ptr<Camera::Camera> camera)
+    : camera{std::move(camera)}
+    , vertices{std::make_unique<std::vector<Vertex>>()}
+    , indices{std::make_unique<std::vector<u32>>()}
+    , width{1800}
+    , height{1200}
+    , projection{glm::perspective(
+            glm::radians(45.0f), ((f32) this->width) / ((f32) this->height),
+            0.1f, ((f32) (RENDER_RADIUS * 2) * CHUNK_SIZE))}
+    {
+        initGLFW();
+        initShaders();
+        initPipeline();
+    }
 
+    auto Renderer::initGLFW() -> void {
+        glfwInit();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+#ifdef __APPLE__
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+        this->window = glfwCreateWindow(static_cast<i32>(this->width),
+                                        static_cast<i32>(this->height), "Farlands", nullptr, nullptr);
+        if (!window) {
+            std::cerr << "Failed to create GLFW window" << std::endl;
+            glfwTerminate();
+
+            exit(EXIT_FAILURE);
+        }
+
+        glfwMakeContextCurrent(window);
+        glfwSetWindowUserPointer(window, static_cast<void *>(this));
+        glfwSetFramebufferSizeCallback(window, [](GLFWwindow *wdw, i32 w, i32 h) -> void {
+            auto self = static_cast<Renderer *>(glfwGetWindowUserPointer(wdw));
+
+            self->width  = w;
+            self->height = h;
+
+            glViewport(0, 0, static_cast<i32>(self->width), static_cast<i32>(self->height));
+
+            self->updateProjectionMatrix();
+            self->camera->setFrustumAspect(((f32) self->width) / ((f32) self->height));
+        });
+
+        glfwSwapInterval(0);
+
+        // glad: load all OpenGL function pointers
+        // ---------------------------------------
+
+        if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+            std::cerr << "Failed to initialize GLAD" << std::endl;
+            glfwTerminate();
+
+            exit(EXIT_FAILURE);
+        }
+
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetCursorPosCallback(window, [](GLFWwindow *wdw, f64 xpos, f64 ypos) -> void {
+            auto self = static_cast<Renderer *>(glfwGetWindowUserPointer(wdw));
+            self->camera->ProcessMouseMovement(static_cast<f32>(xpos), static_cast<f32>(ypos));
+        });
+    }
+
+    auto Renderer::initShaders() -> void {
+        this->shader = std::make_unique<Shader>("../shaders/vertex_shader.glsl", "../shaders/fragment_shader.glsl");
+    }
+
+    auto Renderer::initPipeline() -> void {
         auto indices_buffer = IndicesGenerator<MAX_VERTICES_BUFFER>();
         this->indices->insert(this->indices->end(), indices_buffer.arr, indices_buffer.end());
 
@@ -73,18 +141,18 @@ namespace Renderer {
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
 
-    auto Renderer::draw(Shader &shader, glm::mat4 &proj_matrix, u32 texture) -> void {
+    auto Renderer::draw(u32 texture) -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shader.use();
+        shader->use();
 
         auto view          = this->camera->GetViewMatrix();
-        auto viewLoc       = glGetUniformLocation(shader.ID, "view");
-        auto projectionLoc = glGetUniformLocation(shader.ID, "projection");
+        auto viewLoc       = glGetUniformLocation(shader->ID, "view");
+        auto projectionLoc = glGetUniformLocation(shader->ID, "projection");
 
         glUniformMatrix4fv(viewLoc,       1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(proj_matrix));
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(this->projection));
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
@@ -94,7 +162,19 @@ namespace Renderer {
         this->vertices->clear();
     }
 
-    auto Renderer::getCamera() -> const Camera::Camera * {
+    auto Renderer::updateProjectionMatrix() -> void {
+        this->projection =
+                glm::perspective(glm::radians(45.0f),
+                                 ((f32) this->width) / ((f32) this->height),
+                                 0.1f,
+                                 ((f32) (RENDER_RADIUS * 2) * CHUNK_SIZE));
+    }
+
+    auto Renderer::getCamera() const -> const Camera::Camera * {
         return this->camera.get();
+    }
+
+    auto Renderer::getWindow() const -> const GLFWwindow * {
+        return this->window;
     }
 }

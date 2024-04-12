@@ -59,7 +59,13 @@ namespace Camera {
         updateCameraVectors();
     }
 
-    auto Camera::ProcessMouseMovement(f32 xoffset, f32 yoffset, GLboolean constrainPitch = true) -> void {
+    auto Camera::ProcessMouseMovement(f32 xpos, f32 ypos) -> void {
+        f32 xoffset = xpos - lastX;
+        f32 yoffset = lastY - ypos;
+
+        this->lastX = xpos;
+        this->lastY = ypos;
+
         this->yaw   += xoffset * this->mouseSensitivity;
         this->pitch += yoffset * this->mouseSensitivity;
 

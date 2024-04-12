@@ -36,6 +36,7 @@ add_executable(
         Level/Octree/GreedyMeshing.cpp
         Level/Octree/Memorypool.cpp
         Level/Octree/Memorypool.h
+        shaders/globalstate.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

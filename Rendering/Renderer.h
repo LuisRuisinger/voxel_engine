@@ -5,6 +5,9 @@
 #ifndef OPENGL_3D_ENGINE_RENDERER_H
 #define OPENGL_3D_ENGINE_RENDERER_H
 
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -53,16 +56,39 @@ namespace Renderer {
 
         ~Renderer() = default;
 
-        // auto addVoxel(uint16_t voxelID, const uint16_t scale, const glm::vec3& position) const -> void;
+        auto initGLFW() -> void;
+
+        auto initShaders() -> void;
+
+        auto initPipeline() -> void;
+
         auto addVoxel(const BoundingVolume *) const -> void;
 
         auto updateBuffer() -> void;
 
-        auto draw(Shader &shader, glm::mat4 &proj_matrix, u32 texture) -> void;
+        auto updateProjectionMatrix() -> void;
 
-        auto getCamera() -> const Camera::Camera *;
+        auto draw(u32 texture) -> void;
+
+        auto getCamera() const -> const Camera::Camera *;
+
+        auto getWindow() const -> const GLFWwindow *;
 
     private:
+
+        //
+        //
+
+        u32 width;
+        u32 height;
+        GLFWwindow *window;
+
+        //
+        //
+
+        glm::mat4 projection;
+        std::unique_ptr<Shader> shader;
+
         // ------------------------------------------------------------------------------------
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
 

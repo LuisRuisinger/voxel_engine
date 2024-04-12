@@ -14,7 +14,7 @@
 #include "../../Rendering/Renderer.h"
 #include "../Chunk/Chunk.h"
 
-#define RENDER_RADIUS 10
+#define RENDER_RADIUS 7
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
 
 namespace Quadtree {

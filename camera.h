@@ -36,7 +36,7 @@ namespace Camera
 
         auto GetViewMatrix() -> glm::mat4;
         auto ProcessKeyboard(Camera_Movement direction, float deltaTime) -> void;
-        auto ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch) -> void;
+        auto ProcessMouseMovement(float xpos, float ypos) -> void;
 
         auto setFrustum(float_t angle, float_t ratio, float_t nearD, float_t farD) -> void;
         auto setFrustumAspect(f32 ratio) -> void;
@@ -61,6 +61,9 @@ namespace Camera
         // euler Angles
         float yaw;
         float pitch;
+
+        f32 lastX;
+        f32 lastY;
 
         // camera options
         float movementSpeed;
