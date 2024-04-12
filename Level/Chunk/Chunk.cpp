@@ -17,19 +17,20 @@ namespace Chunk {
         : position{point}
         , modified{false}
         , segment{std::make_unique<Octree::Handler<BoundingVolume>>(vec3f(0))}
-        , memorypool{CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE} {}
+    {}
 
     ChunkSegment::ChunkSegment(ChunkSegment &&other) noexcept
         : position{other.position}
         , modified{other.modified}
         , segment{std::move(other.segment)}
-        , memorypool{std::move(other.memorypool)} {}
+    {}
 
     auto ChunkSegment::operator=(ChunkSegment &&other) noexcept -> ChunkSegment & {
-        this->position   = other.position;
-        this->modified   = other.modified;
-        this->segment    = std::move(other.segment);
-        this->memorypool = std::move(other.memorypool);
+        this->position  = other.position;
+        this->modified  = other.modified;
+        this->segment   = std::move(other.segment);
+
+        other.modified = false;
 
         return *this;
     }
@@ -41,8 +42,8 @@ namespace Chunk {
     Chunk::Chunk(vec2f point, Quadtree::Handler *handler)
         : chunksegments()
         , handler{handler}
-        , position{point} {
-
+        , position{point}
+    {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunksegments.emplace_back(
                     CHUNK_POS_3D(this->position) + vec3f {0, CHUNK_SEGMENT_YOFFS(i), 0});
@@ -75,8 +76,8 @@ namespace Chunk {
     }
 
     auto Chunk::generate() -> void {
-        for (u8 x = 0; x < 31; ++x) {
-            for (u8 z = 0; z < 31; ++z) {
+        for (u8 x = 0; x < CHUNK_SIZE; ++x) {
+            for (u8 z = 0; z < CHUNK_SIZE; ++z) {
                 for (u8 y = 0; y < 4; ++y) {
                     auto p = vec3f { x + 0.5, y + 0.5, z + 0.5 };
                     this->chunksegments[4].segment->addPoint(

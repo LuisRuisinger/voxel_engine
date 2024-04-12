@@ -36,7 +36,6 @@ namespace Chunk {
         vec3f position;
         std::unique_ptr<Octree::Handler<BoundingVolume>> segment;
         bool modified;
-        Memorypool<BoundingVolume> memorypool;
     };
     class Chunk {
     public:
