@@ -21,10 +21,17 @@ public:
     Shader(const char *vertexPath, const char *fragmentPath);
 
     auto use() -> void;
-    auto setBool(const std::string& name, bool value) const -> void;
-    auto setInt(const std::string& name, int value) const -> void;
-    auto setFloat(const std::string& name, float value) const -> void;
-    auto set_vec3(const std::string &name, float x, float y, float z) const -> void;
+
+    auto registerUniformLocation(std::string name) const -> void;
+
+    auto setBool(std::string name, bool value) const -> void;
+    auto setInt(std::string name, int value) const -> void;
+    auto setFloat(std::string name, float value) const -> void;
+    auto setVec3(std::string name, vec3f vec) const -> void;
+    auto setMat4(std::string name, glm::mat4& mat) -> void;
+
+private:
+    std::unordered_map<std::string, GLint> mutable uniformCache;
 };
 
 #endif //OPENGL_3D_ENGINE_SHADER_H

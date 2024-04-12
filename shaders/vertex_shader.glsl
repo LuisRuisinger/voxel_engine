@@ -10,6 +10,7 @@ layout (location = 0) in vec3 pos;
 
 out vec2 TexCoord;
 
+uniform vec3 worldbase;
 uniform mat4 view;
 uniform mat4 projection;
 

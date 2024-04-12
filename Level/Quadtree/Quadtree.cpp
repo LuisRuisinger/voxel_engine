@@ -142,12 +142,11 @@ namespace Quadtree {
 
             ((Quadtree *) this->children)[index].insertChunk(point, nVec, handler);
         }
+
     }
 
     auto Quadtree::extractChunk(const glm::vec2 point,
                                 const std::pair<uint16_t, glm::vec2> &bVec) -> Chunk::Chunk * {
-        assert(this->children);
-
         if (std::get<0>(bVec) <= CHUNK_SIZE) {
             auto *chunk = static_cast<Chunk::Chunk *>(this->children);
             this->children = nullptr;

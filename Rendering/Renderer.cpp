@@ -76,6 +76,10 @@ namespace Renderer {
 
     auto Renderer::initShaders() -> void {
         this->shader = std::make_unique<Shader>("../shaders/vertex_shader.glsl", "../shaders/fragment_shader.glsl");
+
+        this->shader->registerUniformLocation("view");
+        this->shader->registerUniformLocation("projection");
+        this->shader->registerUniformLocation("worldbase");
     }
 
     auto Renderer::initPipeline() -> void {
@@ -96,11 +100,19 @@ namespace Renderer {
 
         glGenBuffers(1, &this->VBO);
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-        glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES_BUFFER * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
+        glBufferData(
+                GL_ARRAY_BUFFER,
+                MAX_VERTICES_BUFFER * sizeof(*(this->vertices->data())),
+                nullptr,
+                GL_DYNAMIC_DRAW);
 
         glGenBuffers(1, &this->EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, this->indices.get()->size() * sizeof(uint32_t), &(this->indices->at(0)), GL_STATIC_DRAW);
+        glBufferData(
+                GL_ELEMENT_ARRAY_BUFFER,
+                static_cast<GLsizeiptr>(this->indices->size() * sizeof(*(this->indices->data()))),
+                this->indices->data(),
+                GL_STATIC_DRAW);
 
         // vertex object space position
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
@@ -132,32 +144,35 @@ namespace Renderer {
 
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         void *bufferData =
-                glMapBufferRange(GL_ARRAY_BUFFER,
-                                 0,
-                                 this->vertices->size() * sizeof(Vertex),
-                                 GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+                glMapBufferRange(
+                        GL_ARRAY_BUFFER,
+                        0,
+                        static_cast<GLsizeiptr>(this->vertices->size() * sizeof(*(this->vertices->data()))),
+                        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
-        __builtin_memcpy(bufferData, this->vertices->data(), this->vertices->size() * sizeof(Vertex));
+        __builtin_memcpy(
+                bufferData,
+                this->vertices->data(),
+                this->vertices->size() * sizeof(*(this->vertices->data())));
+
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
 
-    auto Renderer::draw(u32 texture) -> void {
+    auto Renderer::draw(vec3f worldbase, u32 texture) -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader->use();
+        auto view = this->camera->GetViewMatrix();
 
-        auto view          = this->camera->GetViewMatrix();
-        auto viewLoc       = glGetUniformLocation(shader->ID, "view");
-        auto projectionLoc = glGetUniformLocation(shader->ID, "projection");
-
-        glUniformMatrix4fv(viewLoc,       1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(this->projection));
+        this->shader->setMat4("view", view);
+        this->shader->setMat4("projection", this->projection);
+        this->shader->setVec3("worldbase", worldbase);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(this->VAO);
-        glDrawElements(GL_TRIANGLES, static_cast<int>(this->indices->size()), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, static_cast<i32>(this->indices->size()), GL_UNSIGNED_INT, nullptr);
 
         this->vertices->clear();
     }

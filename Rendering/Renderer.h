@@ -57,53 +57,34 @@ namespace Renderer {
         ~Renderer() = default;
 
         auto initGLFW() -> void;
-
         auto initShaders() -> void;
-
         auto initPipeline() -> void;
 
         auto addVoxel(const BoundingVolume *) const -> void;
-
         auto updateBuffer() -> void;
-
         auto updateProjectionMatrix() -> void;
-
-        auto draw(u32 texture) -> void;
+        auto draw(vec3f, u32) -> void;
 
         auto getCamera() const -> const Camera::Camera *;
-
         auto getWindow() const -> const GLFWwindow *;
 
     private:
+        u32                              width;
+        u32                              height;
+        GLFWwindow                      *window;
+        std::shared_ptr<Camera::Camera>  camera;
 
         //
         //
 
-        u32 width;
-        u32 height;
-        GLFWwindow *window;
-
-        //
-        //
-
-        glm::mat4 projection;
-        std::unique_ptr<Shader> shader;
+        glm::mat4                              projection;
+        std::unique_ptr<Shader>                shader;
 
         // ------------------------------------------------------------------------------------
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
 
         std::unique_ptr<std::vector<Vertex>> mutable vertices;
-
-        // ---------------------
-        // static indices vector
-
-        std::unique_ptr<std::vector<u32>> indices;
-
-        // ------------------------------------------------------------------
-        // currently hooked camera, can be owned an used by multiple classes,
-        // e.g. player hook, renderer hook
-
-        std::shared_ptr<Camera::Camera> camera;
+        std::unique_ptr<std::vector<u32>>            indices;
 
         // -----------
         // GPU buffers
@@ -111,6 +92,7 @@ namespace Renderer {
         u32 VBO;
         u32 VAO;
         u32 EBO;
+        u32 SSBO;
 
         // ---------------
         // cube structures
