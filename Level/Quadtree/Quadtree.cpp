@@ -14,9 +14,9 @@ namespace Quadtree {
     // Handler implementation
 
     Handler::Handler(glm::vec2 position)
-            : position{position}, bVec{RENDER_RADIUS * CHUNK_SIZE * 2, position} {
-        this->quadtree = std::make_unique<Quadtree>();
-    }
+            : position{position}, bVec{RENDER_RADIUS * CHUNK_SIZE * 2, position}
+            , quadtree{std::make_unique<Quadtree>()}
+    {}
 
     auto Handler::insert(glm::vec3 point, uint16_t voxelID) -> void {
         this->quadtree->insert(point, voxelID, this->bVec);
@@ -51,7 +51,7 @@ namespace Quadtree {
     }
 
     auto Handler::update() -> void {
-        this->quadtree->update();
+        static_cast<void>(this->quadtree->update());
     }
 
     auto Handler::getPosition() -> vec2f {
@@ -66,7 +66,7 @@ namespace Quadtree {
     // helper functions
 
     static const u8 indexToSegment[4] = {
-            0b10000000, 0b00010000, 0b01000000, 0b00100000
+            0b10000000U, 0b00010000U, 0b01000000U, 0b00100000U
     };
 
     static const i8 indexToPrefix[4][2] = {
@@ -78,7 +78,7 @@ namespace Quadtree {
 
     static inline
     auto selectChild(const vec2f &point, const std::pair<u8, vec2f> &bVec) -> u8 {
-        return ((point.x >= std::get<1>(bVec).x) << 1) | (point.y >= std::get<1>(bVec).y);
+        return (static_cast<u8>(point.x >= std::get<1>(bVec).x) << 1) | static_cast<u8>(point.y >= std::get<1>(bVec).y);
     }
 
     // ------------------------------------------------------
@@ -89,9 +89,9 @@ namespace Quadtree {
         const auto &[scale, point] = bVec;
 
         return {
-                scale / 2.0f,
-                point + glm::vec2((scale / 4.0f) * static_cast<f32>(indexToPrefix[index][0]),
-                                  (scale / 4.0f) * static_cast<f32>(indexToPrefix[index][1]))
+                scale / 2.0F,
+                point + glm::vec2((scale / 4.0F) * static_cast<f32>(indexToPrefix[index][0]),
+                                  (scale / 4.0F) * static_cast<f32>(indexToPrefix[index][1]))
         };
     }
 
@@ -104,8 +104,9 @@ namespace Quadtree {
 
     Quadtree::Quadtree() noexcept
         : children{nullptr}
-        , faces{0}
-        , segments{0} {}
+        , faces{0U}
+        , segments{0U}
+    {}
 
     Quadtree::~Quadtree() {
         if (!this->children) {
@@ -126,19 +127,17 @@ namespace Quadtree {
                                const std::pair<uint16_t, glm::vec2> &bVec,
                                Handler *handler) -> void {
         if (std::get<0>(bVec) <= CHUNK_SIZE) {
-            this->children = (void*) new Chunk::Chunk{point, handler};
+            this->children = new Chunk::Chunk{point, handler};
         }
         else {
             u8 index = selectChild(point, bVec);
             std::pair nVec = buildBbox(index, bVec);
 
             if (!this->segments)
-                this->children = (void *) new Quadtree[4];
+                this->children = new Quadtree[4U];
 
-            if (!(this->segments & indexToSegment[index])) {
-                ((Quadtree *) this->children)[index] = Quadtree{};
+            if (!(this->segments & indexToSegment[index]))
                 this->segments |= indexToSegment[index];
-            }
 
             ((Quadtree *) this->children)[index].insertChunk(point, nVec, handler);
         }
@@ -172,10 +171,9 @@ namespace Quadtree {
             std::pair nVec     = buildBbox(index, bVec);
 
             if (!this->segments)
-                this->children = (void *) new Quadtree[4];
+                this->children = (void *) new Quadtree[4U];
 
             if (!(this->segments & indexToSegment[index])) {
-                ((Quadtree *) this->children)[index] = Quadtree{};
                 this->segments |= indexToSegment[index];
             }
 
@@ -230,7 +228,7 @@ namespace Quadtree {
             ((Chunk::Chunk *) this->children)->cull(camera, renderer);
         }
         else {
-            for (uint8_t i = 0; i < 4; ++i) {
+            for (u8 i = 0U; i < 4U; ++i) {
                 if (this->segments & indexToSegment[i]) {
                     std::pair nVec = buildBbox(i, bVec);
                     ((Quadtree *) this->children)[i].cull(camera, nVec, renderer);

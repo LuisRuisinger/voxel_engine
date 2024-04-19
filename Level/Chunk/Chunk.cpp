@@ -26,9 +26,9 @@ namespace Chunk {
     {}
 
     auto ChunkSegment::operator=(ChunkSegment &&other) noexcept -> ChunkSegment & {
-        this->position  = other.position;
-        this->modified  = other.modified;
-        this->segment   = std::move(other.segment);
+        this->position = other.position;
+        this->modified = other.modified;
+        this->segment  = std::move(other.segment);
 
         other.modified = false;
 
@@ -52,6 +52,7 @@ namespace Chunk {
     }
 
     auto Chunk::insert(const vec3f point, const BoundingVolume bVol) -> void {
+        /*
         this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].segment->addPoint(
                 point, bVol, Quadtree::Base {
                     this->handler,
@@ -60,6 +61,7 @@ namespace Chunk {
                 });
 
         this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].modified = true;
+         */
     }
 
     auto Chunk::remove(vec3f point) -> void {
@@ -90,13 +92,13 @@ namespace Chunk {
                             Quadtree::Base {
                                     this->handler,
                                     this,
-                                    this->chunksegments[4].position
+                                    this->chunksegments[4U].position
                             });
                 }
             }
         }
 
-        this->chunksegments[4].segment->recombine();
+        this->chunksegments[4U].segment->recombine();
     }
 
     auto Chunk::find(const vec3f point) -> std::optional<ChunkSegment *> {
@@ -109,7 +111,7 @@ namespace Chunk {
 
     auto Chunk::update() -> u8 {
         u8 mask = 0;
-        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
+        for (u8 i = 0U; i < CHUNK_SEGMENTS; ++i)
             mask |= this->chunksegments[i].segment->updateFaceMask();
 
         return mask;

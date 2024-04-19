@@ -96,8 +96,8 @@ namespace Octree {
     // helper functions
 
     static const u8 indexToSegment[8] = {
-            0b10000000, 0b00001000, 0b00010000, 0b00000001,
-            0b01000000, 0b00000100, 0b00100000, 0b00000010
+            0b10000000U, 0b00001000U, 0b00010000U, 0b00000001U,
+            0b01000000U, 0b00000100U, 0b00100000U, 0b00000010U
     };
 
     // -----------------------------------------------
@@ -123,10 +123,10 @@ namespace Octree {
         const auto &[scale, point] = bVec;
 
         return {
-                scale / 2.0f,
-                point + glm::vec3((scale / 4.0f) * static_cast<f32>(indexToPrefix[index][0]),
-                                  (scale / 4.0f) * static_cast<f32>(indexToPrefix[index][1]),
-                                  (scale / 4.0f) * static_cast<f32>(indexToPrefix[index][2]))
+                scale / 2.0F,
+                point + glm::vec3((scale / 4.0F) * static_cast<f32>(indexToPrefix[index][0]),
+                                  (scale / 4.0F) * static_cast<f32>(indexToPrefix[index][1]),
+                                  (scale / 4.0F) * static_cast<f32>(indexToPrefix[index][2]))
         };
     }
 
@@ -158,7 +158,7 @@ namespace Octree {
             std::free(this->nodes);
         }
         else {
-            delete this->bVol;
+            delete static_cast<BoundingVolume *>(this->bVol);
         }
     }
 
@@ -176,9 +176,9 @@ namespace Octree {
             return segment.value()->segment->find(NEIGHBOR_CHUNK_SEGMENT_COORD(point), ref);
         }
 
-        if ((point.x < 0 || point.x > CHUNK_SIZE) ||
-            (point.y < 0 || point.y > CHUNK_SIZE) ||
-            (point.z < 0 || point.z > CHUNK_SIZE)) {
+        if ((point.x < 0.0F || point.x > CHUNK_SIZE) ||
+            (point.y < 0.0F || point.y > CHUNK_SIZE) ||
+            (point.z < 0.0F || point.z > CHUNK_SIZE)) {
 
             if (glm::distance(NEIGHBOR_CHUNK(ref.chunkSegPos, point), ref.handler->getPosition())
             >= RENDER_RADIUS * CHUNK_SIZE)
