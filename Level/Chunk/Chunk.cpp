@@ -43,7 +43,7 @@ namespace Chunk {
         , position{point}
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
-            this->chunksegments.push_back(ChunkSegment {
+            this->chunksegments.emplace_back(ChunkSegment {
                 CHUNK_POS_3D(this->position) + vec3f {0, i - 4, 0}
             });
 
@@ -51,17 +51,17 @@ namespace Chunk {
     }
 
     auto Chunk::insert(const vec3f point, const BoundingVolume bVol, Platform::Platform *platform) -> void {
-        auto *voxel = this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].segment->addPoint(CHUNK_SEGMENT_YNORMALIZE(point), bVol);
+        auto *node = this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].segment->addPoint(CHUNK_SEGMENT_YNORMALIZE(point), bVol);
 
         // -----------------
         // occlusion culling
 
-        updateOcclusion(voxel, find(point - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-        updateOcclusion(voxel, find(point + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-        updateOcclusion(voxel, find(point - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-        updateOcclusion(voxel, find(point + vec3f {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-        updateOcclusion(voxel, find(point - vec3f {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-        updateOcclusion(voxel, find(point + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+        updateOcclusion(node, find(point - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
+        updateOcclusion(node, find(point + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
+        updateOcclusion(node, find(point - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
+        updateOcclusion(node, find(point + vec3f {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
+        updateOcclusion(node, find(point - vec3f {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
+        updateOcclusion(node, find(point + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
 
         // ---------------------------------------------------------------
         // the recombination should happen at the last stage of generation
@@ -71,8 +71,8 @@ namespace Chunk {
     }
 
     inline
-    auto Chunk::updateOcclusion(BoundingVolume *current,
-                                std::pair<BoundingVolume *, ChunkData> pair, u16 cBit, u16 nBit) -> void {
+    auto Chunk::updateOcclusion(Octree::Octree<BoundingVolume> *current,
+                                std::pair<Octree::Octree<BoundingVolume> *, ChunkData> pair, u16 cBit, u16 nBit) -> void {
         auto &[neighbor, type] = pair;
 
         switch (type) {
@@ -80,12 +80,14 @@ namespace Chunk {
                 break;
 
             case NODATA:
-                current->voxelID &= ~cBit;
+                current->bVol->_voxelID &= ~cBit;
                 break;
 
             case DATA:
-                neighbor->voxelID &= (neighbor->scale <= current->scale) ? ~nBit : neighbor->voxelID;
-                current->voxelID  &= (current->scale <= neighbor->scale) ? ~cBit : current->voxelID;
+                neighbor->bVol->_voxelID &= (std::get<0>(neighbor->bVbec) <= std::get<0>(current->bVbec))
+                        ? ~nBit : neighbor->bVol->_voxelID;
+                current->bVol->_voxelID  &= (std::get<0>(current->bVbec) <= std::get<0>(neighbor->bVbec))
+                        ? ~cBit : current->bVol->_voxelID;
                 break;
 
             default:
@@ -93,7 +95,8 @@ namespace Chunk {
         }
     }
 
-    auto Chunk::find(vec3f point, Platform::Platform *platform) -> std::pair<BoundingVolume *, ChunkData> {
+    auto Chunk::find(vec3f point,
+                     Platform::Platform *platform) -> std::pair<Octree::Octree<BoundingVolume> *, ChunkData> {
         if ((point.x < 0.0F || point.x > CHUNK_SIZE) ||
             (point.z < 0.0F || point.z > CHUNK_SIZE)) {
 
@@ -113,7 +116,7 @@ namespace Chunk {
     }
 
     auto Chunk::cull(const Camera::Camera &camera, const Platform::Platform &platform) const -> void {
-        if (!camera.inFrustum(this->position + platform.getBase(), CHUNK_SIZE))
+        if (!camera.inFrustum(this->position * vec2f {CHUNK_SIZE} + platform.getBase(), CHUNK_SIZE))
             return;
 
         auto globalBase = vec3f {platform.getBase().x, 0, platform.getBase().y};
@@ -130,20 +133,18 @@ namespace Chunk {
     }
 
     auto Chunk::generate(Platform::Platform *platform) -> void {
-        auto baseOffset = vec3f {0.5F};
-
         auto fun = [this](const vec3f point, const BoundingVolume bVol, Platform::Platform *platform) -> void {
-            auto *voxel = this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].segment->addPoint(CHUNK_SEGMENT_YNORMALIZE(point), bVol);
+            auto *node = this->chunksegments[CHUNK_SEGMENT_YDIFF(point)].segment->addPoint(CHUNK_SEGMENT_YNORMALIZE(point), bVol);
 
             // -----------------
             // occlusion culling
 
-            updateOcclusion(voxel, find(point - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-            updateOcclusion(voxel, find(point + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-            updateOcclusion(voxel, find(point - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-            updateOcclusion(voxel, find(point + vec3f {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-            updateOcclusion(voxel, find(point - vec3f {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-            updateOcclusion(voxel, find(point + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+            updateOcclusion(node, find(point - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
+            updateOcclusion(node, find(point + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
+            updateOcclusion(node, find(point - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
+            updateOcclusion(node, find(point + vec3f {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
+            updateOcclusion(node, find(point - vec3f {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
+            updateOcclusion(node, find(point + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
         };
 
         // ----------
@@ -153,7 +154,7 @@ namespace Chunk {
             for (u8 y = 0; y < 4; ++y) {
                 for (u8 z = 0; z < CHUNK_SIZE; ++z) {
                     auto point = vec3f {x, y, z};
-                    fun(baseOffset + point, BoundingVolume {0, BASE_SIZE, baseOffset + point}, platform);
+                    fun(point, BoundingVolume {0}, platform);
                 }
             }
         }

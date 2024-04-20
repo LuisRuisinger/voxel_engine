@@ -32,6 +32,10 @@ namespace Octree {
         DATA, NODATA
     };
 
+    //
+    //
+    //
+
     template<typename T>
     struct Args {
         const vec3f              &point;
@@ -39,31 +43,36 @@ namespace Octree {
         const Renderer::Renderer &renderer;
     };
 
+    //
+    //
+    //
+
     template <typename T>
     concept derivedFromBoundingVolume = requires(T t) {
         std::is_base_of<BoundingVolume, T>::value;
     };
 
+    //
+    //
+    //
+
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    class Octree {
-    public:
+    struct Octree {
         Octree();
         ~Octree() noexcept;
 
-        auto insert(vec3f, T t, std::pair<f32, vec3f> bVec) -> T *;
+        auto insert(vec3f, T t, std::pair<f32, vec3f> bVec) -> Octree<T> *;
 
         auto removePoint(glm::vec3, std::pair<f32, glm::vec3>) -> void;
 
         auto cull(const Args<T> &) const -> void;
 
-        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<T *>;
+        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<Octree<T> *>;
 
         auto updateFaceMask(const std::pair<f32, vec3f>&) -> u8;
 
         auto recombine(std::stack<Octree *> &stack) -> void;
-
-    private:
 
         // ----------------------------------------------
         // either points to a bounding box or child nodes
@@ -82,8 +91,12 @@ namespace Octree {
         u8 segments;
         u8 faces;
 
-        std::pair<f32, vec3f> bVbec;
+        std::pair<u32, vec3f> bVbec;
     };
+
+    //
+    //
+    //
 
     template<typename T> requires derivedFromBoundingVolume<T>
     class Handler {
@@ -91,10 +104,10 @@ namespace Octree {
         explicit Handler(vec3f);
         ~Handler() = default;
 
-        auto addPoint(vec3f point, T t) -> T *;
+        auto addPoint(vec3f point, T t) -> Octree<T> *;
         auto removePoint(vec3f point) -> void;
         auto cull(const vec3f &, const Camera::Camera &, const Renderer::Renderer&) const -> void;
-        auto find(const vec3f &) -> std::optional<T *>;
+        auto find(const vec3f &) -> std::optional<Octree<T> *>;
         auto updateFaceMask() -> u8;
         auto recombine() -> void;
 

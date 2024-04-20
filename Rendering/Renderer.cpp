@@ -119,11 +119,11 @@ namespace Renderer {
         glEnableVertexAttribArray(0);
     }
 
-    auto Renderer::addVoxel(const BoundingVolume *bVol) const -> void {
-        const auto &mesh = structures[bVol->voxelID & UINT8_MAX].structure();
+    auto Renderer::addVoxel(const BoundingVolumeVoxel *voxel) const -> void {
+        const auto &mesh = structures[voxel->_voxelID & UINT8_MAX].structure();
 
         for (u8 i = 0; i < 6; ++i) {
-            if (bVol->voxelID & (1 << (i + 10))) {
+            if (voxel->_voxelID & (1 << (i + 10))) {
                 const auto &currentMesh = mesh[i];
                 const auto &verts = currentMesh.vertices;
 
@@ -131,7 +131,7 @@ namespace Renderer {
 
                 for (const auto &vert : verts) {
                     this->vertices->push_back({
-                        .pos = bVol->position + vert.position * ((f32) bVol->scale),
+                        .pos = voxel->_position + vert.position * ((f32) voxel->_scale),
                     });
                 }
             }
@@ -141,8 +141,6 @@ namespace Renderer {
     auto Renderer::updateBuffer() -> void {
         if (this->vertices->empty())
             return;
-
-        std::cout << this->vertices->size() << std::endl;
 
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         void *bufferData =

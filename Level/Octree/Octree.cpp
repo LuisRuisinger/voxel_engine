@@ -34,9 +34,9 @@ _np.z,                                      \
 #define SET_BIT_INDEX(_v)                          ((__builtin_ffs(_v)) - 1)
 #define CHECK_BIT(_v, _p)                          ((_v) & (1 << (_p)))
 #define EXTRACT_ID(_v)                             ((_v) & 0x3FF)
-#define SOME_BIT_DIFFERS(_i1, _i2, _i3, _i4, _bit) ((cur->nodes[(_i1)].bVol->voxelID ^ cur->nodes[(_i2)].bVol->voxelID) & (_bit) || \
-                                                    (cur->nodes[(_i1)].bVol->voxelID ^ cur->nodes[(_i3)].bVol->voxelID) & (_bit) || \
-                                                    (cur->nodes[(_i1)].bVol->voxelID ^ cur->nodes[(_i4)].bVol->voxelID) & (_bit))
+#define SOME_BIT_DIFFERS(_i1, _i2, _i3, _i4, _bit) ((cur->nodes[(_i1)].bVol->_voxelID ^ cur->nodes[(_i2)].bVol->_voxelID) & (_bit) || \
+                                                    (cur->nodes[(_i1)].bVol->_voxelID ^ cur->nodes[(_i3)].bVol->_voxelID) & (_bit) || \
+                                                    (cur->nodes[(_i1)].bVol->_voxelID ^ cur->nodes[(_i4)].bVol->_voxelID) & (_bit))
 
 namespace Octree {
 
@@ -54,7 +54,7 @@ namespace Octree {
         , octree{std::make_unique<Octree<T>>()} {}
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    auto Handler<T>::addPoint(vec3f point, T t) -> T * {
+    auto Handler<T>::addPoint(vec3f point, T t) -> Octree<T> * {
         return this->octree->insert(point, t, this->bVec);
     }
 
@@ -72,7 +72,7 @@ namespace Octree {
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    auto Handler<T>::find(const vec3f &point) -> std::optional<T *> {
+    auto Handler<T>::find(const vec3f &point) -> std::optional<Octree<T> *> {
         return this->octree->find(point, this->bVec);
     }
 
@@ -163,19 +163,20 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     auto Octree<T>::find(vec3f point,
-                         std::pair<f32, vec3f> bVec) const -> std::optional<T *> {
+                         std::pair<f32, vec3f> bVec) const -> std::optional<Octree<T> *> {
         auto *cur = (Octree<T> *) this;
 
         while (true) {
             if (!cur->nodes)
                 return std::nullopt;
 
-            // ------------------------------------------
-            // spherical approximation of bounding volume
+            // -------------------------------------------------------------------------------------
+            // i think i should be able to remove the approximation and just work via node traversal
 
-            if (!cur->segments &&
-                glm::distance(point, cur->bVol->position) <= (f32) (cur->bVol->scale >> 1) * sqrt(2.0))
-                return std::make_optional(cur->bVol);
+            auto &[scale, position] = cur->bVbec;
+
+            if (!cur->segments)
+                return std::make_optional(cur);
 
             auto index = selectChild(point, bVec);
             if (!(cur->segments & indexToSegment[index]))
@@ -187,35 +188,17 @@ namespace Octree {
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    static inline
-    auto updateOcclusion(BoundingVolume *current, std::optional<std::pair<T *, ChunkData>> neighbor,
-                         u16 currentbit, u16 neighborBit) -> void {
-        if (!neighbor.has_value())
-            return;
-
-        if (neighbor.value().first) {
-            if (neighbor.value().first->scale <= current->scale)
-                neighbor.value().first->voxelID &= ~neighborBit;
-
-            if (neighbor.value().first->scale >= current->scale)
-                current->voxelID &= ~currentbit;
-        }
-        else if (neighbor.value().second == NODATA)
-            current->voxelID &= ~currentbit;
-    }
-
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::insert(vec3f point, T t, std::pair<f32, vec3f> bVec) -> T * {
+    auto Octree<T>::insert(vec3f point, T t, std::pair<f32, vec3f> bVec) -> Octree<T> * {
         Octree *cur = this;
 
         while (true) {
             auto& [scale, position] = bVec;
 
             if (scale == BASE_SIZE) {
-                cur->bVol = new BoundingVolume {std::move(t)};
-                cur->bVol->voxelID |= 0x3F << 10;
+                cur->bVol = new BoundingVolume {t};
+                cur->bVol->_voxelID |= 0x3F << 10;
 
-                return cur->bVol;
+                return cur;
             }
             else {
                 const u8 index   = selectChild(point, bVec);
@@ -247,7 +230,7 @@ namespace Octree {
             return 0;
 
         if (!this->segments) {
-            this->faces = EXTR_FACES(this->bVol->voxelID);
+            this->faces = EXTR_FACES(this->bVol->_voxelID);
         }
         else {
             for (u8 i = 0; i < 8; ++i) {
@@ -265,29 +248,6 @@ namespace Octree {
     auto Octree<T>::recombine(std::stack<Octree *> &stack) -> void {
         if (!this->segments)
             return;
-
-        /*
-        if (ONE_BIT_SET_ONLY(this->segments)) {
-            u8 segment = SET_BIT_INDEX(this->segments);
-            u8 idx = 0;
-
-            for (u8 i = 0; i < 8; ++i)
-                if (indexToSegment[i] & segment) {
-                    idx = i;
-                    break;
-                }
-
-            this->segments = this->nodes[idx].segments;
-            this->bVbec    = this->nodes[idx].bVbec;
-
-            Octree<T> *tmp = this->nodes;
-            this->nodes = this->nodes[idx].nodes;
-
-            this->nodes[idx].nodes = nullptr;
-            tmp[idx].~Octree<T>();
-            std::free(tmp);
-        }
-         */
 
         stack.push(this);
 
@@ -309,14 +269,13 @@ namespace Octree {
             u16 voxelID = 0;
             for (u8 i = 0; i < 8; ++i) {
                 if ((cur->nodes[i].segments) ||
-                    (EXTRACT_ID(cur->nodes[i].bVol->voxelID) != EXTRACT_ID(cur->nodes[0].bVol->voxelID)) ||
-                    (cur->nodes[i].bVol->scale != cur->nodes[0].bVol->scale))
+                    (EXTRACT_ID(cur->nodes[i].bVol->_voxelID) != EXTRACT_ID(cur->nodes[0].bVol->_voxelID)))
                     return;
 
                 // -----------------------------
                 // determine which faces to cull
 
-                voxelID |= cur->nodes[i].bVol->voxelID;
+                voxelID |= cur->nodes[i].bVol->_voxelID;
             }
 
             if (SOME_BIT_DIFFERS(2, 3, 6, 7, TOP_BIT)   || SOME_BIT_DIFFERS(0, 2, 4, 6, BACK_BIT) ||
@@ -324,23 +283,13 @@ namespace Octree {
                 SOME_BIT_DIFFERS(4, 5, 6, 7, RIGHT_BIT) || SOME_BIT_DIFFERS(0, 1, 4, 5, BOTTOM_BIT))
                 return;
 
-            u8 scale = cur->nodes[0].bVol->scale;
-
-            vec3f &posMin = cur->nodes[0].bVol->position;
-            vec3f &posMax = cur->nodes[7].bVol->position;
-            vec3f  newPos = posMin + glm::abs(posMax - posMin) * 0.5f;
-
             for (u8 i = 0; i < 8; ++i)
                 delete cur->nodes[i].bVol;
 
             std::free(cur->nodes);
 
             cur->segments = 0;
-            cur->bVol = new BoundingVolume {
-                .voxelID  = voxelID,
-                .scale    = (u8) (scale * 2),
-                .position = newPos
-            };
+            cur->bVol = new BoundingVolume {voxelID};
 
             stack.pop();
         }
@@ -363,15 +312,23 @@ namespace Octree {
             }
         }
         else {
-            this->bVol->position += args.point;
-
-            u16 tmpVoxelID  = this->bVol->voxelID;
-            this->bVol->voxelID &= (args.camera.getCameraMask() << 10) ^ UINT8_MAX;
+            /*
+            u16 tmpVoxelID = this->bVol->_voxelID;
+            this->bVol->_voxelID &= (args.camera.getCameraMask() << 10) ^ UINT8_MAX;
 
             args.renderer.addVoxel(this->bVol);
 
-            this->bVol->position -= args.point;
-            this->bVol->voxelID = tmpVoxelID;
+            this->bVol->_voxelID = tmpVoxelID;
+             */
+
+            auto voxel = BoundingVolumeVoxel {
+                static_cast<u16>(this->bVol->_voxelID & ((args.camera.getCameraMask() << 10) ^ UINT8_MAX)),
+                std::get<1>(this->bVbec),
+                std::get<0>(this->bVbec)
+            };
+
+            args.renderer.addVoxel(&voxel);
+
         }
     }
 

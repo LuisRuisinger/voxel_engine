@@ -60,7 +60,7 @@ namespace Renderer {
         auto initShaders() -> void;
         auto initPipeline() -> void;
 
-        auto addVoxel(const BoundingVolume *) const -> void;
+        auto addVoxel(const BoundingVolumeVoxel *) const -> void;
         auto updateBuffer() -> void;
         auto updateProjectionMatrix() -> void;
         auto updateGlobalBase(vec2f) -> void;

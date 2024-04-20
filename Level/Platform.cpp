@@ -47,7 +47,7 @@ namespace Platform {
 
         std::ranges::for_each(
                 _loadedChunks | std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); }),
-                [](const auto &ptr) -> void { (void) ptr->update(); });
+                [](const auto &ptr) -> void { ptr->update(); });
     }
 
     auto Platform::tick(Camera::Camera &camera) -> void {
@@ -59,17 +59,18 @@ namespace Platform {
 
         const auto &cameraPos = camera.getCameraPosition();
 
-        auto nearestChunkX = static_cast<i32>(cameraPos.x) / CHUNK_SIZE * CHUNK_SIZE;
-        auto nearestChunkZ = static_cast<i32>(cameraPos.z) / CHUNK_SIZE * CHUNK_SIZE;
+        i32 nearestChunkX = static_cast<i32>(static_cast<i32>(cameraPos.x) / CHUNK_SIZE) * CHUNK_SIZE;
+        i32 nearestChunkZ = static_cast<i32>(static_cast<i32>(cameraPos.z) / CHUNK_SIZE) * CHUNK_SIZE;
 
-        nearestChunkX += (cameraPos.x - nearestChunkX > CHUNK_SIZE / 2) ? CHUNK_SIZE : 0;
-        nearestChunkZ += (cameraPos.z - nearestChunkZ > CHUNK_SIZE / 2) ? CHUNK_SIZE : 0;
+        const auto newRoot = glm::vec2 {
+                (abs(nearestChunkX - static_cast<i32>(this->_currentRoot.x)) > CHUNK_SIZE)
+                ? nearestChunkX : this->_currentRoot.x,
+                (abs(nearestChunkZ - static_cast<i32>(this->_currentRoot.y)) > CHUNK_SIZE)
+                ? nearestChunkZ : this->_currentRoot.y
+        };
 
-        const auto newRoot = glm::vec2 {nearestChunkX, nearestChunkZ};
-
-        // ---------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------
         // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
-
 
         if (calculateDistance2D(this->_currentRoot, newRoot) > CHUNK_SIZE) {
 
@@ -95,7 +96,7 @@ namespace Platform {
 
             std::ranges::for_each(
                     filtered,
-                    [](const auto &ptr) -> void { (void) ptr->update(); });
+                    [](const auto &ptr) -> void { ptr->update(); });
         }
 
         this->_renderer.updateGlobalBase(this->_currentRoot);
@@ -107,7 +108,7 @@ namespace Platform {
     }
 
     auto Platform::insert(vec3f point, u16 voxelID) -> void {
-        //this->loadedChunks->insert(point, voxelID);
+        //this->loadedChunks->insert(point, _voxelID);
     }
 
     auto Platform::remove(vec3f point) -> void {

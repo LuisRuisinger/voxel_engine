@@ -43,8 +43,12 @@ namespace Chunk {
     public:
         explicit ChunkSegment(vec3f);
         ~ChunkSegment() = default;
+
         ChunkSegment(ChunkSegment &&) noexcept;
+        ChunkSegment(ChunkSegment &) = delete;
+
         auto operator=(ChunkSegment &&) noexcept -> ChunkSegment &;
+        auto operator=(ChunkSegment &) -> ChunkSegment & = delete;
 
     private:
         vec3f position;
@@ -66,8 +70,8 @@ namespace Chunk {
         auto cull  (const Camera::Camera &, const Platform::Platform &) const -> void;
         auto generate(Platform::Platform *platform) -> void;
         auto update() -> void;
-        auto find(vec3f, Platform::Platform *platform) -> std::pair<BoundingVolume *, ChunkData>;
-        auto updateOcclusion(BoundingVolume *, std::pair<BoundingVolume *, ChunkData>, u16, u16) -> void;
+        auto find(vec3f, Platform::Platform *platform) -> std::pair<Octree::Octree<BoundingVolume> *, ChunkData>;
+        auto updateOcclusion(Octree::Octree<BoundingVolume> *, std::pair<Octree::Octree<BoundingVolume> *, ChunkData>, u16, u16) -> void;
 
         [[nodiscard]] auto getPostion() const -> vec2f;
 
