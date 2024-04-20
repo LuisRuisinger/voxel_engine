@@ -24,7 +24,7 @@
 #define BASE_SIZE 1
 #define ZERO_FACES(x) (x & ~(0b111111 << 10))
 #define EXTR_FACES(x) ((x >> 10) & 0b111111)
-#define RENDER_RADIUS 7
+#define RENDER_RADIUS 3
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
 
 namespace Octree {

@@ -153,6 +153,17 @@ namespace Chunk {
         for (u8 x = 0; x < CHUNK_SIZE; ++x) {
             for (u8 y = 0; y < 4; ++y) {
                 for (u8 z = 0; z < CHUNK_SIZE; ++z) {
+
+                    auto point = vec3f {x, y, z};
+                    fun(point, BoundingVolume {0}, platform);
+                }
+            }
+        }
+
+        for (u8 x = 0; x < CHUNK_SIZE; ++x) {
+            for (u8 y = 5; y < 6; ++y) {
+                for (u8 z = 0; z < CHUNK_SIZE; ++z) {
+
                     auto point = vec3f {x, y, z};
                     fun(point, BoundingVolume {0}, platform);
                 }

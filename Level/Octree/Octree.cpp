@@ -141,7 +141,8 @@ namespace Octree {
     Octree<T>::Octree()
         : segments{0}
         , faces{0}
-        , nodes{nullptr} {}
+        , nodes{nullptr}
+    {}
 
     template<typename T> requires derivedFromBoundingVolume<T>
     Octree<T>::~Octree() noexcept {
@@ -171,12 +172,13 @@ namespace Octree {
                 return std::nullopt;
 
             // -------------------------------------------------------------------------------------
-            // i think i should be able to remove the approximation and just work via node traversal
+            // spherical approximation of the point
 
             auto &[scale, position] = cur->bVbec;
 
             if (!cur->segments)
-                return std::make_optional(cur);
+                if (glm::distance(point, position) <= static_cast<f32>(scale / 2.0F) * sqrt(2.0))
+                    return std::make_optional(cur);
 
             auto index = selectChild(point, bVec);
             if (!(cur->segments & indexToSegment[index]))
@@ -195,6 +197,7 @@ namespace Octree {
             auto& [scale, position] = bVec;
 
             if (scale == BASE_SIZE) {
+                cur->bVbec = bVec;
                 cur->bVol = new BoundingVolume {t};
                 cur->bVol->_voxelID |= 0x3F << 10;
 
