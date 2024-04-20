@@ -16,29 +16,23 @@
 #define BACK_BIT   (0x1 << 10)
 
 struct BoundingVolume {
-    // ------------------------------------------
+
+    // ---------------------------------------------
+    // the size and scale is known by the owner node
     // 6 highest bit represent occlusion of faces
-    uint16_t  voxelID;
 
-    // ------------------------------------
-    // scale^3 occupied space by the volume
+    u16  _voxelID;
+};
 
-    uint8_t   scale;
+struct BoundingVolumeVoxel : BoundingVolume {
+    vec3f _position;
+    u32   _scale;
 
-    // -------------------------
-    // position inside the chunk
-
-    glm::vec3 position;
-
-    /*
-     *
-     * u8 voxelID
-     * u8 faces
-     * u8 scale
-     * u8 free
-     *
-     * -> positions are being calculated via the adapter
-     */
+    BoundingVolumeVoxel(u16 voxelID, vec3f position, u32 scale)
+        : BoundingVolume{voxelID}
+        , _position{position}
+        , _scale{scale}
+    {}
 };
 
 

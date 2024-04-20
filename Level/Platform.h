@@ -9,27 +9,27 @@
 #include <queue>
 
 #include "../global.h"
-#include "Quadtree/Quadtree.h"
+#include "Chunk/Chunk.h"
 #include "../Rendering/Renderer.h"
 
 namespace Platform {
     class Platform {
     public:
 
-        Platform(Renderer::Renderer &other);
+        Platform(Renderer::Renderer &renderer);
 
         // -------------------------------------
-        // deallocates and write back all chunks
+        // deallocates and write back all _loadedChunks
 
         ~Platform() = default;
 
         // ----------------------------------
-        // loads and allocates initial chunks
+        // loads and allocates initial _loadedChunks
 
         auto init() -> void;
 
         // ---------------------------------------------------------------------------------------------
-        // checks if the position of the camera has reached a certain threshold for rendering new chunks
+        // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
         // extracts visible faces
 
         auto tick(Camera::Camera& camera) -> void;
@@ -44,18 +44,22 @@ namespace Platform {
 
         auto remove(vec3f point) -> void;
 
+        auto getBase() const -> vec2f;
+
+        auto getRenderer() const -> const Renderer::Renderer &;
+
     private:
 
         // -------------------------------
         // information about the root node
 
-        std::unique_ptr<Quadtree::Handler>  loadedChunks;
-        vec2f                               currentRoot;
+        std::array<std::unique_ptr<Chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
+        vec2f                               _currentRoot;
 
         // ----------------------
-        // handle to the renderer
+        // handle to the _renderer
 
-        Renderer::Renderer                 &renderer;
+        Renderer::Renderer                 &_renderer;
     };
 }
 

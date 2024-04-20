@@ -18,44 +18,66 @@
 #define CHUNK_SEGMENTS 16
 #define MIN_HEIGHT (-128)
 #define CHUNK_SEGMENT_YOFFS(y) (CHUNK_SIZE * y + MIN_HEIGHT)
+#define CHUNK_SEGMENT_YNORMALIZE(_p) (vec3f {(_p).x, static_cast<f32>((static_cast<i32>((_p).y) % CHUNK_SIZE) + 0.5F), (_p).z})
 #define CHUNK_SEGMENT_YDIFF(p) (((i32) (p.y - MIN_HEIGHT)) / CHUNK_SIZE)
 #define CHUNK_POS_3D(p) (glm::vec3 {p.x, 0, p.y})
 
-namespace Quadtree {
-    class Handler;
-    struct Base;
+namespace Platform{
+    class Platform;
 }
 
 namespace Chunk {
-    struct ChunkSegment {
+    enum ChunkData {
+        EMPTY, NODATA, DATA
+    };
+
+    class Chunk;
+
+    //
+    //
+    //
+
+    class ChunkSegment {
+        friend Chunk;
+
+    public:
         explicit ChunkSegment(vec3f);
         ~ChunkSegment() = default;
-        ChunkSegment(ChunkSegment &&) noexcept;
-        auto operator=(ChunkSegment &&) noexcept -> ChunkSegment &;
 
+        ChunkSegment(ChunkSegment &&) noexcept;
+        ChunkSegment(ChunkSegment &) = delete;
+
+        auto operator=(ChunkSegment &&) noexcept -> ChunkSegment &;
+        auto operator=(ChunkSegment &) -> ChunkSegment & = delete;
+
+    private:
         vec3f position;
         std::unique_ptr<Octree::Handler<BoundingVolume>> segment;
         bool modified;
-        Memorypool<BoundingVolume> memorypool;
     };
+
+    //
+    //
+    //
+
     class Chunk {
     public:
-        Chunk(vec2f, Quadtree::Handler *);
+        Chunk(vec2f, Platform::Platform *);
         ~Chunk() = default;
 
-        auto insert(vec3f, BoundingVolume) -> void;
+        auto insert(vec3f, BoundingVolume, Platform::Platform *platform) -> void;
         auto remove(vec3f) -> void;
-        auto cull  (const Camera::Camera &, const Renderer::Renderer &) const -> void;
-        auto generate() -> void;
-        auto update() -> u8;
-        auto find(vec3f) ->std::optional<ChunkSegment *>;
+        auto cull  (const Camera::Camera &, const Platform::Platform &) const -> void;
+        auto generate(Platform::Platform *platform) -> void;
+        auto update() -> void;
+        auto find(vec3f, Platform::Platform *platform) -> std::pair<Octree::Octree<BoundingVolume> *, ChunkData>;
+        auto updateOcclusion(Octree::Octree<BoundingVolume> *, std::pair<Octree::Octree<BoundingVolume> *, ChunkData>, u16, u16) -> void;
 
         [[nodiscard]] auto getPostion() const -> vec2f;
 
     private:
         std::vector<ChunkSegment>  chunksegments;
         vec2f                      position;
-        Quadtree::Handler         *handler;
     };
 }
 

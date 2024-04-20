@@ -80,18 +80,31 @@ auto Shader::use() -> void {
     glUseProgram(this->ID);
 }
 
-auto Shader::setBool(const std::string &name, bool value) const -> void {
-    glUniform1i(glGetUniformLocation(this->ID, name.c_str()), value);
+auto Shader::registerUniformLocation(std::string name) const -> void {
+    auto location = glGetUniformLocation(this->ID, name.c_str());
+    this->uniformCache[name] = location;
 }
 
-auto Shader::setInt(const std::string &name, i32 value) const -> void {
-    glUniform1i(glGetUniformLocation(this->ID, name.c_str()), value);
+auto Shader::setBool(std::string name, bool value) const -> void {
+    glUniform1i(uniformCache[name], value);
 }
 
-auto Shader::setFloat(const std::string &name, f32 value) const -> void {
-    glUniform1f(glGetUniformLocation(this->ID, name.c_str()), value);
+auto Shader::setInt(std::string name, i32 value) const -> void {
+    glUniform1i(uniformCache[name], value);
 }
 
-auto Shader::set_vec3(const std::string &name, f32 x, f32 y, f32 z) const -> void {
-    glUniform3f(glGetUniformLocation(this->ID, name.c_str()), x, y, z);
+auto Shader::setFloat(std::string name, f32 value) const -> void {
+    glUniform1f(uniformCache[name], value);
+}
+
+auto Shader::setVec2(std::string name, vec2f vec) const -> void {
+    glUniform2f(uniformCache[name], vec.x, vec.y);
+}
+
+auto Shader::setVec3(std::string name, vec3f vec) const -> void {
+    glUniform3f(uniformCache[name], vec.x, vec.y, vec.z);
+}
+
+auto Shader::setMat4(std::string name, glm::mat4 &mat) -> void {
+    glUniformMatrix4fv(uniformCache[name], 1, GL_FALSE, glm::value_ptr(mat));
 }

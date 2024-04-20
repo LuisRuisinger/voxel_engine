@@ -30,13 +30,12 @@ add_executable(
         Level/Chunk/Chunk.cpp
         Level/Model/Model.cpp
         Level/Model/Types/Voxel.cpp
-        Level/Quadtree/Quadtree.cpp
         Rendering/Renderer.cpp
         Rendering/Culling.cpp
         Level/Octree/GreedyMeshing.cpp
         Level/Octree/Memorypool.cpp
         Level/Octree/Memorypool.h
-        shaders/globalstate.h
+        globalstate.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)
