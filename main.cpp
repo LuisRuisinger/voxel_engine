@@ -33,7 +33,7 @@ auto main() -> i32 {
 
         globalState.platform->tick(*globalState.camera);
         globalState.renderer->updateBuffer();
-        globalState.renderer->draw({0, 0, 0}, 0);
+        globalState.renderer->draw(0);
 
         glfwSwapBuffers(globalState.window);
         glfwPollEvents();

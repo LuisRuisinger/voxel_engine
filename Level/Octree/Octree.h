@@ -24,10 +24,8 @@
 #define BASE_SIZE 1
 #define ZERO_FACES(x) (x & ~(0b111111 << 10))
 #define EXTR_FACES(x) ((x >> 10) & 0b111111)
-
-namespace Quadtree {
-    struct Base;
-}
+#define RENDER_RADIUS 7
+#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
 
 namespace Octree {
     enum ChunkData {
@@ -53,13 +51,13 @@ namespace Octree {
         Octree();
         ~Octree() noexcept;
 
-        auto insert(vec3f, T t, std::pair<f32, vec3f> bVec, Quadtree::Base &ref) -> void;
+        auto insert(vec3f, T t, std::pair<f32, vec3f> bVec) -> T *;
 
         auto removePoint(glm::vec3, std::pair<f32, glm::vec3>) -> void;
 
         auto cull(const Args<T> &) const -> void;
 
-        auto find(vec3f, std::pair<f32, vec3f>, Quadtree::Base &) const -> std::optional<std::pair<T *, ChunkData>>;
+        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<T *>;
 
         auto updateFaceMask(const std::pair<f32, vec3f>&) -> u8;
 
@@ -93,10 +91,10 @@ namespace Octree {
         explicit Handler(vec3f);
         ~Handler() = default;
 
-        auto addPoint(vec3f point, T t, Quadtree::Base ref) -> void;
+        auto addPoint(vec3f point, T t) -> T *;
         auto removePoint(vec3f point) -> void;
         auto cull(const vec3f &, const Camera::Camera &, const Renderer::Renderer&) const -> void;
-        auto find(const vec3f &, Quadtree::Base &) -> std::optional<std::pair<T *, ChunkData>>;
+        auto find(const vec3f &) -> std::optional<T *>;
         auto updateFaceMask() -> u8;
         auto recombine() -> void;
 

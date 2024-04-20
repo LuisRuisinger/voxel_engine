@@ -6,7 +6,6 @@
 
 #include "Octree.h"
 #include "../Chunk/Chunk.h"
-#include "../Quadtree/Quadtree.h"
 
 #define NEIGHBOR_CHUNK(_cp, _op) { \
     _cp.x + (_op.x < 0 ? -CHUNK_SIZE : (_op.x > CHUNK_SIZE ? CHUNK_SIZE : 0)), \
@@ -55,8 +54,8 @@ namespace Octree {
         , octree{std::make_unique<Octree<T>>()} {}
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    auto Handler<T>::addPoint(vec3f point, T t, Quadtree::Base ref) -> void {
-        this->octree->insert(point, t, this->bVec, ref);
+    auto Handler<T>::addPoint(vec3f point, T t) -> T * {
+        return this->octree->insert(point, t, this->bVec);
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
@@ -73,8 +72,8 @@ namespace Octree {
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    auto Handler<T>::find(const vec3f &point, Quadtree::Base &ref) -> std::optional<std::pair<T *, ChunkData>> {
-        return this->octree->find(point, this->bVec, ref);
+    auto Handler<T>::find(const vec3f &point) -> std::optional<T *> {
+        return this->octree->find(point, this->bVec);
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
@@ -146,7 +145,7 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     Octree<T>::~Octree() noexcept {
-        if (this->nodes)
+        if (!this->nodes)
             return;
 
         if (this->segments) {
@@ -164,49 +163,23 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     auto Octree<T>::find(vec3f point,
-                         std::pair<f32, vec3f> bVec,
-                         Quadtree::Base &ref) const -> std::optional<std::pair<T *, ChunkData>> {
-        if (point.y < 0 || point.y > CHUNK_SIZE &&
-            !((point.x < 0 || point.x > CHUNK_SIZE) || (point.z < 0 || point.z > CHUNK_SIZE))) {
-
-            auto segment = ref.chunk->find(NEIGHBOR_SEGMENT(ref.chunkSegPos, point));
-            if (!segment.has_value())
-                return std::make_optional(std::pair {nullptr, NODATA});
-
-            return segment.value()->segment->find(NEIGHBOR_CHUNK_SEGMENT_COORD(point), ref);
-        }
-
-        if ((point.x < 0.0F || point.x > CHUNK_SIZE) ||
-            (point.y < 0.0F || point.y > CHUNK_SIZE) ||
-            (point.z < 0.0F || point.z > CHUNK_SIZE)) {
-
-            if (glm::distance(NEIGHBOR_CHUNK(ref.chunkSegPos, point), ref.handler->getPosition())
-            >= RENDER_RADIUS * CHUNK_SIZE)
-                return std::make_optional(std::pair {nullptr, NODATA});
-
-            auto chunk = ref.handler->find(NEIGHBOR_CHUNK(ref.chunkSegPos, point));
-            if (!chunk.has_value())
-                return std::make_optional(std::pair {nullptr, NODATA});
-
-            auto segment = chunk.value()->find(NEIGHBOR_SEGMENT(ref.chunkSegPos, point));
-            return segment.value()->segment->find(NEIGHBOR_CHUNK_COORD(point), ref);
-        }
-
+                         std::pair<f32, vec3f> bVec) const -> std::optional<T *> {
         auto *cur = (Octree<T> *) this;
+
         while (true) {
             if (!cur->nodes)
-                return {};
+                return std::nullopt;
 
             // ------------------------------------------
             // spherical approximation of bounding volume
 
             if (!cur->segments &&
                 glm::distance(point, cur->bVol->position) <= (f32) (cur->bVol->scale >> 1) * sqrt(2.0))
-                return std::make_optional(std::pair {cur->bVol, DATA});
+                return std::make_optional(cur->bVol);
 
             auto index = selectChild(point, bVec);
             if (!(cur->segments & indexToSegment[index]))
-                return {};
+                return std::nullopt;
 
             bVec = buildBbox(index, bVec);
             cur  = &cur->nodes[index];
@@ -232,7 +205,7 @@ namespace Octree {
     }
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::insert(vec3f point, T t, std::pair<f32, vec3f> bVec, Quadtree::Base &ref) -> void {
+    auto Octree<T>::insert(vec3f point, T t, std::pair<f32, vec3f> bVec) -> T * {
         Octree *cur = this;
 
         while (true) {
@@ -242,17 +215,7 @@ namespace Octree {
                 cur->bVol = new BoundingVolume {std::move(t)};
                 cur->bVol->voxelID |= 0x3F << 10;
 
-                // ------------------------------------
-                // face culling and updating neighbours
-
-                updateOcclusion(cur->bVol, find(point - vec3f {1, 0, 0}, CHUNK_BVEC, ref), LEFT_BIT, RIGHT_BIT);
-                updateOcclusion(cur->bVol, find(point + vec3f {1, 0, 0}, CHUNK_BVEC, ref), RIGHT_BIT, LEFT_BIT);
-                updateOcclusion(cur->bVol, find(point - vec3f {0, 1, 0}, CHUNK_BVEC, ref), BOTTOM_BIT, TOP_BIT);
-                updateOcclusion(cur->bVol, find(point + vec3f {0, 1, 0}, CHUNK_BVEC, ref), TOP_BIT, BOTTOM_BIT);
-                updateOcclusion(cur->bVol, find(point - vec3f {0, 0, 1}, CHUNK_BVEC, ref), BACK_BIT, FRONT_BIT);
-                updateOcclusion(cur->bVol, find(point + vec3f {0, 0, 1}, CHUNK_BVEC, ref), FRONT_BIT, BACK_BIT);
-
-                return;
+                return cur->bVol;
             }
             else {
                 const u8 index   = selectChild(point, bVec);

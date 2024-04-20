@@ -97,6 +97,10 @@ auto Shader::setFloat(std::string name, f32 value) const -> void {
     glUniform1f(uniformCache[name], value);
 }
 
+auto Shader::setVec2(std::string name, vec2f vec) const -> void {
+    glUniform2f(uniformCache[name], vec.x, vec.y);
+}
+
 auto Shader::setVec3(std::string name, vec3f vec) const -> void {
     glUniform3f(uniformCache[name], vec.x, vec.y, vec.z);
 }

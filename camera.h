@@ -14,7 +14,7 @@
 
 #define YAW 0.0f
 #define PITCH 0.0f
-#define SPEED 50.0f
+#define SPEED 150.0f
 #define SENSITIVITY 0.1f
 
 namespace Camera

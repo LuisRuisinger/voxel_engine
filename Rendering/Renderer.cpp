@@ -4,7 +4,7 @@
 #include <immintrin.h>
 
 #include "Renderer.h"
-#include "../Level/Quadtree/Quadtree.h"
+#include "../Level/Octree/Octree.h"
 
 namespace Renderer {
     Renderer::Renderer(std::shared_ptr<Camera::Camera> camera)
@@ -142,6 +142,8 @@ namespace Renderer {
         if (this->vertices->empty())
             return;
 
+        std::cout << this->vertices->size() << std::endl;
+
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         void *bufferData =
                 glMapBufferRange(
@@ -158,7 +160,11 @@ namespace Renderer {
         glUnmapBuffer(GL_ARRAY_BUFFER);
     }
 
-    auto Renderer::draw(vec3f worldbase, u32 texture) -> void {
+    auto Renderer::updateGlobalBase(vec2f base) -> void {
+        this->shader->setVec2("worldbase", base);
+    }
+
+    auto Renderer::draw(u32 texture) -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -167,7 +173,6 @@ namespace Renderer {
 
         this->shader->setMat4("view", view);
         this->shader->setMat4("projection", this->projection);
-        this->shader->setVec3("worldbase", worldbase);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);

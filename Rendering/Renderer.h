@@ -63,7 +63,8 @@ namespace Renderer {
         auto addVoxel(const BoundingVolume *) const -> void;
         auto updateBuffer() -> void;
         auto updateProjectionMatrix() -> void;
-        auto draw(vec3f, u32) -> void;
+        auto updateGlobalBase(vec2f) -> void;
+        auto draw(u32) -> void;
 
         auto getCamera() const -> const Camera::Camera *;
         auto getWindow() const -> const GLFWwindow *;

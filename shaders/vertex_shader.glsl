@@ -10,7 +10,7 @@ layout (location = 0) in vec3 pos;
 
 out vec2 TexCoord;
 
-uniform vec3 worldbase;
+uniform vec2 worldbase;
 uniform mat4 view;
 uniform mat4 projection;
 
@@ -25,7 +25,9 @@ void main()  {
     //gl_Position = projection * view * vec4((os_pos * scale) + ls_pos, 1.0f);
     //TexCoord = vec2(tx_pos.x, 1.0 - tx_pos.y);
 
-    gl_Position = projection * view * vec4(pos, 1.0f);
+    vec3 basepos = vec3(worldbase.x, 0, worldbase.y);
+    gl_Position = projection * view * vec4(basepos + pos, 1.0f);
+
     vec2 uv = texCoords[0];
     TexCoord = vec2(uv.x, 1.0 - uv.y);
 
