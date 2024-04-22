@@ -91,7 +91,7 @@ namespace Octree {
         u8 segments;
         u8 faces;
 
-        std::pair<u32, vec3f> bVbec;
+        std::pair<u32, vec3f> _boundingVolume;
     };
 
     //

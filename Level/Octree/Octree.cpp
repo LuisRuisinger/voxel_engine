@@ -174,7 +174,7 @@ namespace Octree {
             // -------------------------------------------------------------------------------------
             // spherical approximation of the point
 
-            auto &[scale, position] = cur->bVbec;
+            auto &[scale, position] = cur->_boundingVolume;
 
             if (!cur->segments)
                 if (glm::distance(point, position) <= static_cast<f32>(scale / 2.0F) * sqrt(2.0))
@@ -197,7 +197,7 @@ namespace Octree {
             auto& [scale, position] = bVec;
 
             if (scale == BASE_SIZE) {
-                cur->bVbec = bVec;
+                cur->_boundingVolume = bVec;
                 cur->bVol = new BoundingVolume {t};
                 cur->bVol->_voxelID |= 0x3F << 10;
 
@@ -208,7 +208,7 @@ namespace Octree {
                 const u8 segment = indexToSegment[index];
 
                 if (!cur->segments) {
-                    cur->bVbec = bVec;
+                    cur->_boundingVolume = bVec;
                     cur->nodes = static_cast<Octree<T> *>(
                             std::aligned_alloc(alignof(Octree<T>), sizeof(Octree<T>) * 8));
                 }
@@ -300,15 +300,13 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     auto Octree<T>::cull(const Args<T> &args) const -> void {
-        if (!this->nodes || !(this->faces & args.camera.getCameraMask()))
+        const auto &[scale, position] = this->_boundingVolume;
+
+        if (!(this->faces & args.camera.getCameraMask()) ||
+            (scale > 4 && !args.camera.inFrustum(args.point + position, scale)))
             return;
 
         if (this->segments) {
-            const auto& [scale, position] = this->bVbec;
-
-            if ((scale > 4 && !args.camera.inFrustum(args.point + position, (u32) (scale))))
-                return;
-
             for (u8 i = 0; i < 8; ++i) {
                 if (this->segments & indexToSegment[i])
                     this->nodes[i].cull(args);
@@ -326,12 +324,11 @@ namespace Octree {
 
             auto voxel = BoundingVolumeVoxel {
                 static_cast<u16>(this->bVol->_voxelID & ((args.camera.getCameraMask() << 10) ^ UINT8_MAX)),
-                std::get<1>(this->bVbec),
-                std::get<0>(this->bVbec)
+                std::get<1>(this->_boundingVolume),
+                std::get<0>(this->_boundingVolume)
             };
 
             args.renderer.addVoxel(&voxel);
-
         }
     }
 

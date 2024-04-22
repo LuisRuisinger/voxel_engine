@@ -20,11 +20,21 @@
 
 #define MAX_VERTICES_BUFFER ((u32) (131072 * 2))
 #define INDICES_PER_FACE 6
+#define MAX_RENDER_VOLUME (64 * 64)
 
 namespace Renderer {
+
+    //
+    //
+    //
+
     struct Vertex {
         vec3f pos;
     };
+
+    //
+    //
+    //
 
     template<u32 N = MAX_VERTICES_BUFFER>
     struct IndicesGenerator {
@@ -50,6 +60,10 @@ namespace Renderer {
         u32 arr[N * INDICES_PER_FACE];
     };
 
+    //
+    //
+    //
+
     class Renderer {
     public:
         explicit Renderer(std::shared_ptr<Camera::Camera> camera);
@@ -61,44 +75,53 @@ namespace Renderer {
         auto initPipeline() -> void;
 
         auto addVoxel(const BoundingVolumeVoxel *) const -> void;
+        auto addChunk(const vec3f &) const -> void;
+
         auto updateBuffer() -> void;
         auto updateProjectionMatrix() -> void;
         auto updateGlobalBase(vec2f) -> void;
+
         auto draw(u32) -> void;
 
         auto getCamera() const -> const Camera::Camera *;
         auto getWindow() const -> const GLFWwindow *;
 
     private:
-        u32                              width;
-        u32                              height;
-        GLFWwindow                      *window;
-        std::shared_ptr<Camera::Camera>  camera;
 
-        //
-        //
+        // ---------------------
+        // general renderer data
 
-        glm::mat4                              projection;
-        std::unique_ptr<Shader>                shader;
+        u32                              _width;
+        u32                              _height;
+        GLFWwindow                      *_window;
+        std::shared_ptr<Camera::Camera>  _camera;
+
+        // ------------------
+        // vertex shader data
+        // the chunk positions are compressed into 2 * 6 bit
+
+        glm::mat4                                 _projection;
+        std::unique_ptr<std::vector<u16>> mutable _chunks;
+        std::unique_ptr<Shader>                   _shader;
 
         // ------------------------------------------------------------------------------------
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
 
-        std::unique_ptr<std::vector<Vertex>> mutable vertices;
-        std::unique_ptr<std::vector<u32>>            indices;
+        std::unique_ptr<std::vector<Vertex>> mutable _vertices;
+        std::unique_ptr<std::vector<u32>>            _indices;
 
         // -----------
         // GPU buffers
 
-        u32 VBO;
-        u32 VAO;
-        u32 EBO;
-        u32 SSBO;
+        GLuint _VBO;
+        GLuint _VAO;
+        GLuint _EBO;
+        GLuint _TBO;
 
         // ---------------
         // cube structures
 
-        std::array<VoxelStructure::CubeStructure, 1> structures;
+        std::array<VoxelStructure::CubeStructure, 1> _structures;
     };
 }
 

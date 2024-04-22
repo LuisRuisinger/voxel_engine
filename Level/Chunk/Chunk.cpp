@@ -84,9 +84,9 @@ namespace Chunk {
                 break;
 
             case DATA:
-                neighbor->bVol->_voxelID &= (std::get<0>(neighbor->bVbec) <= std::get<0>(current->bVbec))
+                neighbor->bVol->_voxelID &= (std::get<0>(neighbor->_boundingVolume) <= std::get<0>(current->_boundingVolume))
                         ? ~nBit : neighbor->bVol->_voxelID;
-                current->bVol->_voxelID  &= (std::get<0>(current->bVbec) <= std::get<0>(neighbor->bVbec))
+                current->bVol->_voxelID  &= (std::get<0>(current->_boundingVolume) <= std::get<0>(neighbor->_boundingVolume))
                         ? ~cBit : current->bVol->_voxelID;
                 break;
 
@@ -121,11 +121,13 @@ namespace Chunk {
 
         auto globalBase = vec3f {platform.getBase().x, 0, platform.getBase().y};
 
-        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
+        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i) {
+            platform.getRenderer().addChunk(chunksegments[i].position);
             chunksegments[i].segment->cull(
                     globalBase + chunksegments[i].position * vec3f {CHUNK_SIZE},
                     camera,
                     platform.getRenderer());
+        }
     }
 
     auto Chunk::getPostion() const -> vec2f {
