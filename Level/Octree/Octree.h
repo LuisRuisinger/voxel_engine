@@ -38,9 +38,9 @@ namespace Octree {
 
     template<typename T>
     struct Args {
-        const vec3f              &point;
-        const Camera::Camera     &camera;
-        const Renderer::Renderer &renderer;
+        const vec3f              &_point;
+        const Camera::Camera     &_camera;
+        const Renderer::Renderer &_renderer;
     };
 
     //
@@ -58,28 +58,23 @@ namespace Octree {
 
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    struct Octree {
-        Octree();
-        ~Octree() noexcept;
+    struct Node {
+        Node();
+        ~Node() noexcept;
 
-        auto insert(vec3f, T t, std::pair<f32, vec3f> bVec) -> Octree<T> *;
-
+        auto insert(vec3f, T t, std::pair<f32, vec3f> currentBVol) -> Node<T> *;
         auto removePoint(glm::vec3, std::pair<f32, glm::vec3>) -> void;
-
         auto cull(const Args<T> &) const -> void;
-
-        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<Octree<T> *>;
-
+        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<Node<T> *>;
         auto updateFaceMask(const std::pair<f32, vec3f>&) -> u8;
-
-        auto recombine(std::stack<Octree *> &stack) -> void;
+        auto recombine(std::stack<Node *> &stack) -> void;
 
         // ----------------------------------------------
         // either points to a bounding box or child nodes
 
         union {
-            BoundingVolume *bVol;
-            Octree         *nodes;
+            BoundingVolume *_leaf;
+            Node           *_nodes;
         };
 
         // ------------------------------------------------------
@@ -88,8 +83,8 @@ namespace Octree {
         // in the case every bit is empty but the pointer is not null
         // we know the stored pointer points to a bouding box
 
-        u8 segments;
-        u8 faces;
+        u8 _segments;
+        u8 _faces;
 
         std::pair<u32, vec3f> _boundingVolume;
     };
@@ -99,23 +94,25 @@ namespace Octree {
     //
 
     template<typename T> requires derivedFromBoundingVolume<T>
-    class Handler {
+    class Octree {
     public:
-        explicit Handler(vec3f);
-        ~Handler() = default;
+        explicit Octree(vec3f);
+        ~Octree() = default;
 
-        auto addPoint(vec3f point, T t) -> Octree<T> *;
+        auto addPoint(vec3f position, T t) -> Node<T> *;
         auto removePoint(vec3f point) -> void;
         auto cull(const vec3f &, const Camera::Camera &, const Renderer::Renderer&) const -> void;
-        auto find(const vec3f &) -> std::optional<Octree<T> *>;
+        auto find(const vec3f &) const -> std::optional<Node<T> *>;
         auto updateFaceMask() -> u8;
         auto recombine() -> void;
 
     private:
-        std::unique_ptr<Octree<T>>  octree;
+        std::unique_ptr<Node<T>>  _root;
 
-        const vec3f                 position;
-        const std::pair<u16, vec3f> bVec;
+        // ------------------------------------------------------------
+        // the biggest possible volume bounding the space of the octree
+
+        const std::pair<u16, vec3f> _boundingVolume;
     };
 }
 

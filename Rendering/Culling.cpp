@@ -7,24 +7,25 @@
 
 namespace Culling {
     auto Frustum::setCamInternals(f32 fovDeg, f32 aspectRatio, f32 nClipDistance, f32 fClipDistance) -> void {
-        this->ratio = aspectRatio;
-        this->farD  = fClipDistance;
-        this->nearD = nClipDistance;
-        this->angle = DEG2RAD * fovDeg * 0.5f;
-        this->tang  = tan(this->angle);
+        _ratio = aspectRatio;
+        _farD  = fClipDistance;
+        _nearD = nClipDistance;
+        _angle = DEG2RAD * fovDeg * 0.5f;
+        _tang  = tan(_angle);
 
-        auto angleX = atan(this->tang * this->ratio);
-        this->sphereFactorX = 1.0f / cos(angleX);
-        this->sphereFactorY = 1.0f / cos(this->angle);
+        auto angleX = atan(_tang * _ratio);
+
+        _sphereFactorX = 1.0f / cos(angleX);
+        _sphereFactorY = 1.0f / cos(_angle);
     }
 
     auto Frustum::setCamDef(vec3f position, vec3f target, vec3f up) -> void {
-        this->camPos = position;
+        _camPos = position;
 
-        this->z = glm::normalize(target - position);
-        this->x = glm::cross(this->z, up);
-        this->x = glm::normalize(this->x);
-        this->y = glm::cross(this->x, this->z);
+        _zVec = glm::normalize(target - position);
+        _xVec = glm::cross(_zVec, up);
+        _xVec = glm::normalize(_xVec);
+        _yVec = glm::cross(_xVec, _zVec);
     }
 
     auto Frustum::cubeVisible(const vec3f &point, u32 scale) const -> bool {
@@ -38,25 +39,25 @@ namespace Culling {
     }
 
     auto Frustum::sphereInFrustum(const vec3f &center, f32 radius) const -> CollisionType {
-        vec3f v = center - this->camPos;
+        vec3f v = center - _camPos;
 
-        auto ax = glm::dot(v, this->x);
-        auto ay = glm::dot(v, this->y);
-        auto az = glm::dot(v, this->z);
+        auto ax = glm::dot(v, _xVec);
+        auto ay = glm::dot(v, _yVec);
+        auto az = glm::dot(v, _zVec);
 
-        auto azT = az * this->tang;
-        auto sr  = this->sphereFactorX * radius;
+        auto azT = az * _tang;
+        auto sr  = _sphereFactorX * radius;
 
-        auto maxAzX = azT * this->ratio + sr;
+        auto maxAzX = azT * _ratio + sr;
         auto maxAzY = azT + sr;
 
         return (ax > maxAzX || ax < -maxAzX || ay > maxAzY || ay < -maxAzY) ? OUTSIDE : INTERSECT;
     }
 
     auto Frustum::circleInFrustum(const vec2f &center, f32 radius) const -> CollisionType {
-        vec2f v = center - glm::vec2{this->camPos.x, this->camPos.z};
-        auto az = glm::dot(v, glm::vec2{this->z.x, this->z.z});
+        vec2f v = center - glm::vec2{_camPos.x, _camPos.z};
+        auto az = glm::dot(v, glm::vec2{_zVec.x, _zVec.z});
 
-        return (az > this->farD + radius || az < this->nearD - radius) ? OUTSIDE : INTERSECT;
+        return (az > _farD + radius || az < _nearD - radius) ? OUTSIDE : INTERSECT;
     }
 }

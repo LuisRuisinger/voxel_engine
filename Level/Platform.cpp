@@ -40,7 +40,7 @@ namespace Platform {
                     auto pos = vec2f {x, z};
                     auto deffered = pos + vec2f {RENDER_RADIUS};
 
-                    this->_loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
+                    _loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
                 }
             }
         }
@@ -51,7 +51,7 @@ namespace Platform {
     }
 
     auto Platform::tick(Camera::Camera &camera) -> void {
-        auto filtered = this->_loadedChunks
+        auto filtered = _loadedChunks
                         | std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); });
 
         // ----------------------------------------------------------
@@ -63,16 +63,16 @@ namespace Platform {
         i32 nearestChunkZ = static_cast<i32>(static_cast<i32>(cameraPos.z) / CHUNK_SIZE) * CHUNK_SIZE;
 
         const auto newRoot = glm::vec2 {
-                (abs(nearestChunkX - static_cast<i32>(this->_currentRoot.x)) > CHUNK_SIZE)
-                ? nearestChunkX : this->_currentRoot.x,
-                (abs(nearestChunkZ - static_cast<i32>(this->_currentRoot.y)) > CHUNK_SIZE)
-                ? nearestChunkZ : this->_currentRoot.y
+                (abs(nearestChunkX - static_cast<i32>(_currentRoot.x)) > CHUNK_SIZE)
+                ? nearestChunkX : _currentRoot.x,
+                (abs(nearestChunkZ - static_cast<i32>(_currentRoot.y)) > CHUNK_SIZE)
+                ? nearestChunkZ : _currentRoot.y
         };
 
         // ----------------------------------------------------------------------------------------------------
         // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
 
-        if (calculateDistance2D(this->_currentRoot, newRoot) > CHUNK_SIZE) {
+        if (calculateDistance2D(_currentRoot, newRoot) > CHUNK_SIZE) {
 
             // -------------------------------------------------------
             // calculates all existing _loadedChunks inside our render radius
@@ -83,28 +83,29 @@ namespace Platform {
                     // ---------------------------------------------------------------------------------------
                     // if the old camera position contains _loadedChunks we need in the new state we can extract them
 
+                    // TODO
+
                     if (calculateDistance2D(vec2f {0}, {x, z}) < RENDER_RADIUS) {
                         auto pos = vec2f {x, z};
                         auto deffered = pos + vec2f {RENDER_RADIUS};
 
-                        this->_loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
+                        _loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
                     }
                 }
             }
 
-            this->_currentRoot = newRoot;
+            _currentRoot = newRoot;
 
             std::ranges::for_each(
                     filtered,
                     [](const auto &ptr) -> void { ptr->update(); });
         }
 
-        this->_renderer.updateGlobalBase(this->_currentRoot);
+        _renderer.updateGlobalBase(_currentRoot);
 
-        const auto &ref = *this;
         std::ranges::for_each(
                 filtered,
-                [&camera, &ref](const auto &ptr) -> void { (void) ptr->cull(camera, ref); });
+                [&camera, this](const auto &ptr) -> void { (void) ptr->cull(camera, *this); });
     }
 
     auto Platform::insert(vec3f point, u16 voxelID) -> void {
@@ -116,10 +117,10 @@ namespace Platform {
     }
 
     auto Platform::getBase() const -> vec2f {
-        return this->_currentRoot;
+        return _currentRoot;
     }
 
     auto Platform::getRenderer() const -> const Renderer::Renderer & {
-        return this->_renderer;
+        return _renderer;
     }
 }

@@ -17,22 +17,29 @@
 #include "Level/Platform.h"
 
 struct GlobalGameState {
-    f64 deltaTime;
-    f64 lastFrame;
 
-    std::shared_ptr<Camera::Camera>     camera;
-    std::shared_ptr<Renderer::Renderer> renderer;
-    std::shared_ptr<Platform::Platform> platform;
+    // ------
+    // frames
 
-    GLFWwindow *window;
+    f64 _deltaTime;
+    f64 _lastFrame;
+
+    // ------
+    // engine
+
+    std::shared_ptr<Camera::Camera>     _camera;
+    std::shared_ptr<Renderer::Renderer> _renderer;
+    std::shared_ptr<Platform::Platform> _platform;
+
+    GLFWwindow *_window;
 
     GlobalGameState()
-        : deltaTime{0.0}
-        , lastFrame{0.0}
-        , camera{std::make_shared<Camera::Camera>(vec3f(0.0f, 2.5f, 0.0f), vec3f(0.0f, 1.0f, 0.0f),YAW, PITCH)}
-        , renderer{std::make_unique<Renderer::Renderer>(this->camera)}
-        , platform{std::make_unique<Platform::Platform>(*(this->renderer))}
-        , window{const_cast<GLFWwindow *>(renderer->getWindow())}
+        : _deltaTime{0.0}
+        , _lastFrame{0.0}
+        , _camera{std::make_shared<Camera::Camera>(vec3f(0.0f, 2.5f, 0.0f), vec3f(0.0f, 1.0f, 0.0f),YAW, PITCH)}
+        , _renderer{std::make_unique<Renderer::Renderer>(_camera)}
+        , _platform{std::make_unique<Platform::Platform>(*(_renderer))}
+        , _window{const_cast<GLFWwindow *>(_renderer->getWindow())}
     {}
 
     ~GlobalGameState() = default;

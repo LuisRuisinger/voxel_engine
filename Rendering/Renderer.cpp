@@ -14,8 +14,10 @@ namespace Renderer {
         , _width{1800}
         , _height{1200}
         , _projection{glm::perspective(
-                glm::radians(45.0f), ((f32) _width) / ((f32) _height),
-                0.1f, ((f32) (RENDER_RADIUS * 2) * CHUNK_SIZE))}
+                glm::radians(45.0f),
+                static_cast<f32>(_width) / static_cast<f32>(_height),
+                0.1f,
+                static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE))}
         , _chunks{std::make_unique<std::vector<u16>>()}
         , _structures{}
     {
@@ -59,7 +61,10 @@ namespace Renderer {
             self->_camera->setFrustumAspect(static_cast<f32>(self->_width) / static_cast<f32>(self->_height));
         });
 
-        glfwSwapInterval(0);
+        // -----
+        // vsync
+
+        glfwSwapInterval(1);
 
         // glad: load all OpenGL function pointers
         // ---------------------------------------
@@ -127,7 +132,7 @@ namespace Renderer {
                 GL_DYNAMIC_DRAW);
 
         // vertex object space position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(*(_vertices->data())), nullptr);
         glEnableVertexAttribArray(0);
     }
 

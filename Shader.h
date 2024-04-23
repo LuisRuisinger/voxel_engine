@@ -16,7 +16,7 @@
 
 class Shader {
 public:
-    u32 ID;
+    u32 _ID;
 
     Shader(const char *vertexPath, const char *fragmentPath);
 

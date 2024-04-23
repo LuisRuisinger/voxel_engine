@@ -17,6 +17,7 @@
 
 #define CHUNK_SEGMENTS 16
 #define MIN_HEIGHT (-128)
+#define YNORMALIZED_INDEX_OFFSET (MIN_HEIGHT / CHUNK_SIZE)
 #define CHUNK_SEGMENT_YOFFS(y) (CHUNK_SIZE * y + MIN_HEIGHT)
 #define CHUNK_SEGMENT_YNORMALIZE(_p) (vec3f {(_p).x, static_cast<f32>((static_cast<i32>((_p).y) % CHUNK_SIZE) + 0.5F), (_p).z})
 #define CHUNK_SEGMENT_YDIFF(p) (((i32) (p.y - MIN_HEIGHT)) / CHUNK_SIZE)
@@ -42,18 +43,30 @@ namespace Chunk {
 
     public:
         explicit ChunkSegment(vec3f);
+        ChunkSegment(ChunkSegment &&other) noexcept;
+        ChunkSegment(ChunkSegment &other) = delete;
+
         ~ChunkSegment() = default;
 
-        ChunkSegment(ChunkSegment &&) noexcept;
-        ChunkSegment(ChunkSegment &) = delete;
-
-        auto operator=(ChunkSegment &&) noexcept -> ChunkSegment &;
-        auto operator=(ChunkSegment &) -> ChunkSegment & = delete;
+        auto operator=(ChunkSegment &&other) noexcept -> ChunkSegment &;
+        auto operator=(ChunkSegment &other) -> ChunkSegment & = delete;
 
     private:
-        vec3f position;
-        std::unique_ptr<Octree::Handler<BoundingVolume>> segment;
-        bool modified;
+
+        // -------------------------
+        // root of the cubic segment
+
+        vec3f _root;
+
+        // -------------------------------------------
+        // underlying octree, managing the cubic space
+
+        std::unique_ptr<Octree::Octree<BoundingVolume>> _segment;
+
+        // ------------------------------------------------------------
+        // indicator if the segment got manipulated (for serialization)
+
+        bool _modified;
     };
 
     //
@@ -68,16 +81,24 @@ namespace Chunk {
         auto insert(vec3f, BoundingVolume, Platform::Platform *platform) -> void;
         auto remove(vec3f) -> void;
         auto cull  (const Camera::Camera &, const Platform::Platform &) const -> void;
-        auto generate(Platform::Platform *platform) -> void;
+        auto generate(Platform::Platform *position) -> void;
         auto update() -> void;
-        auto find(vec3f, Platform::Platform *platform) -> std::pair<Octree::Octree<BoundingVolume> *, ChunkData>;
-        auto updateOcclusion(Octree::Octree<BoundingVolume> *, std::pair<Octree::Octree<BoundingVolume> *, ChunkData>, u16, u16) -> void;
+        auto find(vec3f, Platform::Platform *platform) -> std::pair<Octree::Node<BoundingVolume> *, ChunkData>;
+        auto updateOcclusion(Octree::Node<BoundingVolume> *, std::pair<Octree::Node<BoundingVolume> *, ChunkData>, u16, u16) -> void;
 
         [[nodiscard]] auto getPostion() const -> vec2f;
 
     private:
-        std::vector<ChunkSegment>  chunksegments;
-        vec2f                      position;
+
+        // ------------------------------------------------------
+        // a vector of cubic segments which a chunk is split into
+
+        std::vector<ChunkSegment>  _chunksegments;
+
+        // -----------------
+        // root of the chunk
+
+        vec2f _root;
     };
 }
 

@@ -12,14 +12,13 @@
 #include "global.h"
 #include "Rendering/Culling.h"
 
-#define YAW 0.0f
-#define PITCH 0.0f
-#define SPEED 150.0f
-#define SENSITIVITY 0.1f
+#define YAW         0.0F
+#define PITCH       0.0F
+#define SPEED       150.0F
+#define SENSITIVITY 0.1F
 
 namespace Camera
 {
-    // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
     enum Camera_Movement {
         FORWARD,
         BACKWARD,
@@ -33,46 +32,64 @@ namespace Camera
     public:
         Camera(glm::vec3 initPosition, glm::vec3 initUp, float initYaw, float initPitch);
         Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
+        Camera(Camera &&other) noexcept = default;
+        Camera(Camera &other) = delete;
 
-        auto GetViewMatrix() -> glm::mat4;
+        ~Camera() = default;
+
+        auto operator=(Camera &&other) noexcept -> Camera & = default;
+        auto operator=(Camera &other) -> Camera & = delete;
+
         auto ProcessKeyboard(Camera_Movement direction, float deltaTime) -> void;
         auto ProcessMouseMovement(float xpos, float ypos) -> void;
 
         auto setFrustum(float_t angle, float_t ratio, float_t nearD, float_t farD) -> void;
         auto setFrustumAspect(f32 ratio) -> void;
         auto setFrustumDef(glm::vec3 position, glm::vec3 target, glm::vec3 up) -> void;
+
         [[nodiscard]] auto inFrustum(glm::vec3 position, uint32_t scale) const -> bool;
         [[nodiscard]] auto inFrustum(glm::vec2 position, uint32_t scale) const -> bool;
 
         [[nodiscard]] auto getCameraPosition() const -> glm::vec3;
         [[nodiscard]] auto getCameraFront() const ->  glm::vec3;
         [[nodiscard]] auto getCameraMask() const -> u8;
+        auto GetViewMatrix() const -> glm::mat4;
 
     private:
-        void updateCameraVectors();
+        auto updateCameraVectors() -> void;
 
-        // camera Attributes
-        glm::vec3 position;
-        glm::vec3 front;
-        glm::vec3 up;
-        glm::vec3 right;
-        glm::vec3 worldUp;
+        // --------------------------------
+        // camera 3d world space attributes
 
-        // euler Angles
-        float yaw;
-        float pitch;
+        glm::vec3 _position;
+        glm::vec3 _front;
+        glm::vec3 _up;
+        glm::vec3 _right;
+        glm::vec3 _worldUp;
 
-        f32 lastX;
-        f32 lastY;
+        // ------------
+        // euler angles
 
+        f32 _yaw;
+        f32 _pitch;
+
+        // ----------------------------------------------------
+        // last x and y coordinate of the mouse on the 2d plane
+
+        f32 _lastX;
+        f32 _lastY;
+
+        // --------------
         // camera options
-        float movementSpeed;
-        float mouseSensitivity;
 
-        //frustum
-        Culling::Frustum frustum;
+        f32 _movementSpeed;
+        f32 _mouseSensitivity;
 
-        u8 mask;
+        // ------------
+        // view frustum
+
+        Culling::Frustum _frustum;
+        u8               _mask;
     };
 }
 
