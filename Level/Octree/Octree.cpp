@@ -192,7 +192,7 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     auto Node<T>::insert(vec3f position, T t, std::pair<f32, vec3f> currentBVol) -> Node<T> * {
-        Node *current = this;
+        Node<T> *current = this;
 
         while (true) {
             auto& [scale, root] = currentBVol;
@@ -200,7 +200,7 @@ namespace Octree {
             if (scale == BASE_SIZE) {
                 current->_boundingVolume = currentBVol;
                 current->_leaf = new BoundingVolume {t};
-                current->_leaf->_voxelID |= 0x3F << 10;
+                current->_leaf->_voxelID |= SET_FACES;
 
                 return current;
             }
@@ -216,11 +216,11 @@ namespace Octree {
 
                 if (!(current->_segments & segment)) {
                     current->_segments ^= segment;
-                    current->_nodes[index] = Node<T>{};
+                    current->_nodes[index] = {};
                 }
 
                 currentBVol = buildBbox(index, currentBVol);
-                current  = &current->_nodes[index];
+                current     = &current->_nodes[index];
             }
         }
     }
@@ -266,7 +266,7 @@ namespace Octree {
         while (!stack.empty()) {
             current = stack.top();
 
-            if (current->_segments ^ UINT8_MAX)
+            if (current->_segments ^ std::numeric_limits<decltype(current->_segments)>::max())
                 return;
 
             u16 voxelID = 0;
@@ -324,8 +324,8 @@ namespace Octree {
 
             auto voxel = BoundingVolumeVoxel {
                 static_cast<u16>(_leaf->_voxelID & ((args._camera.getCameraMask() << 10) ^ UINT8_MAX)),
-                std::get<1>(_boundingVolume),
-                std::get<0>(_boundingVolume)
+                root,
+                scale
             };
 
             args._renderer.addVoxel(&voxel);

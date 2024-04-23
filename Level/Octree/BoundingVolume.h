@@ -14,6 +14,7 @@
 #define BOTTOM_BIT (0x1 << 12)
 #define FRONT_BIT  (0x1 << 11)
 #define BACK_BIT   (0x1 << 10)
+#define SET_FACES  (0x3F << 10)
 
 struct BoundingVolume {
 

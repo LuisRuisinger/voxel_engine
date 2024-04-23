@@ -44,7 +44,7 @@ namespace Chunk {
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             _chunksegments.emplace_back(ChunkSegment {
-                CHUNK_POS_3D(_root) + vec3f {0, i - YNORMALIZED_INDEX_OFFSET, 0}
+                CHUNK_POS_3D(_root) + vec3f {0, i + YNORMALIZED_INDEX_OFFSET, 0}
             });
 
         generate(platform);
