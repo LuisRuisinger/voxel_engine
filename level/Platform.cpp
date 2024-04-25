@@ -50,23 +50,22 @@ namespace Platform {
                 [](const auto &ptr) -> void { ptr->update(); });
     }
 
-    auto Platform::tick(Camera::Camera &camera) -> void {
-        auto filtered = _loadedChunks
-                        | std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); });
+    auto Platform::tick() -> void {
+        auto filtered = _loadedChunks |
+                        std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); });
 
         // ----------------------------------------------------------
         // rounds the camera's position to the nearest chunk position
 
+        const auto &camera    = *_renderer.getCamera();
         const auto &cameraPos = camera.getCameraPosition();
 
         i32 nearestChunkX = static_cast<i32>(static_cast<i32>(cameraPos.x) / CHUNK_SIZE) * CHUNK_SIZE;
         i32 nearestChunkZ = static_cast<i32>(static_cast<i32>(cameraPos.z) / CHUNK_SIZE) * CHUNK_SIZE;
 
         const auto newRoot = glm::vec2 {
-                (abs(nearestChunkX - static_cast<i32>(_currentRoot.x)) > CHUNK_SIZE)
-                ? nearestChunkX : _currentRoot.x,
-                (abs(nearestChunkZ - static_cast<i32>(_currentRoot.y)) > CHUNK_SIZE)
-                ? nearestChunkZ : _currentRoot.y
+                (abs(nearestChunkX - static_cast<i32>(_currentRoot.x)) > CHUNK_SIZE) ? nearestChunkX : _currentRoot.x,
+                (abs(nearestChunkZ - static_cast<i32>(_currentRoot.y)) > CHUNK_SIZE) ? nearestChunkZ : _currentRoot.y
         };
 
         // ----------------------------------------------------------------------------------------------------
@@ -83,7 +82,7 @@ namespace Platform {
                     // ---------------------------------------------------------------------------------------
                     // if the old camera position contains _loadedChunks we need in the new state we can extract them
 
-                    // TODO
+                    // TODO: steal old chunks
 
                     if (calculateDistance2D(vec2f {0}, {x, z}) < RENDER_RADIUS) {
                         auto pos = vec2f {x, z};

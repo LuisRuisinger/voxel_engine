@@ -10,7 +10,7 @@
 #include <optional>
 #include <ranges>
 
-#include "../global.h"
+#include "../../util/aliases.h"
 
 template<typename T>
 class Memorypool {

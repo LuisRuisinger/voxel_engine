@@ -10,7 +10,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../../global.h"
+#include "../../util/aliases.h"
 #include "../Rendering/Renderer.h"
 #include "../Level/Octree/Octree.h"
 #include "../Level/Octree/Memorypool.h"
@@ -27,12 +27,25 @@ namespace Platform{
     class Platform;
 }
 
+//
+//
+//
+
 namespace Chunk {
+
+    //
+    //
+    //
+
+    class Chunk;
+
+    //
+    //
+    //
+
     enum ChunkData {
         EMPTY, NODATA, DATA
     };
-
-    class Chunk;
 
     //
     //
@@ -73,20 +86,20 @@ namespace Chunk {
     //
     //
 
-    class Chunk {
+    class Chunk : util::Updateable {
     public:
         Chunk(vec2f, Platform::Platform *);
         ~Chunk() = default;
 
         auto insert(vec3f, BoundingVolume, Platform::Platform *platform) -> void;
         auto remove(vec3f) -> void;
-        auto cull  (const Camera::Camera &, const Platform::Platform &) const -> void;
+        auto cull(const Camera::Perspective::Camera &, const Platform::Platform &) const -> void;
         auto generate(Platform::Platform *position) -> void;
-        auto update() -> void;
+        auto update() -> void override;
         auto find(vec3f, Platform::Platform *platform) -> std::pair<Octree::Node<BoundingVolume> *, ChunkData>;
         auto updateOcclusion(Octree::Node<BoundingVolume> *, std::pair<Octree::Node<BoundingVolume> *, ChunkData>, u16, u16) -> void;
 
-        [[nodiscard]] auto getPostion() const -> vec2f;
+        auto position() const -> vec2f;
 
     private:
 

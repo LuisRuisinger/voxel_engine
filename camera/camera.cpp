@@ -3,9 +3,9 @@
 //
 
 #include "camera.h"
-#include "Level/Platform.h"
+#include "../level/Platform.h"
 
-namespace Camera {
+namespace Camera::Perspective {
     Camera::Camera(vec3f initPosition, vec3f initUp, f32 initYaw, f32 initPitch)
         : _position{initPosition}
         , _front{}
@@ -20,7 +20,7 @@ namespace Camera {
         , _mask{UINT8_MAX}
     {
         setFrustum(45.0f, 1800.0 / 1200.0, -5.0f, CHUNK_SIZE * (RENDER_RADIUS * 2));
-        updateCameraVectors();
+        update();
     }
 
     Camera::Camera(f32 posX, f32 posY, f32 posZ, f32 upX, f32 upY, f32 upZ, f32 yaw, f32 pitch)
@@ -37,7 +37,7 @@ namespace Camera {
         , _mask{UINT8_MAX}
     {
         setFrustum(45.0f, 1800.0 / 1200.0, -5.0f, CHUNK_SIZE * (RENDER_RADIUS * 2));
-        updateCameraVectors();
+        update();
     }
 
     void Camera::ProcessKeyboard(Camera_Movement direction, f32 deltaTime) {
@@ -52,7 +52,7 @@ namespace Camera {
             case DOWN    : _position -= _up * velocity;    break;
         }
 
-        updateCameraVectors();
+        update();
     }
 
     auto Camera::ProcessMouseMovement(f32 xpos, f32 ypos) -> void {
@@ -70,10 +70,10 @@ namespace Camera {
         if (_pitch < -89.0f)
             _pitch = -89.0f;
 
-        updateCameraVectors();
+        update();
     }
 
-    auto Camera::updateCameraVectors() -> void {
+    auto Camera::update() -> void {
         f32 cosYaw   = cos(glm::radians(_yaw));
         f32 cosPitch = cos(glm::radians(_pitch));
 

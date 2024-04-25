@@ -5,10 +5,10 @@
 #ifndef OPENGL_3D_ENGINE_CULLING_H
 #define OPENGL_3D_ENGINE_CULLING_H
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
-#include "../global.h"
+#include "../util/aliases.h"
 
 #define DEG2RAD 0.017453292F
 
@@ -18,6 +18,16 @@ namespace Culling {
     };
 
     class Frustum {
+    public:
+        Frustum()  = default;
+        ~Frustum() = default;
+
+        auto setCamInternals(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void;
+        auto setCamDef(vec3f position, vec3f target, vec3f up) -> void;
+
+        [[nodiscard]] auto cubeVisible(const vec3f &point, u32 scale) const -> bool;
+        [[nodiscard]] auto squareVisible(const vec2f &point, u32 scale) const -> bool;
+
     private:
         vec3f _camPos;
         vec3f _xVec;
@@ -35,16 +45,6 @@ namespace Culling {
 
         [[nodiscard]] auto sphereInFrustum(const vec3f &point, f32 radius) const -> CollisionType;
         [[nodiscard]] auto circleInFrustum(const vec2f &point, f32 radius) const -> CollisionType;
-
-    public:
-        Frustum()  = default;
-        ~Frustum() = default;
-
-        auto setCamInternals(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void;
-        auto setCamDef(vec3f position, vec3f target, vec3f up) -> void;
-
-        [[nodiscard]] auto cubeVisible(const vec3f &point, u32 scale) const -> bool;
-        [[nodiscard]] auto squareVisible(const vec2f &point, u32 scale) const -> bool;
     };
 };
 

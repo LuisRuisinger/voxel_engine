@@ -5,20 +5,20 @@
 #ifndef OPENGL_3D_ENGINE_CAMERA_H
 #define OPENGL_3D_ENGINE_CAMERA_H
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "glad/glad.h"
 
-#include "global.h"
-#include "Rendering/Culling.h"
+#include "../util/aliases.h"
+#include "Culling.h"
+#include "../util/updateable.h"
 
 #define YAW         0.0F
 #define PITCH       0.0F
 #define SPEED       150.0F
 #define SENSITIVITY 0.1F
 
-namespace Camera
-{
+namespace Camera {
     enum Camera_Movement {
         FORWARD,
         BACKWARD,
@@ -27,8 +27,15 @@ namespace Camera
         UP,
         DOWN
     };
+}
 
-    class Camera {
+//
+//
+//
+
+namespace Camera::Perspective
+{
+    class Camera : util::Updateable {
     public:
         Camera(glm::vec3 initPosition, glm::vec3 initUp, float initYaw, float initPitch);
         Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
@@ -54,9 +61,9 @@ namespace Camera
         [[nodiscard]] auto getCameraFront() const ->  glm::vec3;
         [[nodiscard]] auto getCameraMask() const -> u8;
         auto GetViewMatrix() const -> glm::mat4;
+        auto update() -> void override;
 
     private:
-        auto updateCameraVectors() -> void;
 
         // --------------------------------
         // camera 3d world space attributes

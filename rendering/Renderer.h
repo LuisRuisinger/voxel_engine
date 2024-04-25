@@ -11,10 +11,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../global.h"
-#include "../Shader.h"
+#include "../util/aliases.h"
+#include "Shader.h"
 #include "../Level/Model/Mesh.h"
-#include "../camera.h"
+#include "../camera/camera.h"
 #include "../Level/Model/Types/Voxel.h"
 #include "../Level/Octree/BoundingVolume.h"
 
@@ -66,7 +66,7 @@ namespace Renderer {
 
     class Renderer {
     public:
-        explicit Renderer(std::shared_ptr<Camera::Camera> camera);
+        explicit Renderer(std::shared_ptr<Camera::Perspective::Camera> camera);
 
         ~Renderer() = default;
 
@@ -83,7 +83,7 @@ namespace Renderer {
 
         auto draw(u32) -> void;
 
-        auto getCamera() const -> const Camera::Camera *;
+        auto getCamera() const -> const Camera::Perspective::Camera *;
         auto getWindow() const -> const GLFWwindow *;
 
     private:
@@ -91,10 +91,10 @@ namespace Renderer {
         // ---------------------
         // general renderer data
 
-        u32                              _width;
-        u32                              _height;
-        GLFWwindow                      *_window;
-        std::shared_ptr<Camera::Camera>  _camera;
+        u32                                           _width;
+        u32                                           _height;
+        GLFWwindow                                   *_window;
+        std::shared_ptr<Camera::Perspective::Camera>  _camera;
 
         // ------------------
         // vertex shader data

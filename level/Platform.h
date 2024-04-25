@@ -8,12 +8,13 @@
 #include <map>
 #include <queue>
 
-#include "../global.h"
+#include "../util/aliases.h"
+#include "../util/tickable.h"
 #include "Chunk/Chunk.h"
 #include "../Rendering/Renderer.h"
 
 namespace Platform {
-    class Platform {
+    class Platform : util::Tickable {
     public:
 
         Platform(Renderer::Renderer &renderer);
@@ -32,7 +33,7 @@ namespace Platform {
         // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
         // extracts visible faces
 
-        auto tick(Camera::Camera& camera) -> void;
+        auto tick() -> void override;
 
         // ---------------------------------
         // inserts a voxel into the platform

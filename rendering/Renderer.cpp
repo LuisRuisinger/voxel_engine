@@ -7,7 +7,7 @@
 #include "../Level/Octree/Octree.h"
 
 namespace Renderer {
-    Renderer::Renderer(std::shared_ptr<Camera::Camera> camera)
+    Renderer::Renderer(std::shared_ptr<Camera::Perspective::Camera> camera)
         : _camera{std::move(camera)}
         , _vertices{std::make_unique<std::vector<Vertex>>()}
         , _indices{std::make_unique<std::vector<u32>>()}
@@ -84,7 +84,7 @@ namespace Renderer {
     }
 
     auto Renderer::initShaders() -> void {
-        _shader = std::make_unique<Shader>("../shaders/vertex_shader.glsl", "../shaders/fragment_shader.glsl");
+        _shader = std::make_unique<Shader>("vertex_shader.glsl", "fragment_shader.glsl");
 
         _shader->registerUniformLocation("view");
         _shader->registerUniformLocation("projection");
@@ -248,7 +248,7 @@ namespace Renderer {
                 static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE));
     }
 
-    auto Renderer::getCamera() const -> const Camera::Camera * {
+    auto Renderer::getCamera() const -> const Camera::Perspective::Camera * {
         return _camera.get();
     }
 

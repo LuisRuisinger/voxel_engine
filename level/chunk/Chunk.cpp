@@ -123,7 +123,7 @@ namespace Chunk {
         _chunksegments[CHUNK_SEGMENT_YDIFF(point)]._segment->removePoint(point);
     }
 
-    auto Chunk::cull(const Camera::Camera &camera, const Platform::Platform &platform) const -> void {
+    auto Chunk::cull(const Camera::Perspective::Camera &camera, const Platform::Platform &platform) const -> void {
         if (!camera.inFrustum(platform.getBase() + _root * vec2f {CHUNK_SIZE}, CHUNK_SIZE))
             return;
 
@@ -138,7 +138,7 @@ namespace Chunk {
         }
     }
 
-    auto Chunk::getPostion() const -> vec2f {
+    auto Chunk::position() const -> vec2f {
         return _root;
     }
 

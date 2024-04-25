@@ -2,14 +2,14 @@
 // Created by Luis Ruisinger on 29.03.24.
 //
 
-#ifndef OPENGL_3D_ENGINE_GLOBAL_H
-#define OPENGL_3D_ENGINE_GLOBAL_H
+#ifndef OPENGL_3D_ENGINE_ALIASES_H
+#define OPENGL_3D_ENGINE_ALIASES_H
 
 #include <cstdint>
 #include <cmath>
 
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
 #define CHUNK_SIZE 32
 
@@ -32,4 +32,4 @@ using vec2f = glm::vec2;
 using vec3f = glm::vec3;
 
 
-#endif //OPENGL_3D_ENGINE_GLOBAL_H
+#endif //OPENGL_3D_ENGINE_ALIASES_H

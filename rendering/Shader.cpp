@@ -8,12 +8,19 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vShaderFile;
     std::ifstream fShaderFile;
 
+    std::filesystem::path basePath = std::filesystem::path(__FILE__).parent_path();
+    std::filesystem::path fullVertexPath   = basePath / "shaders" / vertexPath;
+    std::filesystem::path fullFragmentPath = basePath / "shaders" / fragmentPath;
+
     vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
     try {
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
+
+        std::cout << fullVertexPath.c_str() << std::endl;
+
+        vShaderFile.open(fullVertexPath);
+        fShaderFile.open(fullFragmentPath);
 
         std::stringstream vShaderStream, fShaderStream;
 

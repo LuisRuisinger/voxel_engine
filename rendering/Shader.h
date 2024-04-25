@@ -5,14 +5,14 @@
 #ifndef OPENGL_3D_ENGINE_SHADER_H
 #define OPENGL_3D_ENGINE_SHADER_H
 
-#include <glad/glad.h>
+#include "glad/glad.h"
 
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 
-#include "global.h"
+#include "../util/aliases.h"
 
 class Shader {
 public:

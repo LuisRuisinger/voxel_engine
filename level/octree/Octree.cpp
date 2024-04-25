@@ -3,6 +3,7 @@
 //
 
 #include <immintrin.h>
+#include <cmath>
 
 #include "Octree.h"
 #include "../Chunk/Chunk.h"
@@ -65,7 +66,7 @@ namespace Octree {
 
     template<typename T> requires derivedFromBoundingVolume<T>
     auto Octree<T>::cull(const vec3f &position,
-                         const Camera::Camera &camera,
+                         const Camera::Perspective::Camera &camera,
                          const Renderer::Renderer &renderer) const -> void {
         const Args<T> args = {position, camera, renderer};
         _root->cull(args);
@@ -177,8 +178,7 @@ namespace Octree {
 
             auto &[scale, root] = current->_boundingVolume;
 
-            if (!current->_segments &&
-                glm::distance(position, root) <= static_cast<f32>(scale / 2.0F) * sqrt(2.0))
+            if (!current->_segments && (std::pow(glm::distance(position, root), 2) * 2) <= std::pow(scale, 2))
                 return std::make_optional(current);
 
             auto index = selectChild(position, currentBVol);
@@ -252,7 +252,7 @@ namespace Octree {
         if (!_segments)
             return;
 
-        stack.push(const_cast<Node<T> *>(this));
+        stack.push(this);
 
         for (u8 i = 0; i < 8; ++i)
             if (_segments & indexToSegment[i])

@@ -14,7 +14,7 @@
 #include <stack>
 #include <functional>
 
-#include "../../global.h"
+#include "../../util/aliases.h"
 #include "glad/glad.h"
 #include "../Model/Mesh.h"
 #include "../../Rendering/Renderer.h"
@@ -38,9 +38,9 @@ namespace Octree {
 
     template<typename T>
     struct Args {
-        const vec3f              &_point;
-        const Camera::Camera     &_camera;
-        const Renderer::Renderer &_renderer;
+        const vec3f                           &_point;
+        const Camera::Perspective::Camera     &_camera;
+        const Renderer::Renderer              &_renderer;
     };
 
     //
@@ -101,7 +101,7 @@ namespace Octree {
 
         auto addPoint(vec3f position, T t) -> Node<T> *;
         auto removePoint(vec3f point) -> void;
-        auto cull(const vec3f &, const Camera::Camera &, const Renderer::Renderer&) const -> void;
+        auto cull(const vec3f &, const Camera::Perspective::Camera &, const Renderer::Renderer&) const -> void;
         auto find(const vec3f &) const -> std::optional<Node<T> *>;
         auto updateFaceMask() -> u8;
         auto recombine() -> void;
