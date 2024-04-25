@@ -5,6 +5,7 @@
 
 #include "Renderer.h"
 #include "../Level/Octree/Octree.h"
+#include "../util/indices_generator.h"
 
 namespace Renderer {
     Renderer::Renderer(std::shared_ptr<Camera::Perspective::Camera> camera)
@@ -13,17 +14,16 @@ namespace Renderer {
         , _indices{std::make_unique<std::vector<u32>>()}
         , _width{1800}
         , _height{1200}
-        , _projection{glm::perspective(
-                glm::radians(45.0f),
-                static_cast<f32>(_width) / static_cast<f32>(_height),
-                0.1f,
-                static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE))}
+        , _projection{}
         , _chunks{std::make_unique<std::vector<u16>>()}
+        , _buffers{}
         , _structures{}
     {
         initGLFW();
         initShaders();
         initPipeline();
+
+        updateProjectionMatrix();
     }
 
     auto Renderer::initGLFW() -> void {
@@ -92,7 +92,7 @@ namespace Renderer {
     }
 
     auto Renderer::initPipeline() -> void {
-        auto indices_buffer = IndicesGenerator<MAX_VERTICES_BUFFER>();
+        auto indices_buffer = util::IndicesGenerator<MAX_VERTICES_BUFFER>();
         _indices->insert(_indices->end(), indices_buffer.arr, indices_buffer.end());
         
         _structures[0] = VoxelStructure::CubeStructure {};
@@ -104,32 +104,33 @@ namespace Renderer {
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        glGenVertexArrays(1, &_VAO);
-        glBindVertexArray(_VAO);
+        // VAO generation
+        glGenVertexArrays(1, &_buffers[Buffer::VAO]);
+        glBindVertexArray(Buffer::VAO);
 
-        glGenBuffers(1, &_VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, _VBO);
-        glBufferData(
-                GL_ARRAY_BUFFER,
-                MAX_VERTICES_BUFFER * sizeof(*(_vertices->data())),
-                nullptr,
-                GL_DYNAMIC_DRAW);
+        // buffer generation
+        glGenBuffers(1, &_buffers[Buffer::DRAW_ID]);
+        glGenBuffers(1, &_buffers[Buffer::VBO]);
+        glGenBuffers(1, &_buffers[Buffer::EBO]);
+        glGenBuffers(1, &_buffers[Buffer::TBO]);
 
-        glGenBuffers(1, &_EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _EBO);
-        glBufferData(
-                GL_ELEMENT_ARRAY_BUFFER,
-                static_cast<GLsizeiptr>(_indices->size() * sizeof(*(_indices->data()))),
-                _indices->data(),
-                GL_STATIC_DRAW);
+        // draw_ID substitute
+        //glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::DRAW_ID]);
+        //glVertexAttribIPointer(_buffers[Buffer::DRAW_ID], 1, GL_UNSIGNED_INT, sizeof(glm::uint), 0);
+        //glad_glVertexAttribDivisor(_buffers[Buffer::DRAW_ID], 1);
+        //glBindBuffer(GL_ARRAY_BUFFER, 0);
+        //glEnableVertexAttribArray(_DrawID);
 
-        glGenBuffers(1, &_TBO);
-        glBindBuffer(GL_TEXTURE_BUFFER, _TBO);
-        glBufferData(
-                GL_TEXTURE_BUFFER,
-                MAX_RENDER_VOLUME * sizeof(*(_chunks->data())),
-                _chunks->data(),
-                GL_DYNAMIC_DRAW);
+
+        // remaining buffers
+        glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
+        glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES_BUFFER * sizeof(*(_vertices->data())), nullptr, GL_DYNAMIC_DRAW);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _buffers[Buffer::EBO]);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, _indices->size() * sizeof(*(_indices->data())), _indices->data(), GL_STATIC_DRAW);
+
+        glBindBuffer(GL_TEXTURE_BUFFER, _buffers[Buffer::TBO]);
+        glBufferData(GL_TEXTURE_BUFFER, MAX_RENDER_VOLUME * sizeof(*(_chunks->data())), nullptr, GL_DYNAMIC_DRAW);
 
         // vertex object space position
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(*(_vertices->data())), nullptr);
@@ -148,7 +149,7 @@ namespace Renderer {
 
                 for (const auto &vert : verts) {
                     _vertices->push_back({
-                        .pos = voxel->_position + vert.position * ((f32) voxel->_scale),
+                        ._pos = voxel->_position + vert.position * ((f32) voxel->_scale),
                     });
                 }
             }
@@ -172,7 +173,7 @@ namespace Renderer {
         void *bufferData = nullptr;
 
         if (!_vertices->empty()) {
-            glBindBuffer(GL_ARRAY_BUFFER, _VBO);
+            glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
             bufferData = glMapBufferRange(
                     GL_ARRAY_BUFFER,
                     0,
@@ -188,7 +189,7 @@ namespace Renderer {
         }
 
         if (!this->_chunks->empty()) {
-            glBindBuffer(GL_TEXTURE_BUFFER, _TBO);
+            glBindBuffer(GL_TEXTURE_BUFFER, _buffers[Buffer::TBO]);
             bufferData = glMapBufferRange(
                     GL_TEXTURE_BUFFER,
                     0,
@@ -222,14 +223,14 @@ namespace Renderer {
         _shader->setMat4("view", view);
         _shader->setMat4("projection", _projection);
 
-        glBindVertexArray(_VAO);
+        glBindVertexArray(_buffers[Buffer::VAO]);
 
         // -------------------
         // binding the texture
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
-        glTexBuffer(GL_TEXTURE_BUFFER, GL_R16, _TBO);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R16, _buffers[Buffer::TBO]);
 
         glDrawElements(GL_TRIANGLES, static_cast<i32>(_indices->size()), GL_UNSIGNED_INT, nullptr);
 

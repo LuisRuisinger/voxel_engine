@@ -39,6 +39,7 @@ add_executable(
         util/tickable.h
         util/moveable.h
         util/updateable.h
+        util/indices_generator.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

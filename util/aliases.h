@@ -12,6 +12,16 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #define CHUNK_SIZE 32
+#define Enum(_name, ...)                                                    \
+    struct _name {                                                          \
+        enum : int {                                                        \
+            __VA_ARGS__                                                     \
+        };                                                                  \
+        private:                                                            \
+            struct en_size { int __VA_ARGS__; };                            \
+        public:                                                             \
+            static constexpr  size_t count = sizeof(en_size) / sizeof(int); \
+    }
 
 using c8 = char8_t;
 

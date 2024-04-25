@@ -19,7 +19,6 @@
 #include "../Level/Octree/BoundingVolume.h"
 
 #define MAX_VERTICES_BUFFER ((u32) (131072 * 2))
-#define INDICES_PER_FACE 6
 #define MAX_RENDER_VOLUME (64 * 64)
 
 namespace Renderer {
@@ -29,36 +28,14 @@ namespace Renderer {
     //
 
     struct Vertex {
-        vec3f pos;
+        vec3f _pos;
     };
 
     //
     //
     //
 
-    template<u32 N = MAX_VERTICES_BUFFER>
-    struct IndicesGenerator {
-        IndicesGenerator() : arr() {
-            u32 genIdx = 0;
-
-            for (u32 i = 0; i < (N * INDICES_PER_FACE) - INDICES_PER_FACE; i += INDICES_PER_FACE) {
-                arr[i] = genIdx;
-                arr[i + 1] = genIdx + 1;
-                arr[i + 2] = genIdx + 3;
-                arr[i + 3] = genIdx + 1;
-                arr[i + 4] = genIdx + 2;
-                arr[i + 5] = genIdx + 3;
-
-                genIdx += 4;
-            }
-        }
-
-        constexpr auto end() -> u32 * {
-            return &this->arr[N * INDICES_PER_FACE];
-        }
-
-        u32 arr[N * INDICES_PER_FACE];
-    };
+    Enum(Buffer, DRAW_ID, VAO, VBO, EBO, TBO);
 
     //
     //
@@ -113,10 +90,7 @@ namespace Renderer {
         // -----------
         // GPU buffers
 
-        GLuint _VBO;
-        GLuint _VAO;
-        GLuint _EBO;
-        GLuint _TBO;
+        GLuint _buffers[Buffer::count];
 
         // ---------------
         // cube structures
