@@ -1,14 +1,10 @@
 #version 330 core
-/*
-layout (location = 0) in vec3 os_pos;
-layout (location = 1) in vec3 ls_pos;
-layout (location = 2) in vec2 tx_pos;
-layout (location = 3) in float scale;
-*/
 
 layout (location = 0) in vec3 pos;
 
 out vec2 TexCoord;
+
+uniform samplerBuffer textureBuffer;
 
 uniform vec2 worldbase;
 uniform mat4 view;

@@ -8,12 +8,19 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
     std::ifstream vShaderFile;
     std::ifstream fShaderFile;
 
+    std::filesystem::path basePath = std::filesystem::path(__FILE__).parent_path();
+    std::filesystem::path fullVertexPath   = basePath / "shaders" / vertexPath;
+    std::filesystem::path fullFragmentPath = basePath / "shaders" / fragmentPath;
+
     vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
     try {
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
+
+        std::cout << fullVertexPath.c_str() << std::endl;
+
+        vShaderFile.open(fullVertexPath);
+        fShaderFile.open(fullFragmentPath);
 
         std::stringstream vShaderStream, fShaderStream;
 
@@ -23,10 +30,10 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
         vShaderFile.close();
         fShaderFile.close();
 
-        std::string vertexCode   = vShaderStream.str();
-        std::string fragmentCode = fShaderStream.str();
-        const char* vShaderCode  = vertexCode.c_str();
-        const char* fShaderCode  = fragmentCode.c_str();
+        std::string  vertexCode   = vShaderStream.str();
+        std::string  fragmentCode = fShaderStream.str();
+        const char  *vShaderCode  = vertexCode.c_str();
+        const char  *fShaderCode  = fragmentCode.c_str();
 
         i32 success;
         c8  infoLog[512];
@@ -54,16 +61,15 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
         }
 
         // shader Program
-        ID = glCreateProgram();
-        glAttachShader(ID, vertex);
-        glAttachShader(ID, fragment);
-        glLinkProgram(ID);
+        _ID = glCreateProgram();
+        glAttachShader(_ID, vertex);
+        glAttachShader(_ID, fragment);
+        glLinkProgram(_ID);
 
         // print linking errors if any
-        glGetProgramiv(ID, GL_LINK_STATUS, &success);
-        if(!success)
-        {
-            glGetProgramInfoLog(ID, 512, nullptr, (char *) infoLog);
+        glGetProgramiv(_ID, GL_LINK_STATUS, &success);
+        if(!success) {
+            glGetProgramInfoLog(_ID, 512, nullptr, (char *) infoLog);
             std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << (char *) infoLog << std::endl;
         }
 
@@ -77,11 +83,11 @@ Shader::Shader(const char *vertexPath, const char *fragmentPath) {
 }
 
 auto Shader::use() -> void {
-    glUseProgram(this->ID);
+    glUseProgram(_ID);
 }
 
 auto Shader::registerUniformLocation(std::string name) const -> void {
-    auto location = glGetUniformLocation(this->ID, name.c_str());
+    auto location = glGetUniformLocation(_ID, name.c_str());
     this->uniformCache[name] = location;
 }
 

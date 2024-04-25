@@ -21,21 +21,24 @@ set(ASSIMP_BUILD_STATIC_LIB ON)
 
 add_executable(
         opengl_3d_engine main.cpp
-        Shader.cpp
-        stb_image.cpp
-        camera.cpp
-        Level/Model/Mesh.cpp
-        Level/Octree/Octree.cpp
-        Level/Platform.cpp
-        Level/Chunk/Chunk.cpp
-        Level/Model/Model.cpp
-        Level/Model/Types/Voxel.cpp
-        Rendering/Renderer.cpp
-        Rendering/Culling.cpp
-        Level/Octree/GreedyMeshing.cpp
-        Level/Octree/Memorypool.cpp
-        Level/Octree/Memorypool.h
+        rendering/Shader.cpp
+        util/stb_image.cpp
+        camera/camera.cpp
+        level/model/Mesh.cpp
+        level/octree/Octree.cpp
+        level/Platform.cpp
+        level/chunk/Chunk.cpp
+        level/model/Model.cpp
+        level/model/Types/Voxel.cpp
+        rendering/Renderer.cpp
+        camera/Culling.cpp
+        level/octree/GreedyMeshing.cpp
+        level/octree/Memorypool.cpp
+        level/octree/Memorypool.h
         globalstate.h
+        util/tickable.h
+        util/moveable.h
+        util/updateable.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)
