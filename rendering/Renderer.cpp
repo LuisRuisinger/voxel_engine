@@ -1,7 +1,10 @@
 //
 // Created by Luis Ruisinger on 15.03.24.
 //
+
 #include <immintrin.h>
+#include <algorithm>
+#include <iostream>
 
 #include "Renderer.h"
 #include "../Level/Octree/Octree.h"
@@ -85,6 +88,7 @@ namespace Renderer {
         _shader->registerUniformLocation("view");
         _shader->registerUniformLocation("projection");
         _shader->registerUniformLocation("worldbase");
+        _shader->registerUniformLocation("render_radius");
     }
 
     auto Renderer::initPipeline() -> void {
@@ -141,36 +145,32 @@ namespace Renderer {
         }
     }
 
-    auto Renderer::updateBuffer() -> void {
-        if (!_vertices->empty()) {
-            glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
+    auto Renderer::updateBuffer(size_t index) -> size_t {
+        if (index >= _vertices->size())
+            return 0;
 
-            void *bufferData = glMapBufferRange(
-                    GL_ARRAY_BUFFER,
-                    0,
-                    static_cast<GLsizeiptr>(_vertices->size() * sizeof(u64)),
-                    GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+        glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
 
-            if (!bufferData) {
-                int32_t err = glGetError();
-                //throw std::runtime_error{"ERR::RENDERER::UPDATEBUFFER::BUFFERHANDLE::" + std::to_string(err) + "\n"};
-            }
-            else {
-                __builtin_memcpy(bufferData, _vertices->data(), _vertices->size() * sizeof(u64));
-                glUnmapBuffer(GL_ARRAY_BUFFER);
-            }
+        size_t max = std::min<size_t>(_vertices->size() - index, MAX_VERTICES_BUFFER);
+        void *bufferData = glMapBufferRange(
+                GL_ARRAY_BUFFER,
+                0,
+                static_cast<GLsizeiptr>(max * sizeof(u64)),
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+        if (!bufferData) {
+            int32_t err = glGetError();
+            throw std::runtime_error{"ERR::RENDERER::UPDATEBUFFER::BUFFERHANDLE::" + std::to_string(err) + "\n"};
+        }
+        else {
+            __builtin_memcpy(bufferData, _vertices->data() + index, max * sizeof(u64));
+            glUnmapBuffer(GL_ARRAY_BUFFER);
+
+            return max;
         }
     }
 
-    auto Renderer::updateGlobalBase(vec2f base) -> void {
-        _shader->setVec2("worldbase", base);
-    }
-
-    auto Renderer::draw(u32 texture) -> void {
-
-        // --------------
-        // pipeline reset
-
+    auto Renderer::frame() -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -184,13 +184,31 @@ namespace Renderer {
 
         // binding the texture
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
-        // TODO: maybe change to vertices->size()
-        glDrawElements(GL_TRIANGLES, static_cast<i32>(_vertices->size()) * 2, GL_UNSIGNED_INT, nullptr);
+        int cnt = 0;
+        for (size_t idx = 0; idx < _vertices->size();) {
+            size_t count = updateBuffer(idx);
+
+            if (count == 0)
+                break;
+
+            glDrawElements(GL_TRIANGLES, static_cast<size_t>(count * 1.5), GL_UNSIGNED_INT, nullptr);
+            idx += count;
+        }
 
         _vertices->clear();
     }
+
+    auto Renderer::updateGlobalBase(vec2f base) -> void {
+        _shader->setVec2("worldbase", base);
+    }
+
+    auto Renderer::updateRenderDistance(u32 distance) -> void {
+        _shader->setInt("render_radius", distance);
+    }
+
+    auto Renderer::flush() -> void {}
 
     auto Renderer::updateProjectionMatrix() -> void {
         _projection = glm::perspective(

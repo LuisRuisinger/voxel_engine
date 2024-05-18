@@ -113,3 +113,7 @@ auto Shader::setVec3(std::string name, vec3f vec) const -> void {
 auto Shader::setMat4(std::string name, glm::mat4 &mat) -> void {
     glUniformMatrix4fv(uniformCache[name], 1, GL_FALSE, glm::value_ptr(mat));
 }
+
+auto Shader::setUint(std::string name, u32 value) const -> void {
+    glUniform1ui(uniformCache[name], value);
+}

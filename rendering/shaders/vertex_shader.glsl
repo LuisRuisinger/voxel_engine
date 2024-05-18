@@ -6,11 +6,11 @@ layout(location = 1) in uint low;
 uniform vec2 worldbase;
 uniform mat4 view;
 uniform mat4 projection;
+uniform int  render_radius;
 
 out vec2 TexCoord;
 
 vec3 fromIndex(int chunkIdx, uint segmentIdx) {
-    int render_radius = 3;
     int render_diameter = render_radius * 2;
 
     float x = float((chunkIdx % render_diameter) - render_radius);

@@ -50,11 +50,14 @@ namespace Renderer {
         auto addVoxel(u64) const -> void;
 
         auto prepareBuffer() -> void;
-        auto updateBuffer() -> void;
+        auto updateBuffer(size_t) -> size_t;
         auto updateProjectionMatrix() -> void;
         auto updateGlobalBase(vec2f) -> void;
+        auto updateRenderDistance(u32) -> void;
 
+        auto frame() -> void;
         auto draw(u32) -> void;
+        auto flush() -> void;
 
         auto getCamera() const -> const Camera::Perspective::Camera *;
         auto getWindow() const -> const GLFWwindow *;

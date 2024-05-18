@@ -56,8 +56,8 @@ auto main() -> i32 {
         // auto t_end = std::chrono::high_resolution_clock::now();
         // std::cout << std::chrono::duration<double, std::milli>(t_end-t_start).count() << std::endl;
 
-        globalState._renderer->updateBuffer();
-        globalState._renderer->draw(0);
+        globalState._renderer->updateRenderDistance(RENDER_RADIUS);
+        globalState._renderer->frame();
 
         glfwSwapBuffers(globalState._window);
         glfwPollEvents();
