@@ -22,12 +22,20 @@
 #define BASE {CHUNK_SIZE / 2, CHUNK_SIZE / 2, CHUNK_SIZE / 2}
 #define CHUNK_BVEC {CHUNK_SIZE, BASE}
 #define BASE_SIZE 1
-#define ZERO_FACES(x) (x & ~(0b111111 << 10))
-#define EXTR_FACES(x) ((x >> 10) & 0b111111)
-#define RENDER_RADIUS 3
-#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
+
+#define EXTRACT_SCALE(_ptr)        (((_ptr)->_packed >> 50) & 0x3F)
+#define EXTRACT_SEGMENTS(_ptr)     ((_ptr)->_packed >> 56)
+#define EXTRACT_
+
+#define SET_SCALE(_ptr, _value)       ((_ptr)->_packed = ((_ptr)->_packed & ~(0x3F << 50)) | (((_values) & 0x3F) << 50))
+#define SET_SEGMENTS(_ptr, _value)    ((_ptr)->_packed = ((_ptr)->_packed & ~(0xFF << 56)) | (((_values) & 0xFF) << 56))
+#define SHIFT_X 45
+#define SHIFT_Y 40
+#define SHIFT_Z 35
+
 
 namespace Octree {
+
     enum ChunkData {
         DATA, NODATA
     };
@@ -62,31 +70,27 @@ namespace Octree {
         Node();
         ~Node() noexcept;
 
-        auto insert(vec3f, T t, std::pair<f32, vec3f> currentBVol) -> Node<T> *;
-        auto removePoint(glm::vec3, std::pair<f32, glm::vec3>) -> void;
         auto cull(const Args<T> &) const -> void;
-        auto find(vec3f, std::pair<f32, vec3f>) const -> std::optional<Node<T> *>;
-        auto updateFaceMask(const std::pair<f32, vec3f>&) -> u8;
+        auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
 
-        // ----------------------------------------------
-        // either points to a bounding box or child nodes
+        // segments 0 indicate either not in use or voxel
+        // in case of not in use or voxel not visible the faces will be set to 0
+        // we check existance of a voxel via an ID set to anything else than 0 (lowest 8 bit)
+        Node *_nodes;
+        u64   _packed;
 
-        union {
-            BoundingVolume *_leaf;
-            Node           *_nodes;
-        };
 
-        // ------------------------------------------------------
-        // every bit represents which child node segment is empty
-        // 0 bit - empty
-        // in the case every bit is empty but the pointer is not null
-        // we know the stored pointer points to a bouding box
 
-        u8 _segments;
-        u8 _faces;
 
-        std::pair<u32, vec3f> _boundingVolume;
+        // segments: 8 | faces: 6 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
+        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 8 | voxelID: 8 (exactly 32)
+
+        // unused: 14 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
+        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 8 | voxelID: 8 (exactly 32)
+
+        // offsetX: 3 | offsetY: 3 | offsetZ: 3 | uv: 4 | unused: 1 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
+        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | normals: 3 | unused: 5 | voxelID: 8 (exactly 32)
     };
 
     //
@@ -96,23 +100,24 @@ namespace Octree {
     template<typename T> requires derivedFromBoundingVolume<T>
     class Octree {
     public:
-        explicit Octree(vec3f);
+        Octree();
         ~Octree() = default;
 
-        auto addPoint(vec3f position, T t) -> Node<T> *;
-        auto removePoint(vec3f point) -> void;
-        auto cull(const vec3f &, const Camera::Perspective::Camera &, const Renderer::Renderer&) const -> void;
-        auto find(const vec3f &) const -> std::optional<Node<T> *>;
-        auto updateFaceMask() -> u8;
+        auto addPoint(u64) -> Node<T> *;
+        auto removePoint(u16) -> void;
+        auto cull(const vec3f &position,
+                  const Camera::Perspective::Camera &camera,
+                  const Renderer::Renderer &renderer) const -> void;
+        auto find(u32) const -> std::optional<Node<T> *>;
+        auto updateFaceMask(u16) -> u8;
         auto recombine() -> void;
 
     private:
         std::unique_ptr<Node<T>>  _root;
 
-        // ------------------------------------------------------------
-        // the biggest possible volume bounding the space of the octree
+        // sets the base bounding volume for an octree
+        const u32 _packed = (0x3F << 18) | (0x10 << 13) | (0x10 << 8) | (0x10 << 3) | 5;
 
-        const std::pair<u16, vec3f> _boundingVolume;
     };
 }
 

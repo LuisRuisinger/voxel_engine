@@ -54,7 +54,9 @@ namespace Platform {
         // -------------------------------
         // information about the root node
 
-        std::array<std::unique_ptr<Chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
+        std::array<
+                std::unique_ptr<Chunk::Chunk>,
+                static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
         vec2f                               _currentRoot;
 
         // ----------------------

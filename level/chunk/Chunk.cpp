@@ -7,30 +7,31 @@
 #include "../Platform.h"
 
 namespace Chunk {
+    constexpr const u64 setFaces = static_cast<u64>(0x3F) << 50;
+    constexpr const u64 setScale = static_cast<u64>(0x7)  << 32;
 
     //
     //
     //
 
-    ChunkSegment::ChunkSegment(vec3f root)
-        : _root{root}
+    ChunkSegment::ChunkSegment(u8 segmentIdx)
+        : _segmentIdx{segmentIdx}
         , _modified{false}
-        , _segment{std::make_unique<Octree::Octree<BoundingVolume>>(vec3f(0))}
+        , _segment{std::make_unique<Octree::Octree<BoundingVolume>>()}
     {}
 
     ChunkSegment::ChunkSegment(ChunkSegment &&other) noexcept
-        : _root{other._root}
+        : _segmentIdx{other._segmentIdx}
         , _modified{other._modified}
         , _segment{std::move(other._segment)}
     {}
 
     auto ChunkSegment::operator=(ChunkSegment &&other) noexcept -> ChunkSegment & {
-        _root = other._root;
-        _modified = other._modified;
-        _segment  = std::move(other._segment);
+        _segmentIdx = other._segmentIdx;
+        _modified   = other._modified;
+        _segment    = std::move(other._segment);
 
         other._modified = false;
-
         return *this;
     }
 
@@ -38,28 +39,45 @@ namespace Chunk {
     //
     //
 
-    Chunk::Chunk(vec2f root, Platform::Platform *platform)
+    Chunk::Chunk(u16 chunkIdentifier, Platform::Platform *platform)
         : _chunksegments{}
-        , _root{root}
+        , _chunkIdx{static_cast<u16>(chunkIdentifier & 0xFFF)}
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
-            _chunksegments.emplace_back(ChunkSegment {
-                CHUNK_POS_3D(_root) + vec3f {0, i + YNORMALIZED_INDEX_OFFSET, 0}
-            });
+            _chunksegments.emplace_back(ChunkSegment(i));
 
         generate(platform);
     }
 
     auto Chunk::insert(const vec3f position, 
-                       const BoundingVolume boundingVolume, 
+                       u8 voxelID,
                        Platform::Platform *platform) -> void {
-        auto *node = _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->addPoint(
-                CHUNK_SEGMENT_YNORMALIZE(position),
-                boundingVolume);
+        auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
+        auto &segment       = _chunksegments[CHUNK_SEGMENT_YDIFF(position)];
 
-        // -----------------
+        u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
+        u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
+        u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+
+        // setting coordinates
+        u32 packedDataHighP = (x << 13) | (y << 8) | (z << 3) |
+
+                              // setting scale to the biggest possible bounding volume
+                              0x7;
+
+        // 12 highest bit set to the index of the chunk inside chunk managing array
+        u32 packedDataLowP  = (_chunkIdx << 20) |
+
+                              // 4 bits set to the segment index
+                              (segment._segmentIdx << 16) |
+
+                              // the identifier of the voxel
+                              voxelID;
+
+        // adding the voxel
+        auto *node = segment._segment->addPoint((static_cast<u64>(packedDataHighP) << 32) | packedDataLowP);
+
         // occlusion culling
-
         updateOcclusion(node, find(position - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
         updateOcclusion(node, find(position + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
         updateOcclusion(node, find(position - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
@@ -67,16 +85,16 @@ namespace Chunk {
         updateOcclusion(node, find(position - vec3f {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
         updateOcclusion(node, find(position + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
 
-        // ---------------------------------------------------------------
-        // the recombination should happen at the last stage of generation
-
-        _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->recombine();
-        _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._modified = true;
+        // recombining voxels
+        // segment._segment->recombine();
+        segment._modified = true;
     }
 
     inline
     auto Chunk::updateOcclusion(Octree::Node<BoundingVolume> *current,
-                                std::pair<Octree::Node<BoundingVolume> *, ChunkData> pair, u16 cBit, u16 nBit) -> void {
+                                std::pair<Octree::Node<BoundingVolume> *, ChunkData> pair,
+                                u64 cBit,
+                                u64 nBit) -> void {
         auto &[neighbor, type] = pair;
 
         switch (type) {
@@ -84,16 +102,14 @@ namespace Chunk {
                 break;
 
             case NODATA:
-                current->_leaf->_voxelID &= ~cBit;
+                current->_packed &= ~cBit;
                 break;
 
             case DATA:
-                neighbor->_leaf->_voxelID &= (std::get<0>(neighbor->_boundingVolume) <= 
-                                              std::get<0>(current->_boundingVolume))
-                        ? ~nBit : neighbor->_leaf->_voxelID;
-                current->_leaf->_voxelID  &= (std::get<0>(current->_boundingVolume) <= 
-                                              std::get<0>(neighbor->_boundingVolume))
-                        ? ~cBit : current->_leaf->_voxelID;
+                neighbor->_packed &= (((neighbor->_packed >> 32) & 0x7) <= ((current->_packed >> 32) & 0x7))
+                        ? ~nBit : neighbor->_packed;
+                current->_packed  &= (((current->_packed >> 32) & 0x7) <= ((neighbor->_packed >> 32) & 0x7))
+                        ? ~cBit : current->_packed;
                 break;
 
             default:
@@ -114,46 +130,72 @@ namespace Chunk {
             return {nullptr, EMPTY};
         }
         else {
-            auto opt = _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->find(CHUNK_SEGMENT_YNORMALIZE(position));
+            auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
+            auto &segment       = _chunksegments[CHUNK_SEGMENT_YDIFF(position)];
+
+            u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
+            u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
+            u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+
+            auto opt = segment._segment->find((x << 13) | (y << 8) | (z << 3) | 0x7);
             return opt.has_value() ? std::pair {opt.value(), DATA} : std::pair {nullptr, EMPTY};
         }
     }
 
-    auto Chunk::remove(vec3f point) -> void {
-        _chunksegments[CHUNK_SEGMENT_YDIFF(point)]._segment->removePoint(point);
+    auto Chunk::remove(vec3f position) -> void {
+        auto normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
+
+        u16 x = static_cast<u8>(normalizedVec.x) & 0x1F;
+        u16 y = static_cast<u8>(normalizedVec.y) & 0x1F;
+        u16 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+
+        _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->removePoint((x << 10) | (y << 5) | z);
     }
 
     auto Chunk::cull(const Camera::Perspective::Camera &camera, const Platform::Platform &platform) const -> void {
-        if (!camera.inFrustum(platform.getBase() + _root * vec2f {CHUNK_SIZE}, CHUNK_SIZE))
-            return;
-
-        auto globalBase = vec3f {platform.getBase().x, 0, platform.getBase().y};
+        auto platformBase = glm::vec3 { platform.getBase().x, 0,platform.getBase().y };
+        auto offset = 32.0F * glm::vec3(
+                static_cast<i32>(_chunkIdx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                -4,
+                static_cast<i32>(_chunkIdx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+        );
 
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i) {
-            platform.getRenderer().addChunk(_chunksegments[i]._root);
             _chunksegments[i]._segment->cull(
-                    globalBase + _chunksegments[i]._root * vec3f {CHUNK_SIZE},
+                    platformBase + offset + glm::vec3(0.0F, i * 32.0F, 0.0F),
                     camera,
                     platform.getRenderer());
         }
     }
 
-    auto Chunk::position() const -> vec2f {
-        return _root;
-    }
-
     auto Chunk::generate(Platform::Platform *platform) -> void {
-        auto fun = [this](
-                const vec3f position,
-                const BoundingVolume boundingVolume,
-                Platform::Platform *platform) -> void {
-            auto *node = _chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->addPoint(
-                    CHUNK_SEGMENT_YNORMALIZE(position),
-                    boundingVolume);
+        auto fun = [this](const vec3f position, u8 voxelID, Platform::Platform *platform) -> void {
+            auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
+            auto &segment       = _chunksegments[CHUNK_SEGMENT_YDIFF(position)];
 
-            // -----------------
+            u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
+            u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
+            u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+
+                                  // setting coordinates
+            u32 packedDataHighP = (x << 13) | (y << 8) | (z << 3) |
+
+                                  // setting scale to the biggest possible bounding volume
+                                  0x7;
+
+                                  // 12 highest bit set to the index of the chunk inside chunk managing array
+            u32 packedDataLowP  = (_chunkIdx << 20) |
+
+                                  // 4 bits set to the segment index
+                                  (segment._segmentIdx << 16) |
+
+                                  // the identifier of the voxel
+                                  voxelID;
+
+            // adding the voxel
+            auto *node = segment._segment->addPoint((static_cast<u64>(packedDataHighP) << 32) | packedDataLowP);
+
             // occlusion culling
-
             updateOcclusion(node, find(position - vec3f {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
             updateOcclusion(node, find(position + vec3f {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
             updateOcclusion(node, find(position - vec3f {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
@@ -162,36 +204,29 @@ namespace Chunk {
             updateOcclusion(node, find(position + vec3f {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
         };
 
-        // ----------
         // generation
-
-        for (u8 x = 0; x < CHUNK_SIZE; ++x) {
-            for (u8 y = 0; y < 4; ++y) {
-                for (u8 z = 0; z < CHUNK_SIZE; ++z) {
+        for (u8 x = 0; x < (CHUNK_SIZE / 2); ++x) {
+            for (u8 y = 0; y < 1; ++y) {
+                for (u8 z = 0; z < (CHUNK_SIZE / 2); ++z) {
                     auto point = vec3f {x, y, z};
-                    fun(point, BoundingVolume {0}, platform);
+                    fun(point, 0, platform);
                 }
             }
         }
 
-        for (u8 x = 0; x < CHUNK_SIZE; ++x) {
-            for (u8 y = 5; y < 6; ++y) {
-                for (u8 z = 0; z < CHUNK_SIZE; ++z) {
-                    auto point = vec3f {x, y, z};
-                    fun(point, BoundingVolume {0}, platform);
-                }
-            }
-        }
-
-        // -----------
         // compression
-
-        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
-            _chunksegments[i]._segment->recombine();
+        //for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
+        //    _chunksegments[i]._segment->recombine();
     }
 
-    auto Chunk::update() -> void {
-        for (u8 i = 0U; i < CHUNK_SEGMENTS; ++i)
-            _chunksegments[i]._segment->updateFaceMask();
+    auto Chunk::update(u16 chunkIdx) -> void {
+        _chunkIdx = chunkIdx & 0xFFF;
+
+        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
+            _chunksegments[i]._segment->updateFaceMask((_chunkIdx << 4) | i);
+    }
+
+    auto Chunk::index() const -> u16 {
+        return _chunkIdx;
     }
 }
