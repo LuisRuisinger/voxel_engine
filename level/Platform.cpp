@@ -4,7 +4,7 @@
 
 #include "Platform.h"
 
-#define INDEX(_p) (static_cast<u32>((_p).x + (_p).y * CHUNK_SIZE))
+#define INDEX(_x, _y) ((((_x) + RENDER_RADIUS)) + (((_y) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
 
 namespace Platform {
 
@@ -15,9 +15,8 @@ namespace Platform {
     // ----------------
     // helper functions
 
-    static inline
-    auto calculateDistance2D(const vec2f &p1, const vec2f &p2) -> f32 {
-        return static_cast<f32>(sqrt(pow((p1.x - p2.x), 2) + pow((p1.y - p2.y), 2)));
+    static inline auto calculateDistance2D(const vec2f &p1, const vec2f &p2) -> f32 {
+        return std::hypot(p1.x - p2.x, p1.y - p2.y);
     }
 
     //
@@ -34,20 +33,17 @@ namespace Platform {
     {}
 
     auto Platform::init() -> void {
-        for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
-            for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
-                if (calculateDistance2D(vec2f {0}, {x, z}) < RENDER_RADIUS) {
-                    auto pos = vec2f {x, z};
-                    auto deffered = pos + vec2f {RENDER_RADIUS};
+        for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x)
+            for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z)
+                if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
+                    _loadedChunks[INDEX(x, z)] = std::make_unique<Chunk::Chunk>(INDEX(x, z), this);
 
-                    _loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
-                }
-            }
+        u16 idx = 0;
+        for (auto &x : _loadedChunks) {
+            if (x.operator bool())
+                x->update(idx);
+            ++idx;
         }
-
-        std::ranges::for_each(
-                _loadedChunks | std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); }),
-                [](const auto &ptr) -> void { ptr->update(); });
     }
 
     auto Platform::tick() -> void {
@@ -84,27 +80,26 @@ namespace Platform {
 
                     // TODO: steal old chunks
 
-                    if (calculateDistance2D(vec2f {0}, {x, z}) < RENDER_RADIUS) {
-                        auto pos = vec2f {x, z};
-                        auto deffered = pos + vec2f {RENDER_RADIUS};
-
-                        _loadedChunks[INDEX(deffered)] = std::make_unique<Chunk::Chunk>(pos, this);
-                    }
+                    if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
+                        _loadedChunks[INDEX(x, z)] = std::make_unique<Chunk::Chunk>(INDEX(x, z), this);
                 }
             }
 
             _currentRoot = newRoot;
 
-            std::ranges::for_each(
-                    filtered,
-                    [](const auto &ptr) -> void { ptr->update(); });
+            u16 idx = 0;
+            for (auto &x : _loadedChunks) {
+                if (x.operator bool())
+                    x->update(idx);
+                ++idx;
+            }
         }
 
         _renderer.updateGlobalBase(_currentRoot);
 
         std::ranges::for_each(
                 filtered,
-                [&camera, this](const auto &ptr) -> void { (void) ptr->cull(camera, *this); });
+                [&camera, this](const auto &ptr) -> void { ptr->cull(camera, *this); });
     }
 
     auto Platform::insert(vec3f point, u16 voxelID) -> void {

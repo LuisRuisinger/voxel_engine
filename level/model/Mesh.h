@@ -24,6 +24,10 @@ namespace Mesh {
         glm::vec2 texCoords;
     };
 
+    struct Face {
+        std::vector<u64> vertices;
+    };
+
     struct Texture {
         uint32_t    id;
         std::string type;

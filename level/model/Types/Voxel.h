@@ -10,18 +10,18 @@
 
 namespace VoxelStructure {
     class Voxel {
-        virtual auto structure() const -> const std::vector<Mesh::Mesh>& = 0;
+        virtual auto mesh() const -> const std::array<std::vector<u64>, 6> & =0;
     };
 
     class CubeStructure : Voxel {
     public:
         CubeStructure();
         ~CubeStructure() = default;
-        auto structure() const -> const std::vector<Mesh::Mesh>&;
+        auto mesh() const -> const std::array<std::vector<u64>, 6> &;
+        auto setFace(std::vector<Mesh::Vertex> &face, u8 idx) -> void;
 
     private:
-        std::vector<Mesh::Mesh> faces;
-
+        std::array<std::vector<u64>, 6> _compressedFaces;
     };
 }
 

@@ -11,7 +11,20 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#define CHUNK_SIZE 32
+#define CHUNK_SIZE 64
+#define RENDER_RADIUS 8
+#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
+#define Enum(_name, ...)                                                    \
+    struct _name {                                                          \
+        enum : int {                                                        \
+            __VA_ARGS__                                                     \
+        };                                                                  \
+        private:                                                            \
+            struct en_size { int __VA_ARGS__; };                            \
+        public:                                                             \
+            static constexpr  size_t count = sizeof(en_size) / sizeof(int); \
+    }
+#define FROM_INDEX(_i) (glm::vec2 {((_i) % RENDER_RADIUS) - RENDER_RADIUS, ((_i) / RENDER_RADIUS) - RENDER_RADIUS})
 
 using c8 = char8_t;
 

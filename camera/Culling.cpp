@@ -29,12 +29,12 @@ namespace Culling {
     }
 
     auto Frustum::cubeVisible(const vec3f &point, u32 scale) const -> bool {
-        f32 radius = (f32) (scale * sqrt(2.0));
+        auto radius = static_cast<f32>(scale * sqrt(2.0));
         return sphereInFrustum(point, radius) != OUTSIDE;
     }
 
     auto Frustum::squareVisible(const vec2f &point, u32 scale) const -> bool {
-        f32 radius = (f32) (scale * sqrt(2.0));
+        auto radius = static_cast<f32>(scale * sqrt(2.0));
         return circleInFrustum(point, radius) != OUTSIDE;
     }
 
