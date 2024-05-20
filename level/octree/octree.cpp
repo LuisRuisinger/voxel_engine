@@ -5,8 +5,8 @@
 #include <immintrin.h>
 #include <cmath>
 
-#include "Octree.h"
-#include "../Chunk/Chunk.h"
+#include "octree.h"
+#include "../Chunk/chunk.h"
 
 #define ONE_BIT_SET_ONLY(_v)                       ((_v) && !((_v) & ((_v) - 1)))
 #define SET_BIT_INDEX(_v)                          ((__builtin_ffs(_v)) - 1)
@@ -19,7 +19,7 @@
                                                     (((current->_nodes[(_i1)]._packed >> 50) & 0x3F) ^            \
                                                      ((current->_nodes[(_i4)]._packed >> 50) & 0x3F)) & (_bit))
 
-namespace Octree {
+namespace core::level::octree {
     constexpr const u32 xAnd = (0x1F << 13);
     constexpr const u32 yAnd = (0x1F <<  8);
     constexpr const u32 zAnd = (0x1F <<  3);
@@ -105,9 +105,8 @@ namespace Octree {
      * @return A std::optional containing either the voxel or none
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     static inline
-    auto findNode(u32 packedVoxel, Node<T> *current) -> std::optional<Node<T> *> {
+    auto findNode(u32 packedVoxel, Node *current) -> std::optional<Node *> {
         while (true) {
             if (!(current->_packed >> 56)) {
 
@@ -155,9 +154,8 @@ namespace Octree {
      * @return The address of inserted Voxel
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     static inline
-    auto insertNode(u64 packedVoxel, u32 packedData, Node<T> *current) -> Node<T> * {
+    auto insertNode(u64 packedVoxel, u32 packedData, Node *current) -> Node * {
         while (true) {
             if ((1 << (packedData & 0x7)) == BASE_SIZE) {
 
@@ -183,8 +181,7 @@ namespace Octree {
                                        (static_cast<u64>(packedData) << 32) |
                                        (packedVoxel & 0xFFFF0000);
 
-                    current->_nodes  = static_cast<Node<T> *>(
-                            std::aligned_alloc(alignof(Node<T>), sizeof(Node<T>) * 8));
+                    current->_nodes  = static_cast<Node *>(std::aligned_alloc(alignof(Node), sizeof(Node) * 8));
                 }
 
                 if (!(segments & segment)) {
@@ -211,8 +208,7 @@ namespace Octree {
      *
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Node<T>::Node()
+    Node::Node()
         : _nodes{nullptr}
         , _packed{0}
     {}
@@ -223,8 +219,7 @@ namespace Octree {
      * Frees memory allocated for child nodes if necessary.
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Node<T>::~Node() noexcept {
+    Node::~Node() noexcept {
         if (!_nodes)
             return;
 
@@ -232,15 +227,14 @@ namespace Octree {
         if (segments) {
             for (u8 i = 0; i < 8; ++i) {
                 if (segments & indexToSegment[i])
-                    _nodes[i].~Node<T>();
+                    _nodes[i].~Node();
             }
 
             std::free(_nodes);
         }
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::updateFaceMask(u16 packedChunk) -> u8 {
+    auto Node::updateFaceMask(u16 packedChunk) -> u8 {
         if (!_nodes)
             return 0;
 
@@ -261,8 +255,7 @@ namespace Octree {
         return faces;
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::recombine(std::stack<Node *> &stack) -> void {
+    auto Node::recombine(std::stack<Node *> &stack) -> void {
         u8 segments = _packed >> 56;
         
         if (!segments)
@@ -274,7 +267,7 @@ namespace Octree {
             if (segments & indexToSegment[i])
                 _nodes[i].recombine(stack);
 
-        Node<T> *current;
+        Node *current;
 
         // combining same sized volumes
         while (!stack.empty()) {
@@ -320,8 +313,7 @@ namespace Octree {
         }
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::cull(const Args<T> &args) const -> void {
+    auto Node::cull(const Args &args) const -> void {
         u64 faces = (_packed >> 50) & args._camera.getCameraMask();
 
         if (!faces)
@@ -351,43 +343,33 @@ namespace Octree {
     // ----------------------
     // Octree implementation
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Octree<T>::Octree()
-        : _root{std::make_unique<Node<T>>()}
+    Octree::Octree()
+        : _root{std::make_unique<Node>()}
     {}
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::addPoint(u64 packedVoxel) -> Node<T> * {
+    auto Octree::addPoint(u64 packedVoxel) -> Node * {
         return insertNode(packedVoxel, _packed, _root.get());
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::removePoint(u16 position) -> void {}
+    auto Octree::removePoint(u16 position) -> void {}
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::cull(const vec3f &position,
-                         const Camera::Perspective::Camera &camera,
-                         const Renderer::Renderer &renderer) const -> void {
-        const Args<T> args = {position, camera, renderer};
+    auto Octree::cull(const vec3f &position,
+                      const core::camera::perspective::Camera &camera,
+                      const core::rendering::Renderer &renderer) const -> void {
+        const Args args = {position, camera, renderer};
         _root->cull(args);
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::find(u32 packedVoxel) const -> std::optional<Node<T> *> {
+    auto Octree::find(u32 packedVoxel) const -> std::optional<Node *> {
         return findNode(packedVoxel, _root.get());
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::updateFaceMask(u16 mask) -> u8 {
+    auto Octree::updateFaceMask(u16 mask) -> u8 {
         return _root->updateFaceMask(mask);
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::recombine() -> void {
-        std::stack<Node<T> *> stack;
+    auto Octree::recombine() -> void {
+        std::stack<Node *> stack;
         _root->recombine(stack);
     }
-
-    template class Octree<BoundingVolume>;
-    template class Node<BoundingVolume>;
 }

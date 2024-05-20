@@ -3,9 +3,9 @@
 //
 
 #include "camera.h"
-#include "../level/Platform.h"
+#include "../level/platform.h"
 
-namespace Camera::Perspective {
+namespace core::camera::perspective {
     Camera::Camera(vec3f initPosition, vec3f initUp, f32 initYaw, f32 initPitch)
         : _position{initPosition}
         , _front{}

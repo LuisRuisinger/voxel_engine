@@ -2,10 +2,9 @@
 // Created by Luis Ruisinger on 17.03.24.
 //
 
-#include <immintrin.h>
-#include "Culling.h"
+#include "culling.h"
 
-namespace Culling {
+namespace core::camera::culling {
     auto Frustum::setCamInternals(f32 fovDeg, f32 aspectRatio, f32 nClipDistance, f32 fClipDistance) -> void {
         _ratio = aspectRatio;
         _farD  = fClipDistance;

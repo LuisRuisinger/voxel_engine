@@ -11,17 +11,24 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#ifdef __AVX2__
+#include <immintrin.h>
+    #define VERTEX __m256i
+#else
+    #define VERTEX u64
+#endif
+
 #include "../util/aliases.h"
-#include "Shader.h"
-#include "../Level/Model/Mesh.h"
+#include "shader.h"
+#include "../Level/Model/mesh.h"
 #include "../camera/camera.h"
-#include "../Level/Model/Types/Voxel.h"
-#include "../Level/Octree/BoundingVolume.h"
+#include "../Level/Model/Types/voxel.h"
+#include "../Level/Octree/boundingVolume.h"
 
 #define MAX_VERTICES_BUFFER ((u32) (131072 * 2))
 #define MAX_RENDER_VOLUME (64 * 64)
 
-namespace Renderer {
+namespace core::rendering {
 
     //
     //
@@ -39,7 +46,7 @@ namespace Renderer {
 
     class Renderer {
     public:
-        explicit Renderer(std::shared_ptr<Camera::Perspective::Camera> camera);
+        explicit Renderer(std::shared_ptr<camera::perspective::Camera> camera);
 
         ~Renderer() = default;
 
@@ -59,7 +66,7 @@ namespace Renderer {
         auto draw(u32) -> void;
         auto flush() -> void;
 
-        auto getCamera() const -> const Camera::Perspective::Camera *;
+        auto getCamera() const -> const camera::perspective::Camera *;
         auto getWindow() const -> const GLFWwindow *;
 
     private:
@@ -68,7 +75,7 @@ namespace Renderer {
         u32                                           _width;
         u32                                           _height;
         GLFWwindow                                   *_window;
-        std::shared_ptr<Camera::Perspective::Camera>  _camera;
+        std::shared_ptr<camera::perspective::Camera>  _camera;
 
         // vertex shader data
         // the chunk positions are compressed into 2 * 6 bit
@@ -76,7 +83,8 @@ namespace Renderer {
         std::unique_ptr<Shader> _shader;
 
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
-        std::unique_ptr<std::vector<u64>> mutable _vertices;
+
+        std::unique_ptr<std::vector<VERTEX>> mutable _vertices;
 
         std::unique_ptr<std::vector<u32>>            _indices;
 

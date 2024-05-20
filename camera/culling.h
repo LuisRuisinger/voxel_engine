@@ -12,7 +12,7 @@
 
 #define DEG2RAD 0.017453292F
 
-namespace Culling {
+namespace core::camera::culling {
     enum CollisionType {
         OUTSIDE, INTERSECT
     };

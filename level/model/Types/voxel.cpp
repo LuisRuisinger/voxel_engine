@@ -2,7 +2,10 @@
 // Created by Luis Ruisinger on 14.03.24.
 //
 
-#include "Voxel.h"
+#include "voxel.h"
+
+#define POS_CONV(_p) (static_cast<u64>(((_p) + 0.5F) * 4.0F) & 0x7)
+#define UV_CONV(_p)  (static_cast<u64>((_p) * 2.0F) & 0x3)
 
 namespace VoxelStructure {
     CubeStructure::CubeStructure()
@@ -64,30 +67,20 @@ namespace VoxelStructure {
     }
 
     auto CubeStructure::setFace(std::vector<Mesh::Vertex> &face, u8 idx) -> void {
-
-        // this can be inversed through computing: (value * 0.25F) - 0.5F
-        std::unordered_map<float_t, u64> posConv = {
-                {-0.5F, 0b000}, {-0.25F, 0b001}, {0.0F, 0b010}, {0.25F, 0b011}, {0.5F, 0b100}
-        };
-
-        // this can be inversed through computing: value * 0.5F
-        std::unordered_map<float_t, u64> uvConv = {
-                {0.0F, 0b00}, {0.5F, 0b01}, {1.0F, 0b10}
-        };
-
         std::vector<u64> compressedFace(face.size());
+
         for (size_t i = 0; i < face.size(); ++i)
 
             // constructing compressed faces from n vertices
-            compressedFace[i] = (posConv[face[i].position.x] << 61) |
-                                (posConv[face[i].position.y] << 58) |
-                                (posConv[face[i].position.z] << 55) |
+            compressedFace[i] = (POS_CONV(face[i].position.x) << 61) |
+                                (POS_CONV(face[i].position.y) << 58) |
+                                (POS_CONV(face[i].position.z) << 55) |
 
                                 // compressing uv coordinates
-                                (uvConv[face[i].texCoords.x] << 53) |
-                                (uvConv[face[i].texCoords.y] << 51);
+                                (UV_CONV(face[i].texCoords.x) << 53) |
+                                (UV_CONV(face[i].texCoords.y) << 51);
 
-        _compressedFaces[idx] = compressedFace;
+        _compressedFaces[idx] = std::move(compressedFace);
     }
 
     auto CubeStructure::mesh() const  -> const std::array<std::vector<u64>, 6> & {

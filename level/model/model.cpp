@@ -4,7 +4,7 @@
 
 #include <utility>
 
-#include "Mesh.h"
+#include "mesh.h"
 #include "../../util/stb_image.h"
 
 namespace Mesh {

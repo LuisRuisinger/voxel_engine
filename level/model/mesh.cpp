@@ -2,7 +2,7 @@
 // Created by Luis Ruisinger on 16.02.24.
 //
 
-#include "Mesh.h"
+#include "mesh.h"
 
 #include <utility>
 

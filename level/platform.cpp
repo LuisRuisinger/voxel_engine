@@ -2,11 +2,11 @@
 // Created by Luis Ruisinger on 18.02.24.
 //
 
-#include "Platform.h"
+#include "platform.h"
 
 #define INDEX(_x, _y) ((((_x) + RENDER_RADIUS)) + (((_y) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
 
-namespace Platform {
+namespace core::level {
 
     //
     //
@@ -26,7 +26,7 @@ namespace Platform {
     // -----------------------
     // platform implementation
 
-    Platform::Platform(Renderer::Renderer &renderer)
+    Platform::Platform(rendering::Renderer &renderer)
         : _renderer{renderer}
         , _currentRoot{renderer.getCamera()->getCameraPosition().x, renderer.getCamera()->getCameraPosition().z}
         , _loadedChunks{}
@@ -36,7 +36,7 @@ namespace Platform {
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x)
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z)
                 if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
-                    _loadedChunks[INDEX(x, z)] = std::make_unique<Chunk::Chunk>(INDEX(x, z), this);
+                    _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
 
         u16 idx = 0;
         for (auto &x : _loadedChunks) {
@@ -81,7 +81,7 @@ namespace Platform {
                     // TODO: steal old chunks
 
                     if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
-                        _loadedChunks[INDEX(x, z)] = std::make_unique<Chunk::Chunk>(INDEX(x, z), this);
+                        _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
                 }
             }
 
@@ -114,7 +114,7 @@ namespace Platform {
         return _currentRoot;
     }
 
-    auto Platform::getRenderer() const -> const Renderer::Renderer & {
+    auto Platform::getRenderer() const -> const rendering::Renderer & {
         return _renderer;
     }
 }

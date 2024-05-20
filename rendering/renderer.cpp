@@ -2,18 +2,40 @@
 // Created by Luis Ruisinger on 15.03.24.
 //
 
-#include <immintrin.h>
 #include <algorithm>
 #include <iostream>
 
-#include "Renderer.h"
-#include "../Level/Octree/Octree.h"
+#include "renderer.h"
+#include "../Level/Octree/octree.h"
 #include "../util/indices_generator.h"
 
-namespace Renderer {
-    Renderer::Renderer(std::shared_ptr<Camera::Perspective::Camera> camera)
+namespace core::rendering {
+    static const u8 bit_count_table[256] = {
+            0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+            1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+            1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+            1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+            2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+            3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+            3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+            4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
+    };
+
+    const constexpr u64    vertex_clear_mask               = 0x0003FFFFFFFF00FFU;
+    const constexpr size_t max_copyable_elements           = MAX_VERTICES_BUFFER * sizeof(u64) / sizeof(VERTEX);
+    const constexpr size_t max_displayable_elements_scalar = sizeof(VERTEX) / sizeof(u64) * 1.5;
+
+    Renderer::Renderer(std::shared_ptr<camera::perspective::Camera> camera)
         : _camera{std::move(camera)}
-        , _vertices{std::make_unique<std::vector<u64>>()}
+        , _vertices{std::make_unique<std::vector<VERTEX>>()}
         , _indices{std::make_unique<std::vector<u32>>()}
         , _width{1800}
         , _height{1200}
@@ -128,22 +150,35 @@ namespace Renderer {
     }
 
     auto Renderer::addVoxel(u64 packedVoxel) const -> void {
-        const constexpr u64 mask = 0x0003FFFFFFFF00FFU;
 
         // this clears out segments, faces and the unused high 8 bits of the low 16 bits of the low 32 bits
-        u16 faces = packedVoxel >> 50;
+        u8 faces = packedVoxel >> 50;
         auto &ref = _structures[0].mesh();
+
+#ifdef __AVX2__
+        __m256i voxelVec = _mm256_set1_epi64x(packedVoxel & vertex_clear_mask);
+
+        for (size_t i = 0; i < 6; ++i) {
+            if (faces & (1 << i)) [[unlikely]] {
+                __m256i vertexVec = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(ref[i].data()));
+                _vertices->emplace_back(_mm256_or_si256(vertexVec, voxelVec));
+            }
+        }
+#else
         packedVoxel &= mask;
 
         for (size_t i = 0; i < 6; ++i) {
-            if (faces & (1 << i)) {
+            if (faces & (1 << i)) [[unlikely]] {
                 auto &face = ref[i];
 
                 for (auto vertex : face)
-                    _vertices->push_back(vertex | packedVoxel);
+                    _vertices->emplace_back(vertex | packedVoxel);
             }
         }
+#endif
     }
+
+    // intrinsics 280 - 312 (mostly steadly ~ 310)
 
     auto Renderer::updateBuffer(size_t index) -> size_t {
         if (index >= _vertices->size())
@@ -151,11 +186,11 @@ namespace Renderer {
 
         glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
 
-        size_t max = std::min<size_t>(_vertices->size() - index, MAX_VERTICES_BUFFER);
+        size_t max = std::min<size_t>(_vertices->size() - index, max_copyable_elements);
         void *bufferData = glMapBufferRange(
                 GL_ARRAY_BUFFER,
                 0,
-                static_cast<GLsizeiptr>(max * sizeof(u64)),
+                static_cast<GLsizeiptr>(max * sizeof(VERTEX)),
                 GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
 
         if (!bufferData) {
@@ -163,7 +198,7 @@ namespace Renderer {
             throw std::runtime_error{"ERR::RENDERER::UPDATEBUFFER::BUFFERHANDLE::" + std::to_string(err) + "\n"};
         }
         else {
-            __builtin_memcpy(bufferData, _vertices->data() + index, max * sizeof(u64));
+            __builtin_memcpy(bufferData, _vertices->data() + index, max * sizeof(VERTEX));
             glUnmapBuffer(GL_ARRAY_BUFFER);
 
             return max;
@@ -186,14 +221,12 @@ namespace Renderer {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        int cnt = 0;
+        size_t count = 0;
         for (size_t idx = 0; idx < _vertices->size();) {
-            size_t count = updateBuffer(idx);
-
-            if (count == 0)
+            if ((count = updateBuffer(idx)) == 0)
                 break;
 
-            glDrawElements(GL_TRIANGLES, static_cast<size_t>(count * 1.5), GL_UNSIGNED_INT, nullptr);
+            glDrawElements(GL_TRIANGLES, count * max_displayable_elements_scalar, GL_UNSIGNED_INT, nullptr);
             idx += count;
         }
 
@@ -218,7 +251,7 @@ namespace Renderer {
                 static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE));
     }
 
-    auto Renderer::getCamera() const -> const Camera::Perspective::Camera * {
+    auto Renderer::getCamera() const -> const camera::perspective::Camera * {
         return _camera.get();
     }
 

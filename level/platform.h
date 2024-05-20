@@ -10,14 +10,14 @@
 
 #include "../util/aliases.h"
 #include "../util/tickable.h"
-#include "Chunk/Chunk.h"
-#include "../Rendering/Renderer.h"
+#include "Chunk/chunk.h"
+#include "../rendering/renderer.h"
 
-namespace Platform {
+namespace core::level {
     class Platform : util::Tickable {
     public:
 
-        Platform(Renderer::Renderer &renderer);
+        Platform(rendering::Renderer &renderer);
 
         // -------------------------------------
         // deallocates and write back all _loadedChunks
@@ -47,22 +47,20 @@ namespace Platform {
 
         auto getBase() const -> vec2f;
 
-        auto getRenderer() const -> const Renderer::Renderer &;
+        auto getRenderer() const -> const rendering::Renderer &;
 
     private:
 
         // -------------------------------
         // information about the root node
 
-        std::array<
-                std::unique_ptr<Chunk::Chunk>,
-                static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
+        std::array<std::unique_ptr<chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
         vec2f                               _currentRoot;
 
         // ----------------------
         // handle to the _renderer
 
-        Renderer::Renderer                 &_renderer;
+        rendering::Renderer                 &_renderer;
     };
 }
 
