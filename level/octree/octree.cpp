@@ -23,6 +23,7 @@ namespace core::level::octree {
     constexpr const u32 xAnd = (0x1F << 13);
     constexpr const u32 yAnd = (0x1F <<  8);
     constexpr const u32 zAnd = (0x1F <<  3);
+    constexpr const u64 exponent_check = static_cast<u64>(2) << 32;
 
     static const u8 indexToSegment[8] = {
             0b10000000U, 0b00001000U, 0b00010000U, 0b00000001U,
@@ -314,16 +315,18 @@ namespace core::level::octree {
     }
 
     auto Node::cull(const Args &args) const -> void {
-        u64 faces = (_packed >> 50) & args._camera.getCameraMask();
+        u64 faces = _packed & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
         if (!faces)
             return;
 
-        auto scale = 1 << ((_packed >> 32) & 0x7);
-        auto position = glm::vec3((_packed >> 45) & 0x1F, (_packed >> 40) & 0x1F, (_packed >> 35) & 0x1F);
+        if ((_packed & 0x700000000) > exponent_check) {
+            auto scale = 1 << ((_packed >> 32) & 0x7);
+            auto position = glm::vec3((_packed >> 45) & 0x1F, (_packed >> 40) & 0x1F, (_packed >> 35) & 0x1F);
 
-        if ((scale > 4) && !args._camera.inFrustum(args._point + position, scale))
-            return;
+            if (!args._camera.inFrustum(args._point + position, scale))
+                return;
+        }
 
         auto segments = _packed >> 56;
         if (segments) {
@@ -333,7 +336,7 @@ namespace core::level::octree {
             }
         }
         else if (faces)
-            args._renderer.addVoxel(_packed & ((faces << 50) | 0x03FFFFFFFFFFFF));
+            args._renderer.addVoxel(_packed & (faces | 0x03FFFFFFFFFFFF));
     }
 
     //
