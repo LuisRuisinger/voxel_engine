@@ -15,7 +15,7 @@
 
 #define YAW         0.0F
 #define PITCH       0.0F
-#define SPEED       50.0F
+#define SPEED       10.0F
 #define SENSITIVITY 0.1F
 
 namespace core::camera {

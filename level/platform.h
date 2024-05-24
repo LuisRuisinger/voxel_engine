@@ -33,19 +33,19 @@ namespace core::level {
         // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
         // extracts visible faces
 
-        auto tick() -> void override;
+        auto tick(threading::Tasksystem<> &) -> void override;
 
         // ---------------------------------
         // inserts a voxel into the platform
 
-        auto insert(vec3f point, u16 voxelID) -> void;
+        auto insert(glm::vec3 point, u16 voxelID) -> void;
 
         // ---------------------------------
         // removes a voxel from the platform
 
-        auto remove(vec3f point) -> void;
+        auto remove(glm::vec3 point) -> void;
 
-        auto getBase() const -> vec2f;
+        auto getBase() const -> glm::vec2;
 
         auto getRenderer() const -> const rendering::Renderer &;
 
@@ -55,7 +55,7 @@ namespace core::level {
         // information about the root node
 
         std::array<std::unique_ptr<chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
-        vec2f                               _currentRoot;
+        glm::vec2                               _currentRoot;
 
         // ----------------------
         // handle to the _renderer

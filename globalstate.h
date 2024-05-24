@@ -11,10 +11,11 @@
 #include "camera/camera.h"
 #include "util/aliases.h"
 #include "util/stb_image.h"
-#include "Level/Model/mesh.h"
-#include "Rendering/renderer.h"
-#include "Level/Octree/octree.h"
-#include "Level/platform.h"
+#include "level/Model/mesh.h"
+#include "rendering/renderer.h"
+#include "level/Octree/octree.h"
+#include "level/platform.h"
+#include "threading/thread_pool.h"
 
 struct GlobalGameState {
 
@@ -28,6 +29,9 @@ struct GlobalGameState {
     std::shared_ptr<core::rendering::Renderer>         _renderer;
     std::shared_ptr<core::level::Platform>             _platform;
 
+    // threadpool
+    std::unique_ptr<core::threading::Tasksystem<>> _threadPool;
+
     GLFWwindow *_window;
 
     GlobalGameState()
@@ -35,12 +39,13 @@ struct GlobalGameState {
         , _deltaTime{0.0}
         , _lastFrame{0.0}
         , _camera{std::make_shared<core::camera::perspective::Camera>(
-                vec3f(0.0f, 2.5f, 0.0f),
-                vec3f(0.0f, 1.0f, 0.0f),
+                glm::vec3(0.0f, 2.5f, 0.0f),
+                glm::vec3(0.0f, 1.0f, 0.0f),
                 YAW,
                 PITCH)}
         , _renderer{std::make_unique<core::rendering::Renderer>(_camera)}
         , _platform{std::make_unique<core::level::Platform>(*(_renderer))}
+        , _threadPool{std::make_unique<core::threading::Tasksystem<>>()}
         , _window{const_cast<GLFWwindow *>(_renderer->getWindow())}
     {}
 

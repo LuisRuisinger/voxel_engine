@@ -255,7 +255,7 @@ namespace core::level::octree {
         }
 
         _packed |= faces << 50;
-        return faces;
+        return static_cast<u8>(_packed >> 50);
     }
 
     auto Node::recombine(std::stack<Node *> &stack) -> void {
@@ -316,6 +316,8 @@ namespace core::level::octree {
         }
     }
 
+    const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
+
     auto Node::cull(const Args &args) const -> void {
         const u64 faces = _packed & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
@@ -337,8 +339,31 @@ namespace core::level::octree {
                     _nodes[i].cull(args);
             }
         }
-        else if (faces)
-            args._renderer.addVoxel(_packed & (faces | save_and));
+        else if (faces) {
+            auto &ref = args._renderer._structures[0].mesh();
+
+#ifdef __AVX2__
+            __m256i voxelVec = _mm256_set1_epi64x(_packed & vertex_clear_mask);
+
+            for (size_t i = 0; i < 6; ++i) {
+                if ((faces >> 50) & (1 << i)) [[unlikely]] {
+                    __m256i vertexVec = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(ref[i].data()));
+                    args._voxelVec.emplace_back(_mm256_or_si256(vertexVec, voxelVec));
+                }
+            }
+#else
+            packedVoxel &= mask;
+
+            for (size_t i = 0; i < 6; ++i) {
+                if (faces & (1 << i)) [[unlikely]] {
+                    auto &face = ref[i];
+
+                    for (auto vertex : face)
+                        args._voxelVec->emplace_back(vertex | packedVoxel);
+                }
+            }
+#endif
+        }
     }
 
     //
@@ -358,10 +383,11 @@ namespace core::level::octree {
 
     auto Octree::removePoint(u16 position) -> void {}
 
-    auto Octree::cull(const vec3f &position,
-                      const core::camera::perspective::Camera &camera,
-                      const core::rendering::Renderer &renderer) const -> void {
-        const Args args = {position, camera, renderer};
+    auto Octree::cull(const glm::vec3 &position,
+                      const camera::perspective::Camera &camera,
+                      const rendering::Renderer &renderer,
+                      std::vector<VERTEX> &voxelVec) const -> void {
+        const Args args = {position, camera, renderer, voxelVec};
         _root->cull(args);
     }
 

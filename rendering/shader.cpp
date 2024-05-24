@@ -35,8 +35,8 @@ namespace core::rendering {
             const char *vShaderCode = vertexCode.c_str();
             const char *fShaderCode = fragmentCode.c_str();
 
-            i32 success;
-            c8  infoLog[512];
+            i32  success;
+            char infoLog[512];
 
             // vertex Shader
             u32 vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -103,11 +103,11 @@ namespace core::rendering {
         glUniform1f(uniformCache[name], value);
     }
 
-    auto Shader::setVec2(std::string name, vec2f vec) const -> void {
+    auto Shader::setVec2(std::string name, glm::vec2 vec) const -> void {
         glUniform2f(uniformCache[name], vec.x, vec.y);
     }
 
-    auto Shader::setVec3(std::string name, vec3f vec) const -> void {
+    auto Shader::setVec3(std::string name, glm::vec3 vec) const -> void {
         glUniform3f(uniformCache[name], vec.x, vec.y, vec.z);
     }
 

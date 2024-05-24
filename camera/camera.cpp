@@ -6,7 +6,7 @@
 #include "../level/platform.h"
 
 namespace core::camera::perspective {
-    Camera::Camera(vec3f initPosition, vec3f initUp, f32 initYaw, f32 initPitch)
+    Camera::Camera(glm::vec3 initPosition, glm::vec3 initUp, f32 initYaw, f32 initPitch)
         : _position{initPosition}
         , _front{}
         , _up{}
@@ -106,23 +106,23 @@ namespace core::camera::perspective {
         _frustum.setCamInternals(45.0f, ratio, -5.0f, CHUNK_SIZE * (RENDER_RADIUS * 2));
     }
 
-    auto Camera::setFrustumDef(vec3f pos, vec3f target, vec3f varUp) -> void {
+    auto Camera::setFrustumDef(glm::vec3 pos, glm::vec3 target, glm::vec3 varUp) -> void {
         _frustum.setCamDef(pos, target, varUp);
     }
 
-    auto Camera::inFrustum(vec2f pos, u32 scale) const -> bool {
+    auto Camera::inFrustum(glm::vec2 pos, u32 scale) const -> bool {
         return _frustum.squareVisible(pos, scale);
     }
 
-    auto Camera::inFrustum(vec3f pos, u32 scale) const -> bool {
+    auto Camera::inFrustum(glm::vec3 pos, u32 scale) const -> bool {
         return _frustum.cubeVisible(pos, scale);
     }
 
-    auto Camera::getCameraPosition() const -> vec3f {
+    auto Camera::getCameraPosition() const -> glm::vec3 {
         return _position;
     }
 
-    auto Camera::getCameraFront() const -> vec3f {
+    auto Camera::getCameraFront() const -> glm::vec3 {
         return _front;
     }
 

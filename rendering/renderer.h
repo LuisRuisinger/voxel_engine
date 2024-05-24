@@ -11,6 +11,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../threading/thread_pool.h"
+
 #ifdef __AVX2__
 #include <immintrin.h>
     #define VERTEX __m256i
@@ -55,19 +57,23 @@ namespace core::rendering {
         auto initPipeline() -> void;
 
         auto addVoxel(u64) const -> void;
+        auto add_voxel_vector(std::unique_ptr<std::vector<__m256i>> &&) const -> void;
 
         auto prepareBuffer() -> void;
         auto updateBuffer(size_t) -> size_t;
         auto updateProjectionMatrix() -> void;
-        auto updateGlobalBase(vec2f) -> void;
+        auto updateGlobalBase(glm::vec2) -> void;
         auto updateRenderDistance(u32) -> void;
 
-        auto frame() -> void;
+        auto frame(threading::Tasksystem<> &) -> void;
         auto draw(u32) -> void;
         auto flush() -> void;
 
         auto getCamera() const -> const camera::perspective::Camera *;
         auto getWindow() const -> const GLFWwindow *;
+
+        // cube structures
+        std::array<VoxelStructure::CubeStructure, 1> _structures;
 
     private:
 
@@ -83,16 +89,13 @@ namespace core::rendering {
         std::unique_ptr<Shader> _shader;
 
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
-
         std::unique_ptr<std::vector<VERTEX>> mutable _vertices;
+        std::mutex                           mutable _mutex;
 
         std::unique_ptr<std::vector<u32>>            _indices;
 
         // GPU buffers
         GLuint _buffers[Buffer::count];
-
-        // cube structures
-        std::array<VoxelStructure::CubeStructure, 1> _structures;
     };
 }
 

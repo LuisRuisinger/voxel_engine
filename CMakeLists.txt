@@ -32,9 +32,6 @@ add_executable(
         level/model/Types/voxel.cpp
         rendering/renderer.cpp
         camera/culling.cpp
-        level/octree/greedyMeshing.cpp
-        level/octree/memorypool.cpp
-        level/octree/memorypool.h
         globalstate.h
         util/tickable.h
         util/moveable.h
@@ -42,6 +39,8 @@ add_executable(
         util/indices_generator.h
         level/chunk/chunk_segment.cpp
         level/chunk/chunk_segment.h
+        threading/thread_pool.h
+        threading/thread_safe_queue.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

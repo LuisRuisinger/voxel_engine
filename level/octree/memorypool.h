@@ -18,36 +18,35 @@ public:
     Memorypool(u32);
     ~Memorypool() = default;
 
-    Memorypool(Memorypool<T> &) = delete;
-    auto operator=(Memorypool<T> &) noexcept -> Memorypool<T> & = delete;
+    Memorypool(Memorypool<T> &) =delete;
+    auto operator=(Memorypool<T> &) noexcept -> Memorypool<T> & =delete;
 
     Memorypool(Memorypool<T> &&) noexcept;
     auto operator=(Memorypool<T> &&) noexcept -> Memorypool<T> &;
 
-    auto insert(vec3f, T) -> void;
+    auto insert(glm::vec3, T) -> void;
     auto insert(u32, T) -> void;
 
-    auto remove(vec3f) -> void;
+    auto remove(glm::vec3) -> void;
     auto remove(u32) -> void;
 
-    auto extract(vec3f) -> std::optional<T>;
+    auto extract(glm::vec3) -> std::optional<T>;
     auto extract(u32) -> std::optional<T>;
 
 
-    auto find(vec3f) const -> std::optional<T *>;
+    auto find(glm::vec3) const -> std::optional<T *>;
     auto find(u32) const -> std::optional<T *>;
 
 private:
-    const u8 sentinel[sizeof(T)] = {0};
     u32 capacity;
 
     std::unique_ptr<T[]> memory;
 };
 
 inline
-auto indexAsVec(const u32) -> vec3f;
+auto indexAsVec(const u32) -> glm::vec3;
 
 inline
-auto vecAsIndex(const vec3f) -> u32;
+auto vecAsIndex(const glm::vec3) -> u32;
 
 #endif //OPENGL_3D_ENGINE_MEMORYPOOL_H

@@ -178,12 +178,18 @@ namespace core::rendering {
 #endif
     }
 
+    auto Renderer::add_voxel_vector(std::unique_ptr<std::vector<VERTEX>> &&vec) const -> void {
+        std::scoped_lock lock{_mutex};
+        _vertices->insert(_vertices->end(), vec->begin(), vec->end());
+    }
+
     // intrinsics 280 - 312 (mostly steadly ~ 310)
 
     auto Renderer::updateBuffer(size_t index) -> size_t {
         if (index >= _vertices->size())
             return 0;
 
+        glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES_BUFFER * sizeof(u64), nullptr, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, _buffers[Buffer::VBO]);
 
         size_t max = std::min<size_t>(_vertices->size() - index, max_copyable_elements);
@@ -205,7 +211,7 @@ namespace core::rendering {
         }
     }
 
-    auto Renderer::frame() -> void {
+    auto Renderer::frame(threading::Tasksystem<> &thread_pool) -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -233,7 +239,7 @@ namespace core::rendering {
         _vertices->clear();
     }
 
-    auto Renderer::updateGlobalBase(vec2f base) -> void {
+    auto Renderer::updateGlobalBase(glm::vec2 base) -> void {
         _shader->setVec2("worldbase", base);
     }
 

@@ -28,8 +28,8 @@ namespace core::rendering {
         auto setBool(std::string name, bool value) const -> void;
         auto setInt(std::string name, int value) const -> void;
         auto setFloat(std::string name, float value) const -> void;
-        auto setVec2(std::string name, vec2f vec) const -> void;
-        auto setVec3(std::string name, vec3f vec) const -> void;
+        auto setVec2(std::string name, glm::vec2 vec) const -> void;
+        auto setVec3(std::string name, glm::vec3 vec) const -> void;
         auto setMat4(std::string name, glm::mat4& mat) -> void;
         auto setUint(std::string name, u32 value) const -> void;
 

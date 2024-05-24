@@ -36,9 +36,10 @@
 
 namespace core::level::octree {
     struct Args {
-        const vec3f                             &_point;
-        const core::camera::perspective::Camera &_camera;
-        const core::rendering::Renderer         &_renderer;
+        const glm::vec3                   &_point;
+        const camera::perspective::Camera &_camera;
+        const rendering::Renderer         &_renderer;
+        std::vector<VERTEX>               &_voxelVec;
     };
 
     //
@@ -84,9 +85,10 @@ namespace core::level::octree {
 
         auto addPoint(u64) -> Node *;
         auto removePoint(u16) -> void;
-        auto cull(const vec3f &position,
+        auto cull(const glm::vec3 &position,
                   const camera::perspective::Camera &camera,
-                  const rendering::Renderer &renderer) const -> void;
+                  const rendering::Renderer &renderer,
+                  std::vector<VERTEX> &voxelVec) const -> void;
         auto find(u32) const -> std::optional<Node *>;
         auto updateFaceMask(u16) -> u8;
         auto recombine() -> void;

@@ -15,7 +15,7 @@ namespace core::level {
     // ----------------
     // helper functions
 
-    static inline auto calculateDistance2D(const vec2f &p1, const vec2f &p2) -> f32 {
+    static inline auto calculateDistance2D(const glm::vec2 &p1, const glm::vec2 &p2) -> f32 {
         return std::hypot(p1.x - p2.x, p1.y - p2.y);
     }
 
@@ -35,7 +35,7 @@ namespace core::level {
     auto Platform::init() -> void {
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x)
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z)
-                if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
+                if (calculateDistance2D(glm::vec2 {-0.5}, {x, z}) < RENDER_RADIUS)
                     _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
 
         u16 idx = 0;
@@ -46,13 +46,7 @@ namespace core::level {
         }
     }
 
-    auto Platform::tick() -> void {
-        auto filtered = _loadedChunks |
-                        std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); });
-
-        // ----------------------------------------------------------
-        // rounds the camera's position to the nearest chunk position
-
+    auto Platform::tick(threading::Tasksystem<> &thread_pool) -> void {
         const auto &camera    = *_renderer.getCamera();
         const auto &cameraPos = camera.getCameraPosition();
 
@@ -80,7 +74,7 @@ namespace core::level {
 
                     // TODO: steal old chunks
 
-                    if (calculateDistance2D(vec2f {-0.5}, {x, z}) < RENDER_RADIUS)
+                    if (calculateDistance2D(glm::vec2 {-0.5}, {x, z}) < RENDER_RADIUS)
                         _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
                 }
             }
@@ -95,22 +89,38 @@ namespace core::level {
             }
         }
 
-        _renderer.updateGlobalBase(_currentRoot);
+        auto filtered = _loadedChunks |
+                        std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); }) |
+                        std::views::filter([this, &camera](const auto &ptr) -> bool { return ptr->visible(camera, *this); });
 
         std::ranges::for_each(
                 filtered,
-                [&camera, this](const auto &ptr) -> void { ptr->cull(camera, *this); });
+                [&thread_pool, &camera, this](const auto &ptr) mutable -> void {
+                    thread_pool.enqueue_detach(
+
+                            // extracting voxels for rendering
+                            [](chunk::Chunk &ptr, camera::perspective::Camera &camera, Platform &platform) -> void {
+                                ptr.cull(camera, platform);
+                            },
+
+                            // args
+                            std::ref(*ptr.get()),
+                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
+                            std::ref(*this));
+                });
+
+        thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
     }
 
-    auto Platform::insert(vec3f point, u16 voxelID) -> void {
+    auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {
         //this->loadedChunks->insert(point, _voxelID);
     }
 
-    auto Platform::remove(vec3f point) -> void {
+    auto Platform::remove(glm::vec3 point) -> void {
         //this->loadedChunks->remove(point);
     }
 
-    auto Platform::getBase() const -> vec2f {
+    auto Platform::getBase() const -> glm::vec2 {
         return _currentRoot;
     }
 
