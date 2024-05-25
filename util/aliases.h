@@ -12,7 +12,7 @@
 #include "glm/gtc/type_ptr.hpp"
 
 #define CHUNK_SIZE 64
-#define RENDER_RADIUS 16
+#define RENDER_RADIUS 8
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
 #define Enum(_name, ...)                                                      \
     struct _name {                                                            \

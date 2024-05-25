@@ -83,7 +83,7 @@ namespace core::rendering {
             });
 
             // vsync
-            glfwSwapInterval(0);
+            glfwSwapInterval(1);
 
             // glad: load all OpenGL function pointers
             if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))

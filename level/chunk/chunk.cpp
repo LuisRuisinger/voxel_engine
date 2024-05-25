@@ -182,10 +182,10 @@ namespace core::level::chunk {
         auto gen = [&fun, &platform, this]() -> void {
 
             // generation
-            for (u8 x = 0; x < (CHUNK_SIZE / 2); ++x) {
-                for (u8 y = 0; y < 1; ++y) {
-                    for (u8 z = 0; z < (CHUNK_SIZE / 2); ++z) {
-                        auto point = glm::vec3 {x, y, z};
+            for (u8 x = 0; x < (CHUNK_SIZE / 2) - 2; ++x) {
+                for (u8 y = 0; y < 4; ++y) {
+                    for (u8 z = 0; z < (CHUNK_SIZE / 2) - 6; ++z) {
+                        auto point = glm::vec3 {x, y + (x % 3) * 2, z};
                         fun(point, 0, platform);
 
                         ++_size;

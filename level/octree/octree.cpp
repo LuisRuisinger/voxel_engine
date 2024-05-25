@@ -255,7 +255,7 @@ namespace core::level::octree {
         }
 
         _packed |= faces << 50;
-        return static_cast<u8>(_packed >> 50);
+        return static_cast<u8>(_packed >> 50) & 0x3F;
     }
 
     auto Node::recombine(std::stack<Node *> &stack) -> void {
