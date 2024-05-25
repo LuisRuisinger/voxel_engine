@@ -2,8 +2,8 @@
 // Created by Luis Ruisinger on 10.04.24.
 //
 
-#include "Memorypool.h"
-#include "BoundingVolume.h"
+#include "memorypool.h"
+#include "boundingVolume.h"
 
 #define INDEX(_p) ((u32) (_p).x + ((_p).z + (_p).y * CHUNK_SIZE) * CHUNK_SIZE)
 #define VEC(_i)   ( vec3f {(_i) % CHUNK_SIZE, \

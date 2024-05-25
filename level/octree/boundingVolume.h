@@ -26,10 +26,10 @@ struct BoundingVolume {
 };
 
 struct BoundingVolumeVoxel : BoundingVolume {
-    vec3f _position;
-    u32   _scale;
+    glm::vec3 _position;
+    u32       _scale;
 
-    BoundingVolumeVoxel(u16 voxelID, vec3f position, u32 scale)
+    BoundingVolumeVoxel(u16 voxelID, glm::vec3 position, u32 scale)
         : BoundingVolume{voxelID}
         , _position{position}
         , _scale{scale}

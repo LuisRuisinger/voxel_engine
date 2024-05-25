@@ -2,7 +2,7 @@
 // Created by Luis Ruisinger on 05.04.24.
 //
 
-#include "Octree.h"
+#include "octree.h"
 
 struct Helper {
     bool *visitXN;

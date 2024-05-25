@@ -12,7 +12,7 @@
 
 #define DEG2RAD 0.017453292F
 
-namespace Culling {
+namespace core::camera::culling {
     enum CollisionType {
         OUTSIDE, INTERSECT
     };
@@ -23,16 +23,16 @@ namespace Culling {
         ~Frustum() = default;
 
         auto setCamInternals(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void;
-        auto setCamDef(vec3f position, vec3f target, vec3f up) -> void;
+        auto setCamDef(glm::vec3 position, glm::vec3 target, glm::vec3 up) -> void;
 
-        [[nodiscard]] auto cubeVisible(const vec3f &point, u32 scale) const -> bool;
-        [[nodiscard]] auto squareVisible(const vec2f &point, u32 scale) const -> bool;
+        [[nodiscard]] auto cubeVisible(const glm::vec3 &point, u32 scale) const -> bool;
+        [[nodiscard]] auto squareVisible(const glm::vec2 &point, u32 scale) const -> bool;
 
     private:
-        vec3f _camPos;
-        vec3f _xVec;
-        vec3f _yVec;
-        vec3f _zVec;
+        glm::vec3 _camPos;
+        glm::vec3 _xVec;
+        glm::vec3 _yVec;
+        glm::vec3 _zVec;
 
         f32   _farD;
         f32   _nearD;
@@ -43,8 +43,8 @@ namespace Culling {
         f32   _sphereFactorY;
         f32   _angle;
 
-        [[nodiscard]] auto sphereInFrustum(const vec3f &point, f32 radius) const -> CollisionType;
-        [[nodiscard]] auto circleInFrustum(const vec2f &point, f32 radius) const -> CollisionType;
+        [[nodiscard]] auto sphereInFrustum(const glm::vec3 &point, f32 radius) const -> CollisionType;
+        [[nodiscard]] auto circleInFrustum(const glm::vec2 &point, f32 radius) const -> CollisionType;
     };
 };
 

@@ -6,7 +6,7 @@
 #define OPENGL_3D_ENGINE_VOXEL_H
 
 
-#include "../Mesh.h"
+#include "../mesh.h"
 
 namespace VoxelStructure {
     class Voxel {

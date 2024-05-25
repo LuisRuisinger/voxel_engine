@@ -10,14 +10,14 @@
 
 #include "../util/aliases.h"
 #include "../util/tickable.h"
-#include "Chunk/Chunk.h"
-#include "../Rendering/Renderer.h"
+#include "Chunk/chunk.h"
+#include "../rendering/renderer.h"
 
-namespace Platform {
+namespace core::level {
     class Platform : util::Tickable {
     public:
 
-        Platform(Renderer::Renderer &renderer);
+        Platform(rendering::Renderer &renderer);
 
         // -------------------------------------
         // deallocates and write back all _loadedChunks
@@ -33,36 +33,34 @@ namespace Platform {
         // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
         // extracts visible faces
 
-        auto tick() -> void override;
+        auto tick(threading::Tasksystem<> &) -> void override;
 
         // ---------------------------------
         // inserts a voxel into the platform
 
-        auto insert(vec3f point, u16 voxelID) -> void;
+        auto insert(glm::vec3 point, u16 voxelID) -> void;
 
         // ---------------------------------
         // removes a voxel from the platform
 
-        auto remove(vec3f point) -> void;
+        auto remove(glm::vec3 point) -> void;
 
-        auto getBase() const -> vec2f;
+        auto getBase() const -> glm::vec2;
 
-        auto getRenderer() const -> const Renderer::Renderer &;
+        auto getRenderer() const -> const rendering::Renderer &;
 
     private:
 
         // -------------------------------
         // information about the root node
 
-        std::array<
-                std::unique_ptr<Chunk::Chunk>,
-                static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
-        vec2f                               _currentRoot;
+        std::array<std::unique_ptr<chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
+        glm::vec2                               _currentRoot;
 
         // ----------------------
         // handle to the _renderer
 
-        Renderer::Renderer                 &_renderer;
+        rendering::Renderer                 &_renderer;
     };
 }
 

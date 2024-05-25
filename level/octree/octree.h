@@ -16,8 +16,8 @@
 
 #include "../../util/aliases.h"
 #include "glad/glad.h"
-#include "../Model/Mesh.h"
-#include "../../Rendering/Renderer.h"
+#include "../Model/mesh.h"
+#include "../../Rendering/renderer.h"
 
 #define BASE {CHUNK_SIZE / 2, CHUNK_SIZE / 2, CHUNK_SIZE / 2}
 #define CHUNK_BVEC {CHUNK_SIZE, BASE}
@@ -34,30 +34,12 @@
 #define SHIFT_Z 35
 
 
-namespace Octree {
-
-    enum ChunkData {
-        DATA, NODATA
-    };
-
-    //
-    //
-    //
-
-    template<typename T>
+namespace core::level::octree {
     struct Args {
-        const vec3f                           &_point;
-        const Camera::Perspective::Camera     &_camera;
-        const Renderer::Renderer              &_renderer;
-    };
-
-    //
-    //
-    //
-
-    template <typename T>
-    concept derivedFromBoundingVolume = requires(T t) {
-        std::is_base_of<BoundingVolume, T>::value;
+        const glm::vec3                   &_point;
+        const camera::perspective::Camera &_camera;
+        const rendering::Renderer         &_renderer;
+        std::vector<VERTEX>               &_voxelVec;
     };
 
     //
@@ -65,12 +47,11 @@ namespace Octree {
     //
 
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     struct Node {
         Node();
         ~Node() noexcept;
 
-        auto cull(const Args<T> &) const -> void;
+        auto cull(const Args &) const -> void;
         auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
 
@@ -97,23 +78,23 @@ namespace Octree {
     //
     //
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     class Octree {
     public:
         Octree();
         ~Octree() = default;
 
-        auto addPoint(u64) -> Node<T> *;
+        auto addPoint(u64) -> Node *;
         auto removePoint(u16) -> void;
-        auto cull(const vec3f &position,
-                  const Camera::Perspective::Camera &camera,
-                  const Renderer::Renderer &renderer) const -> void;
-        auto find(u32) const -> std::optional<Node<T> *>;
+        auto cull(const glm::vec3 &position,
+                  const camera::perspective::Camera &camera,
+                  const rendering::Renderer &renderer,
+                  std::vector<VERTEX> &voxelVec) const -> void;
+        auto find(u32) const -> std::optional<Node *>;
         auto updateFaceMask(u16) -> u8;
         auto recombine() -> void;
 
     private:
-        std::unique_ptr<Node<T>>  _root;
+        std::unique_ptr<Node>  _root;
 
         // sets the base bounding volume for an octree
         const u32 _packed = (0x3F << 18) | (0x10 << 13) | (0x10 << 8) | (0x10 << 3) | 5;

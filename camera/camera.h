@@ -10,15 +10,15 @@
 #include "glad/glad.h"
 
 #include "../util/aliases.h"
-#include "Culling.h"
+#include "culling.h"
 #include "../util/updateable.h"
 
 #define YAW         0.0F
 #define PITCH       0.0F
-#define SPEED       50.0F
+#define SPEED       10.0F
 #define SENSITIVITY 0.1F
 
-namespace Camera {
+namespace core::camera {
     enum Camera_Movement {
         FORWARD,
         BACKWARD,
@@ -33,8 +33,7 @@ namespace Camera {
 //
 //
 
-namespace Camera::Perspective
-{
+namespace core::camera::perspective {
     class Camera : util::Updateable {
     public:
         Camera(glm::vec3 initPosition, glm::vec3 initUp, float initYaw, float initPitch);
@@ -95,7 +94,7 @@ namespace Camera::Perspective
         // ------------
         // view frustum
 
-        Culling::Frustum _frustum;
+        culling::Frustum _frustum;
         u8               _mask;
     };
 }

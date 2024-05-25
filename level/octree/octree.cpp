@@ -5,8 +5,8 @@
 #include <immintrin.h>
 #include <cmath>
 
-#include "Octree.h"
-#include "../Chunk/Chunk.h"
+#include "octree.h"
+#include "../Chunk/chunk.h"
 
 #define ONE_BIT_SET_ONLY(_v)                       ((_v) && !((_v) & ((_v) - 1)))
 #define SET_BIT_INDEX(_v)                          ((__builtin_ffs(_v)) - 1)
@@ -19,10 +19,13 @@
                                                     (((current->_nodes[(_i1)]._packed >> 50) & 0x3F) ^            \
                                                      ((current->_nodes[(_i4)]._packed >> 50) & 0x3F)) & (_bit))
 
-namespace Octree {
-    constexpr const u32 xAnd = (0x1F << 13);
-    constexpr const u32 yAnd = (0x1F <<  8);
-    constexpr const u32 zAnd = (0x1F <<  3);
+namespace core::level::octree {
+    constexpr const u32 xAnd           = (0x1F << 13);
+    constexpr const u32 yAnd           = (0x1F <<  8);
+    constexpr const u32 zAnd           = (0x1F <<  3);
+    constexpr const u64 exponent_and   = 0x700000000;
+    constexpr const u64 exponent_check = static_cast<u64>(2) << 32;
+    constexpr const u64 save_and       = 0x03FFFFFFFFFFFF;
 
     static const u8 indexToSegment[8] = {
             0b10000000U, 0b00001000U, 0b00010000U, 0b00000001U,
@@ -105,9 +108,8 @@ namespace Octree {
      * @return A std::optional containing either the voxel or none
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     static inline
-    auto findNode(u32 packedVoxel, Node<T> *current) -> std::optional<Node<T> *> {
+    auto findNode(u32 packedVoxel, Node *current) -> std::optional<Node *> {
         while (true) {
             if (!(current->_packed >> 56)) {
 
@@ -155,9 +157,8 @@ namespace Octree {
      * @return The address of inserted Voxel
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
     static inline
-    auto insertNode(u64 packedVoxel, u32 packedData, Node<T> *current) -> Node<T> * {
+    auto insertNode(u64 packedVoxel, u32 packedData, Node *current) -> Node * {
         while (true) {
             if ((1 << (packedData & 0x7)) == BASE_SIZE) {
 
@@ -183,8 +184,7 @@ namespace Octree {
                                        (static_cast<u64>(packedData) << 32) |
                                        (packedVoxel & 0xFFFF0000);
 
-                    current->_nodes  = static_cast<Node<T> *>(
-                            std::aligned_alloc(alignof(Node<T>), sizeof(Node<T>) * 8));
+                    current->_nodes  = static_cast<Node *>(std::aligned_alloc(alignof(Node), sizeof(Node) * 8));
                 }
 
                 if (!(segments & segment)) {
@@ -211,8 +211,7 @@ namespace Octree {
      *
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Node<T>::Node()
+    Node::Node()
         : _nodes{nullptr}
         , _packed{0}
     {}
@@ -223,8 +222,7 @@ namespace Octree {
      * Frees memory allocated for child nodes if necessary.
      */
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Node<T>::~Node() noexcept {
+    Node::~Node() noexcept {
         if (!_nodes)
             return;
 
@@ -232,15 +230,14 @@ namespace Octree {
         if (segments) {
             for (u8 i = 0; i < 8; ++i) {
                 if (segments & indexToSegment[i])
-                    _nodes[i].~Node<T>();
+                    _nodes[i].~Node();
             }
 
             std::free(_nodes);
         }
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::updateFaceMask(u16 packedChunk) -> u8 {
+    auto Node::updateFaceMask(u16 packedChunk) -> u8 {
         if (!_nodes)
             return 0;
 
@@ -258,11 +255,10 @@ namespace Octree {
         }
 
         _packed |= faces << 50;
-        return faces;
+        return static_cast<u8>(_packed >> 50) & 0x3F;
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::recombine(std::stack<Node *> &stack) -> void {
+    auto Node::recombine(std::stack<Node *> &stack) -> void {
         u8 segments = _packed >> 56;
         
         if (!segments)
@@ -274,7 +270,7 @@ namespace Octree {
             if (segments & indexToSegment[i])
                 _nodes[i].recombine(stack);
 
-        Node<T> *current;
+        Node *current;
 
         // combining same sized volumes
         while (!stack.empty()) {
@@ -320,18 +316,21 @@ namespace Octree {
         }
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Node<T>::cull(const Args<T> &args) const -> void {
-        u64 faces = (_packed >> 50) & args._camera.getCameraMask();
+    const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
+
+    auto Node::cull(const Args &args) const -> void {
+        const u64 faces = _packed & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
         if (!faces)
             return;
 
-        auto scale = 1 << ((_packed >> 32) & 0x7);
-        auto position = glm::vec3((_packed >> 45) & 0x1F, (_packed >> 40) & 0x1F, (_packed >> 35) & 0x1F);
+        if ((_packed & exponent_and) > exponent_check) {
+            auto scale = 1 << ((_packed >> 32) & 0x7);
+            auto position = glm::vec3((_packed >> 45) & 0x1F, (_packed >> 40) & 0x1F, (_packed >> 35) & 0x1F);
 
-        if ((scale > 4) && !args._camera.inFrustum(args._point + position, scale))
-            return;
+            if (!args._camera.inFrustum(args._point + position, scale))
+                return;
+        }
 
         auto segments = _packed >> 56;
         if (segments) {
@@ -340,8 +339,31 @@ namespace Octree {
                     _nodes[i].cull(args);
             }
         }
-        else if (faces)
-            args._renderer.addVoxel(_packed & ((faces << 50) | 0x03FFFFFFFFFFFF));
+        else if (faces) {
+            auto &ref = args._renderer._structures[0].mesh();
+
+#ifdef __AVX2__
+            __m256i voxelVec = _mm256_set1_epi64x(_packed & vertex_clear_mask);
+
+            for (size_t i = 0; i < 6; ++i) {
+                if ((faces >> 50) & (1 << i)) [[unlikely]] {
+                    __m256i vertexVec = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(ref[i].data()));
+                    args._voxelVec.emplace_back(_mm256_or_si256(vertexVec, voxelVec));
+                }
+            }
+#else
+            packedVoxel &= mask;
+
+            for (size_t i = 0; i < 6; ++i) {
+                if (faces & (1 << i)) [[unlikely]] {
+                    auto &face = ref[i];
+
+                    for (auto vertex : face)
+                        args._voxelVec->emplace_back(vertex | packedVoxel);
+                }
+            }
+#endif
+        }
     }
 
     //
@@ -351,43 +373,34 @@ namespace Octree {
     // ----------------------
     // Octree implementation
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    Octree<T>::Octree()
-        : _root{std::make_unique<Node<T>>()}
+    Octree::Octree()
+        : _root{std::make_unique<Node>()}
     {}
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::addPoint(u64 packedVoxel) -> Node<T> * {
+    auto Octree::addPoint(u64 packedVoxel) -> Node * {
         return insertNode(packedVoxel, _packed, _root.get());
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::removePoint(u16 position) -> void {}
+    auto Octree::removePoint(u16 position) -> void {}
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::cull(const vec3f &position,
-                         const Camera::Perspective::Camera &camera,
-                         const Renderer::Renderer &renderer) const -> void {
-        const Args<T> args = {position, camera, renderer};
+    auto Octree::cull(const glm::vec3 &position,
+                      const camera::perspective::Camera &camera,
+                      const rendering::Renderer &renderer,
+                      std::vector<VERTEX> &voxelVec) const -> void {
+        const Args args = {position, camera, renderer, voxelVec};
         _root->cull(args);
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::find(u32 packedVoxel) const -> std::optional<Node<T> *> {
+    auto Octree::find(u32 packedVoxel) const -> std::optional<Node *> {
         return findNode(packedVoxel, _root.get());
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::updateFaceMask(u16 mask) -> u8 {
+    auto Octree::updateFaceMask(u16 mask) -> u8 {
         return _root->updateFaceMask(mask);
     }
 
-    template<typename T> requires derivedFromBoundingVolume<T>
-    auto Octree<T>::recombine() -> void {
-        std::stack<Node<T> *> stack;
+    auto Octree::recombine() -> void {
+        std::stack<Node *> stack;
         _root->recombine(stack);
     }
-
-    template class Octree<BoundingVolume>;
-    template class Node<BoundingVolume>;
 }
