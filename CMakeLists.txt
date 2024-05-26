@@ -41,6 +41,9 @@ add_executable(
         level/chunk/chunk_segment.h
         threading/thread_pool.h
         threading/thread_safe_queue.h
+        level/octree/node.cpp
+        level/octree/node.h
+        level/octree/node_inline.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

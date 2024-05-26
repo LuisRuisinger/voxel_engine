@@ -47,8 +47,8 @@ namespace core::level::chunk {
         auto cull(const core::camera::perspective::Camera &, const Platform &) const -> void;
         auto generate(Platform *position) -> void;
         auto update(u16) -> void;
-        auto find(glm::vec3, Platform *platform) -> std::pair<octree::Node *, ChunkData>;
-        auto updateOcclusion(octree::Node *, std::pair<octree::Node *, ChunkData>, u64, u64) -> void;
+        auto find(glm::vec3, Platform *platform) -> std::pair<node::Node *, ChunkData>;
+        auto updateOcclusion(node::Node *, std::pair<node::Node *, ChunkData>, u64, u64) -> void;
         auto visible(const camera::perspective::Camera &, const Platform &) const -> bool;
         auto index() const -> u16;
 

@@ -20,10 +20,25 @@ namespace core::threading {
         { lock.try_lock() } -> std::convertible_to<bool>;
     };
 
+    //
+    //
+    //
+    //
+    //
+
     template<typename T, typename Lock = std::mutex>
     requires is_lockable<Lock>
     class ThreadsafeQueue {
     public:
+
+        /**
+         * @brief Tries to push an rvalue reference of T to the queue.
+         *        If locking the mutex fails the rvalue wont get stored.
+         *
+         * @param t Rvalue reference of template parameter T.
+         *
+         * @return Boolean indicating if pushing was successful.
+         */
 
         auto try_push(T &&t) -> bool {
             {
@@ -35,6 +50,14 @@ namespace core::threading {
             }
             return true;
         }
+
+        /**
+         * @brief Tries to pop an element from the queue. Assigns it via moving to the reference.
+         *
+         * @param t Reference to instance of template parameter T.
+         *
+         * @return Boolean indicating if popping was successful.
+         */
 
         auto try_pop(T &t) -> bool {
             {

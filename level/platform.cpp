@@ -15,7 +15,8 @@ namespace core::level {
     // ----------------
     // helper functions
 
-    static inline auto calculateDistance2D(const glm::vec2 &p1, const glm::vec2 &p2) -> f32 {
+    static inline
+    auto calculateDistance2D(const glm::vec2 &p1, const glm::vec2 &p2) -> f32 {
         return std::hypot(p1.x - p2.x, p1.y - p2.y);
     }
 
@@ -40,7 +41,7 @@ namespace core::level {
 
         u16 idx = 0;
         for (auto &x : _loadedChunks) {
-            if (x.operator bool())
+            if (x)
                 x->update(idx);
             ++idx;
         }
@@ -83,7 +84,7 @@ namespace core::level {
 
             u16 idx = 0;
             for (auto &x : _loadedChunks) {
-                if (x.operator bool())
+                if (x)
                     x->update(idx);
                 ++idx;
             }
@@ -92,6 +93,14 @@ namespace core::level {
         auto filtered = _loadedChunks |
                         std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); }) |
                         std::views::filter([this, &camera](const auto &ptr) -> bool { return ptr->visible(camera, *this); });
+
+        /*
+         * render steps :
+         *
+         * 1. determine visible chunks via (x,z) culling
+         * 2. determine visible chunsk via occlusion query from last frame
+         * 3. allocate buffer of size (sqrt(#visible chunks) * 32)^2 * 3 * 4 (3 : 3 planes visible, 4 : amount of vertices per face)
+         */
 
         std::ranges::for_each(
                 filtered,

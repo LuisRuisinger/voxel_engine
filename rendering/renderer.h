@@ -27,7 +27,7 @@
 #include "../Level/Model/Types/voxel.h"
 #include "../Level/Octree/boundingVolume.h"
 
-#define MAX_VERTICES_BUFFER ((u32) (131072 * 2))
+#define MAX_VERTICES_BUFFER ((u32) (131072 * 2.5))
 #define MAX_RENDER_VOLUME (64 * 64)
 
 namespace core::rendering {

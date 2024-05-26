@@ -38,10 +38,10 @@ namespace core::threading {
     public:
 
         /**
-         * @brief Thread pool constructor
+         * @brief Thread pool constructor.
          *
          * @param thread_count Amount of threads this instance should hold.
-         *                     Defaults number of concurrent threads supported by the implementation
+         *                     Defaults number of concurrent threads supported by the implementation.
          */
 
         explicit Tasksystem(u32 thread_count = std::thread::hardware_concurrency())
@@ -58,7 +58,7 @@ namespace core::threading {
         }
 
         /**
-         * @brief Thread pool destructor, joining all threads
+         * @brief Thread pool destructor, joining all threads.
          */
 
         ~Tasksystem() {
@@ -70,11 +70,11 @@ namespace core::threading {
         }
 
         /**
-         * @brief Try to schedule a task into the thread pool
+         * @brief Try to schedule a task into the thread pool.
          *
-         * @tparam F An invokable type
+         * @tparam F An invokable type.
          *
-         * @param f The to be executed callable
+         * @param f The to be executed callable.
          */
 
         template <typename F>
@@ -97,13 +97,13 @@ namespace core::threading {
         }
 
         /**
-         * @brief Enqueue a task that returns void
+         * @brief Enqueue a task that returns void.
          *
-         * @tparam F An invokable type
-         * @tparam Args Argument pack for F
+         * @tparam F An invokable type.
+         * @tparam Args Argument pack for F.
          *
-         * @param fun The to be executed callable
-         * @param args Arguments that will be passed to fun
+         * @param fun The to be executed callable.
+         * @param args Arguments that will be passed to fun.
          */
 
         template<typename F, typename ...Args>
@@ -119,15 +119,15 @@ namespace core::threading {
         }
 
         /**
-         * @brief Enqueue a task with async result
+         * @brief Enqueue a task with async result.
          *
-         * @tparam F An invokable type
-         * @tparam Args Argument pack for F
+         * @tparam F An invokable type.
+         * @tparam Args Argument pack for F.
          *
-         * @param fun The to be executed callable
-         * @param args Arguments that will be passed to fun
+         * @param fun The to be executed callable.
+         * @param args Arguments that will be passed to fun.
          *
-         * @return A future of fun
+         * @return A future of the result of fun.
          */
 
         template<typename F, typename ...Args , typename Ret = std::invoke_result_t<F &&, Args &&...>>
@@ -152,8 +152,7 @@ namespace core::threading {
             };
 #else
             auto packaged_task =
-                    std::packaged_task<Ret>(
-                            std::bind(std::forward<F>(fun),std::forward<Args>(args)...));
+                    std::packaged_task<Ret>(std::bind(std::forward<F>(fun),std::forward<Args>(args)...));
 
             auto promise = std::make_shared<std::promise<Ret>>(packaged_task.getfuture());
             auto future  = promise->get_future();
@@ -258,9 +257,11 @@ namespace core::threading {
             }
         }
 
-        /*
-         * member attributes
-         */
+        //
+        //
+        //
+        //
+        //
 
         const u32                                   _count;
         std::vector<std::thread>                    _threads;

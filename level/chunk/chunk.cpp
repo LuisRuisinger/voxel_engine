@@ -60,8 +60,8 @@ namespace core::level::chunk {
     }
 
     inline
-    auto Chunk::updateOcclusion(octree::Node *current,
-                                std::pair<octree::Node *, ChunkData> pair,
+    auto Chunk::updateOcclusion(node::Node *current,
+                                std::pair<node::Node *, ChunkData> pair,
                                 u64 cBit,
                                 u64 nBit) -> void {
         auto &[neighbor, type] = pair;
@@ -86,7 +86,7 @@ namespace core::level::chunk {
         }
     }
 
-    auto Chunk::find(glm::vec3 position, Platform *platform) -> std::pair<octree::Node *, ChunkData> {
+    auto Chunk::find(glm::vec3 position, Platform *platform) -> std::pair<node::Node *, ChunkData> {
         if ((position.x < 0.0F || position.x > CHUNK_SIZE) ||
             (position.z < 0.0F || position.z > CHUNK_SIZE)) {
 
