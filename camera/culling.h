@@ -14,7 +14,7 @@
 
 namespace core::camera::culling {
     enum CollisionType {
-        OUTSIDE, INTERSECT
+        OUTSIDE, INTERSECT, INSIDE
     };
 
     class Frustum {
@@ -27,6 +27,9 @@ namespace core::camera::culling {
 
         [[nodiscard]] auto cubeVisible(const glm::vec3 &point, u32 scale) const -> bool;
         [[nodiscard]] auto squareVisible(const glm::vec2 &point, u32 scale) const -> bool;
+
+        [[nodiscard]] auto cube_visible_type(const glm::vec3 &point, u32 scale) const -> CollisionType;
+        [[nodiscard]] auto squere_visible_type(const glm::vec2 &point, u32 scale) const -> CollisionType;
 
     private:
         glm::vec3 _camPos;

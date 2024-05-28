@@ -55,6 +55,9 @@ namespace core::camera::perspective {
 
         [[nodiscard]] auto inFrustum(glm::vec3 position, uint32_t scale) const -> bool;
         [[nodiscard]] auto inFrustum(glm::vec2 position, uint32_t scale) const -> bool;
+        [[nodiscard]] auto inFrustum_type(glm::vec3 position, uint32_t scale) const -> camera::culling::CollisionType;
+        [[nodiscard]] auto inFrustum_type(glm::vec2 position, uint32_t scale) const -> camera::culling::CollisionType;
+
 
         [[nodiscard]] auto getCameraPosition() const -> glm::vec3;
         [[nodiscard]] auto getCameraFront() const ->  glm::vec3;

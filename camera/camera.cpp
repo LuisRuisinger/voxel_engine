@@ -118,6 +118,13 @@ namespace core::camera::perspective {
         return _frustum.cubeVisible(pos, scale);
     }
 
+    auto Camera::inFrustum_type(glm::vec2 pos, u32 scale) const -> camera::culling::CollisionType {
+        return _frustum.squere_visible_type(pos, scale);
+    }
+    auto Camera::inFrustum_type(glm::vec3 pos, u32 scale) const -> camera::culling::CollisionType {
+        return _frustum.cube_visible_type(pos, scale);
+    }
+
     auto Camera::getCameraPosition() const -> glm::vec3 {
         return _position;
     }

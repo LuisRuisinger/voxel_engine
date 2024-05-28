@@ -49,7 +49,7 @@ namespace core::level::node {
         Node();
         ~Node() noexcept;
 
-        auto cull(const Args &) const -> void;
+        auto cull(const Args &, camera::culling::CollisionType type) const -> void;
         auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
 

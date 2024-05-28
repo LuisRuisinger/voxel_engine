@@ -28,13 +28,23 @@ namespace core::camera::culling {
     }
 
     auto Frustum::cubeVisible(const glm::vec3 &point, u32 scale) const -> bool {
-        auto radius = static_cast<f32>(scale * sqrt(2.0));
+        auto radius = static_cast<f32>(scale) * sqrt(2.0F);
         return sphereInFrustum(point, radius) != OUTSIDE;
     }
 
     auto Frustum::squareVisible(const glm::vec2 &point, u32 scale) const -> bool {
-        auto radius = static_cast<f32>(scale * sqrt(2.0));
+        auto radius = static_cast<f32>(scale) * sqrt(2.0F);
         return circleInFrustum(point, radius) != OUTSIDE;
+    }
+
+    auto Frustum::cube_visible_type(const glm::vec3 &point, u32 scale) const -> CollisionType {
+        auto radius = static_cast<f32>(scale) * sqrt(2.0F);
+        return sphereInFrustum(point, radius);
+    }
+
+    auto Frustum::squere_visible_type(const glm::vec2 &point, u32 scale) const -> CollisionType {
+        auto radius = static_cast<f32>(scale) * sqrt(2.0F);
+        return circleInFrustum(point, radius);
     }
 
     auto Frustum::sphereInFrustum(const glm::vec3 &center, f32 radius) const -> CollisionType {
@@ -47,10 +57,20 @@ namespace core::camera::culling {
         auto azT = az * _tang;
         auto sr  = _sphereFactorX * radius;
 
-        auto maxAzX = azT * _ratio + sr;
-        auto maxAzY = azT + sr;
+        if (ay > azT + sr || ay < -azT - sr)
+            return OUTSIDE;
 
-        return (ax > maxAzX || ax < -maxAzX || ay > maxAzY || ay < -maxAzY) ? OUTSIDE : INTERSECT;
+        auto maxAzX = azT * _ratio;
+        if (ax > maxAzX + sr || ax < -maxAzX - sr)
+            return OUTSIDE;
+
+        if (ay > azT - sr || ay < -azT + sr)
+            return INTERSECT;
+
+        if (ax > maxAzX - sr || -maxAzX + sr)
+            return INTERSECT;
+
+        return INSIDE;
     }
 
     auto Frustum::circleInFrustum(const glm::vec2 &center, f32 radius) const -> CollisionType {

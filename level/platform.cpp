@@ -118,7 +118,7 @@ namespace core::level {
                             std::ref(*this));
                 });
 
-        thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+        thread_pool.wait_for_tasks(std::chrono::milliseconds(8));
     }
 
     auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {

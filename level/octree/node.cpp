@@ -134,17 +134,19 @@ namespace core::level::node {
 
     const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
-    auto Node::cull(const Args &args) const -> void {
+    auto Node::cull(const Args &args, camera::culling::CollisionType type) const -> void {
         const u64 faces = _packed & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
         if (!faces)
             return;
 
+        if (type == camera::culling::INTERSECT)
         if ((_packed & node_inline::exponent_and) > node_inline::exponent_check) {
             auto scale = 1 << ((_packed >> 32) & 0x7);
             auto position = glm::vec3((_packed >> 45) & 0x1F, (_packed >> 40) & 0x1F, (_packed >> 35) & 0x1F);
 
-            if (!args._camera.inFrustum(args._point + position, scale))
+            type = args._camera.inFrustum_type(args._point + position, scale);
+            if (type == camera::culling::CollisionType::OUTSIDE)
                 return;
         }
 
@@ -152,7 +154,7 @@ namespace core::level::node {
         if (segments) {
             for (u8 i = 0; i < 8; ++i) {
                 if (segments & node_inline::indexToSegment[i])
-                    _nodes[i].cull(args);
+                    _nodes[i].cull(args, type);
             }
         }
         else if (faces) {

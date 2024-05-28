@@ -27,7 +27,7 @@ namespace core::level::octree {
                       const rendering::Renderer &renderer,
                       std::vector<VERTEX> &voxelVec) const -> void {
         const node::Args args = {position, camera, renderer, voxelVec};
-        _root->cull(args);
+        _root->cull(args, camera::culling::INTERSECT);
     }
 
     auto Octree::find(u32 packedVoxel) const -> std::optional<node::Node *> {
