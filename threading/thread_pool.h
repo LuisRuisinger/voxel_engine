@@ -157,7 +157,7 @@ namespace core::threading {
             auto promise = std::make_shared<std::promise<Ret>>(packaged_task.getfuture());
             auto future  = promise->get_future();
 
-            auto task   = [packaged_task, promise]() mutable -> void {
+            auto task = [packaged_task, promise]() mutable -> void {
                 try {
                     if constexpr (std::is_same_v<Ret, void>) {
                         packaged_task();
@@ -244,8 +244,10 @@ namespace core::threading {
                             _active_tasks -= 1;
 
                             // notifies all waiting threads on wait_for_tasks to signal entire batch is finished
-                            if (_enqueued == 0 && _active_tasks == 0)
+                            if (_enqueued == 0 && _active_tasks == 0) {
+                                std::unique_lock<std::mutex> lock{_mutex};
                                 _batch_finished.notify_all();
+                            }
 
                             break;
                         }

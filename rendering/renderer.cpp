@@ -179,8 +179,10 @@ namespace core::rendering {
     }
 
     auto Renderer::add_voxel_vector(std::unique_ptr<std::vector<VERTEX>> &&vec) const -> void {
-        std::scoped_lock lock{_mutex};
-        _vertices->insert(_vertices->end(), vec->begin(), vec->end());
+        {
+            std::scoped_lock lock{_mutex};
+            _vertices->insert(_vertices->end(), vec->begin(), vec->end());
+        }
     }
 
     // intrinsics 280 - 312 (mostly steadly ~ 310)
