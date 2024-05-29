@@ -85,8 +85,8 @@ namespace core::threading {
             // in case all fail we try again for the actual main thread we started with
             for (size_t n = 0; n < _count + 1; ++n) {
                 if (_queues[(i + n) % _count].try_push(std::forward<F>(f))) {
-                    _enqueued    += 1;
-                    _active_tasks += 1;
+                    _enqueued.fetch_add(1, std::memory_order_relaxed);
+                    _active_tasks.fetch_add(1, std::memory_order_relaxed);
 
                     _ready.notify_one();
                     return true;
@@ -188,10 +188,14 @@ namespace core::threading {
         auto wait_for_tasks(std::chrono::milliseconds timeout = std::chrono::milliseconds(5)) -> void {
             std::unique_lock<std::mutex> lock{_mutex};
             if (timeout.count()) {
-                _batch_finished.wait_for(lock, timeout, [this] { return _enqueued == 0 && _active_tasks == 0; });
+                _batch_finished.wait_for(lock, timeout, [this] {
+                    return _enqueued.load(std::memory_order_acquire) == 0 &&
+                           _active_tasks.load(std::memory_order_acquire) == 0; });
             }
             else {
-                _batch_finished.wait(lock, [this] { return _enqueued == 0 && _active_tasks == 0; });
+                _batch_finished.wait(lock, [this] {
+                    return _enqueued.load(std::memory_order_acquire) == 0 &&
+                           _active_tasks.load(std::memory_order_acquire) == 0; });
             }
         }
 
@@ -202,7 +206,8 @@ namespace core::threading {
          */
 
         auto no_tasks() -> bool {
-            return _enqueued == 0 & _active_tasks == 0;
+            return _enqueued.load(std::memory_order_acquire) == 0 &&
+                   _active_tasks.load(std::memory_order_acquire) == 0;
         }
 
         Tasksystem(const Tasksystem &) =delete;
@@ -238,13 +243,14 @@ namespace core::threading {
                         if (_queues[(i + n) % _count].try_pop(task)) {
                             dequeued = true;
                             if (_enqueued > 0)
-                                _enqueued -= 1;
+                                _enqueued.fetch_sub(1, std::memory_order_release);
 
                             task();
-                            _active_tasks -= 1;
+                            _active_tasks.fetch_sub(1, std::memory_order_release);
 
                             // notifies all waiting threads on wait_for_tasks to signal entire batch is finished
-                            if (_enqueued == 0 && _active_tasks == 0) {
+                            if (_enqueued.load(std::memory_order_acquire) == 0 &&
+                                _active_tasks.load(std::memory_order_acquire) == 0) {
                                 std::unique_lock<std::mutex> lock{_mutex};
                                 _batch_finished.notify_all();
                             }
@@ -253,7 +259,7 @@ namespace core::threading {
                         }
                     }
 
-                    if (!(_running || _enqueued > 0))
+                    if (!(_running.load(std::memory_order_acquire) || _enqueued.load(std::memory_order_acquire) > 0))
                         break;
                 }
             }
