@@ -53,9 +53,6 @@ namespace core::level::node {
         auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
 
-        // segments 0 indicate either not in use or voxel
-        // in case of not in use or voxel not visible the faces will be set to 0
-        // we check existance of a voxel via an ID set to anything else than 0 (lowest 8 bit)
         Node *_nodes;
         u64   _packed;
 

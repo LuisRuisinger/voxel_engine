@@ -5,6 +5,11 @@
 #ifndef OPENGL_3D_ENGINE_RENDERER_H
 #define OPENGL_3D_ENGINE_RENDERER_H
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+#include "interface.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -53,6 +58,7 @@ namespace core::rendering {
         ~Renderer() = default;
 
         auto initGLFW() -> void;
+        auto initImGui() -> void;
         auto initShaders() -> void;
         auto initPipeline() -> void;
 
@@ -82,6 +88,7 @@ namespace core::rendering {
         u32                                           _height;
         GLFWwindow                                   *_window;
         std::shared_ptr<camera::perspective::Camera>  _camera;
+
 
         // vertex shader data
         // the chunk positions are compressed into 2 * 6 bit

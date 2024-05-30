@@ -3,6 +3,7 @@
 //
 
 #include "platform.h"
+#include "../rendering/interface.h"
 
 #define INDEX(_x, _y) ((((_x) + RENDER_RADIUS)) + (((_y) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
 
@@ -102,6 +103,7 @@ namespace core::level {
          * 3. allocate buffer of size (sqrt(#visible chunks) * 32)^2 * 3 * 4 (3 : 3 planes visible, 4 : amount of vertices per face)
          */
 
+        auto t_start = std::chrono::high_resolution_clock::now();
         std::ranges::for_each(
                 filtered,
                 [&thread_pool, &camera, this](const auto &ptr) mutable -> void {
@@ -118,7 +120,10 @@ namespace core::level {
                             std::ref(*this));
                 });
 
-        thread_pool.wait_for_tasks(std::chrono::milliseconds(8));
+        thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+
+        auto t_end = std::chrono::high_resolution_clock::now();
+        rendering::interface::set_render_time(std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start));
     }
 
     auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {

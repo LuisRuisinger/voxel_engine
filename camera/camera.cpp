@@ -19,7 +19,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1800.0 / 1200.0, -5.0f, CHUNK_SIZE * (RENDER_RADIUS * 2));
+        setFrustum(45.0f, 1800.0 / 1200.0, -2.5F, CHUNK_SIZE * (RENDER_RADIUS * 2));
         update();
     }
 
@@ -36,7 +36,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1800.0 / 1200.0, -5.0f, CHUNK_SIZE * (RENDER_RADIUS * 2));
+        setFrustum(45.0f, 1800.0 / 1200.0, -2.5F, CHUNK_SIZE * (RENDER_RADIUS * 2));
         update();
     }
 

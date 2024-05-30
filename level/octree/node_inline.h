@@ -24,26 +24,33 @@
 
 namespace core::level::node_inline {
 
-    constexpr const u32 xAnd           = (0x1F << 13);
-    constexpr const u32 yAnd           = (0x1F <<  8);
-    constexpr const u32 zAnd           = (0x1F <<  3);
-    constexpr const u64 exponent_and   = 0x700000000;
-    constexpr const u64 exponent_check = static_cast<u64>(2) << 32;
-    constexpr const u64 save_and       = 0x03FFFFFFFFFFFF;
+    // masks to extract (x, y, z) offsets inside the chunk from _packed
+    static constexpr const u32 xAnd           = (0x1F << 13);
+    static constexpr const u32 yAnd           = (0x1F <<  8);
+    static constexpr const u32 zAnd           = (0x1F <<  3);
 
-    static const u8 indexToSegment[8] = {
+    // extract the exponent of the scale from _packed
+    static constexpr const u64 exponent_and   = 0x700000000;
+
+    // directly able to mask _packed with an exponent threshold of 1 << 2 = 4
+    // volumes of this size won't be tested against the frustum because drawing is cheaper
+    static constexpr const u64 exponent_check = static_cast<u64>(2) << 32;
+
+    // extract everything of _packed except the highest 14 bit (segment, faces)
+    static constexpr const u64 save_and       = 0x03FFFFFFFFFFFF;
+
+    // each octree child consists of an extractable mask to store packed inside a u8
+    static constexpr const u8 indexToSegment[8] = {
             0b10000000U, 0b00001000U, 0b00010000U, 0b00000001U,
             0b01000000U, 0b00000100U, 0b00100000U, 0b00000010U
     };
 
-    static const i8 indexToPrefix[8][3] = {
+    // scalars used to add offset to the current position inside the octree
+    // scalars used by scale to construct and offset
+    static constexpr const i8 indexToPrefix[8][3] = {
             {-1, -1, -1}, {-1, -1, 1}, {-1, 1, -1}, {-1, 1,  1},
             { 1, -1, -1}, { 1, -1, 1}, { 1, 1, -1}, { 1, 1,  1}
     };
-
-    //
-    //
-    //
 
     /**
      * @brief Selecting a child from the current node
@@ -112,7 +119,7 @@ namespace core::level::node_inline {
 
     inline
     auto findNode(u32 packedVoxel, node::Node *current) -> std::optional<node::Node *> {
-        while (true) {
+        for(;;) {
             if (!(current->_packed >> 56)) {
 
                 // spherical approximation of the position
@@ -161,7 +168,7 @@ namespace core::level::node_inline {
 
     inline
     auto insertNode(u64 packedVoxel, u32 packedData, node::Node *current) -> node::Node * {
-        while (true) {
+        for(;;) {
             if ((1 << (packedData & 0x7)) == BASE_SIZE) {
 
                 // setting all faces to visible

@@ -44,6 +44,7 @@ namespace core::rendering {
         , _structures{}
     {
         initGLFW();
+        initImGui();
         initShaders();
         initPipeline();
 
@@ -91,6 +92,9 @@ namespace core::rendering {
 
             glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             glfwSetCursorPosCallback(_window, [](GLFWwindow *window, f64 xpos, f64 ypos) -> void {
+                if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+                    return;
+
                 auto self = static_cast<Renderer *>(glfwGetWindowUserPointer(window));
                 self->_camera->ProcessMouseMovement(static_cast<f32>(xpos), static_cast<f32>(ypos));
             });
@@ -101,6 +105,19 @@ namespace core::rendering {
 
             exit(EXIT_FAILURE);
         }
+    }
+
+    auto Renderer::initImGui() -> void {
+        /*
+        IMGUI_CHECKVERSION();
+
+        ImGui::CreateContext();
+        ImGuiIO &io = ImGui::GetIO();
+        ImGui::StyleColorsDark();
+        ImGui_ImplGlfw_InitForOpenGL(_window, true);
+        ImGui_ImplOpenGL3_Init("#version 330");
+         */
+        interface::init(_window);
     }
 
     auto Renderer::initShaders() -> void {
@@ -237,6 +254,11 @@ namespace core::rendering {
             glDrawElements(GL_TRIANGLES, count * max_displayable_elements_scalar, GL_UNSIGNED_INT, nullptr);
             idx += count;
         }
+
+        interface::set_camera_pos(_camera->getCameraPosition());
+        interface::set_vertices_count(_vertices->size());
+        interface::update();
+        interface::render();
 
         _vertices->clear();
     }
