@@ -20,24 +20,42 @@
 #include "../../rendering/renderer.h"
 
 #define BASE {CHUNK_SIZE / 2, CHUNK_SIZE / 2, CHUNK_SIZE / 2}
-#define CHUNK_BVEC {CHUNK_SIZE, BASE}
+#define CHUNK_BVEC {32.0F, BASE}
 
-#define EXTRACT_SCALE(_ptr)        (((_ptr)->_packed >> 50) & 0x3F)
-#define EXTRACT_SEGMENTS(_ptr)     ((_ptr)->_packed >> 56)
-#define EXTRACT_
+#define EXTRACT_SCALE(_ptr) \
+    (((_ptr)->_packed >> 50) & 0x3F)
 
-#define SET_SCALE(_ptr, _value)       ((_ptr)->_packed = ((_ptr)->_packed & ~(0x3F << 50)) | (((_values) & 0x3F) << 50))
-#define SET_SEGMENTS(_ptr, _value)    ((_ptr)->_packed = ((_ptr)->_packed & ~(0xFF << 56)) | (((_values) & 0xFF) << 56))
+#define EXTRACT_SEGMENTS(_ptr) \
+    ((_ptr)->_packed >> 56)
+
+#define SET_SCALE(_ptr, _value) \
+    ((_ptr)->_packed = ((_ptr)->_packed & ~(0x3F << 50)) | (((_values) & 0x3F) << 50))
+
+#define SET_SEGMENTS(_ptr, _value) \
+    ((_ptr)->_packed = ((_ptr)->_packed & ~(0xFF << 56)) | (((_values) & 0xFF) << 56))
+
 #define SHIFT_X 45
 #define SHIFT_Y 40
 #define SHIFT_Z 35
+
+#define DE_TAG(_p)                                                     \
+    (((((_p) >> 47) & 1) * static_cast<uintptr_t>(UINT16_MAX) << 48) | \
+    ((_p) & (static_cast<uintptr_t>(UINT16_MAX) << 32 | static_cast<uintptr_t>(UINT32_MAX))))
+
+#define EN_TAG(_m, _p)                    \
+    ((static_cast<uintptr_t>(_m) << 48) | \
+    ((_p) & (static_cast<uintptr_t>(UINT16_MAX) << 32 | static_cast<uintptr_t>(UINT32_MAX))))
+
+namespace core::level {
+    class Platform;
+}
 
 namespace core::level::node {
 
     struct Args {
         const glm::vec3                   &_point;
         const camera::perspective::Camera &_camera;
-        const rendering::Renderer         &_renderer;
+        Platform                          &_platform;
         std::vector<VERTEX>               &_voxelVec;
     };
 

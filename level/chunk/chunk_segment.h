@@ -11,9 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "../../util/aliases.h"
-#include "../Rendering/renderer.h"
-#include "../Level/Octree/octree.h"
-#include "../Level/Octree/memorypool.h"
+#include "../level/octree/octree.h"
 
 namespace core::level {
     class Platform;
@@ -47,6 +45,7 @@ namespace core::level::chunk {
         // indicator if the segment got manipulated (for serialization)
 
         bool _modified;
+        std::atomic_bool initialized = false;
 
         u8 _segmentIdx;
     };

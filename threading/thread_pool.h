@@ -16,11 +16,14 @@
 #include <thread>
 #include <type_traits>
 #include <iostream>
+#include <random>
 
 #include "thread_safe_queue.h"
 #include "../util/aliases.h"
+#include "../util/log.h"
 
-#define WRAPPED_EXEC(_f) { try { (_f); } catch(...) {} }
+#define WRAPPED_EXEC(_f) \
+    { try { (_f); } catch(...) {} }
 
 namespace core::threading {
     namespace functor {
@@ -45,16 +48,16 @@ namespace core::threading {
          */
 
         explicit Tasksystem(u32 thread_count = std::thread::hardware_concurrency())
+#ifdef DEBUG
+            : _count{static_cast<u32>(fmin(2, std::thread::hardware_concurrency()))}
+            , _queues{static_cast<u32>(fmin(2, std::thread::hardware_concurrency()))}
+#else
             : _count{thread_count}
             , _queues{thread_count}
-            , _enqueued{0}
-            , _active_tasks{0}
-            , _index{0}
-            , _running{false}
+#endif
         {
-            for (size_t i = 0; i < _count; ++i)
-                _threads.emplace_back([&, i] { run(i); });
-            _running = true;
+            for (size_t i = 0; i < this->_count; ++i)
+                this->_threads.emplace_back([&, idx = i] { run(idx); });
         }
 
         /**
@@ -62,10 +65,10 @@ namespace core::threading {
          */
 
         ~Tasksystem() {
-            _running = false;
-            _ready.notify_all();
+            this->_running = false;
+            this->_ready.notify_all();
 
-            for (auto &t : _threads)
+            for (auto &t : this->_threads)
                 if (t.joinable()) t.join();
         }
 
@@ -79,20 +82,16 @@ namespace core::threading {
 
         template <typename F>
         auto try_schedule(F &&f) -> bool {
-            u32 i = _index++;
+            u32 i = this->_index.fetch_add(1, std::memory_order_relaxed) % this->_count;
 
-            // tries to schedule for the first unlocked thread
-            // in case all fail we try again for the actual main thread we started with
-            for (size_t n = 0; n < _count + 1; ++n) {
-                if (_queues[(i + n) % _count].try_push(std::forward<F>(f))) {
-                    _enqueued.fetch_add(1, std::memory_order_relaxed);
-                    _active_tasks.fetch_add(1, std::memory_order_relaxed);
-
-                    _ready.notify_one();
+            for (size_t n = 0; n < this->_count; ++n) {
+                if (this->_queues[(i + n) % this->_count].try_push(std::forward<F>(f))) {
+                    this->_enqueued.fetch_add(1, std::memory_order_relaxed);
+                    this->_active_tasks.fetch_add(1, std::memory_order_relaxed);
+                    this->_ready.notify_one();
                     return true;
                 }
             }
-
             return false;
         }
 
@@ -186,16 +185,20 @@ namespace core::threading {
          */
 
         auto wait_for_tasks(std::chrono::milliseconds timeout = std::chrono::milliseconds(5)) -> void {
-            std::unique_lock<std::mutex> lock{_mutex};
+            if (this->_enqueued.load(std::memory_order_acquire) == 0 &&
+                this->_active_tasks.load(std::memory_order_acquire) == 0)
+                return;
+
+            std::unique_lock<std::mutex> lock{this->_mutex};
             if (timeout.count()) {
-                _batch_finished.wait_for(lock, timeout, [this] {
-                    return _enqueued.load(std::memory_order_acquire) == 0 &&
-                           _active_tasks.load(std::memory_order_acquire) == 0; });
+                this->_batch_finished.wait_for(lock, timeout, [this] {
+                    return this->_enqueued.load(std::memory_order_acquire) == 0 &&
+                           this->_active_tasks.load(std::memory_order_acquire) == 0; });
             }
             else {
-                _batch_finished.wait(lock, [this] {
-                    return _enqueued.load(std::memory_order_acquire) == 0 &&
-                           _active_tasks.load(std::memory_order_acquire) == 0; });
+                this->_batch_finished.wait(lock, [this] {
+                    return this->_enqueued.load(std::memory_order_acquire) == 0 &&
+                           this->_active_tasks.load(std::memory_order_acquire) == 0; });
             }
         }
 
@@ -206,8 +209,8 @@ namespace core::threading {
          */
 
         auto no_tasks() -> bool {
-            return _enqueued.load(std::memory_order_acquire) == 0 &&
-                   _active_tasks.load(std::memory_order_acquire) == 0;
+            return this->_enqueued.load(std::memory_order_acquire) == 0 &&
+                   this->_active_tasks.load(std::memory_order_acquire) == 0;
         }
 
         Tasksystem(const Tasksystem &) =delete;
@@ -225,41 +228,49 @@ namespace core::threading {
          */
 
         auto run(u32 i) -> void {
-            while (_running || _enqueued > 0) {
-                bool dequeued = false;
-                Function_type task;
+            LOG("Thread id " + std::to_string(i) + " init");
+
+            Function_type task;
+            bool dequeue;
+
+            while (this->_running) {
 
                 {
-                    std::unique_lock<std::mutex> lock{_mutex};
-                    _ready.wait(lock, [this] { return _enqueued > 0 || !_running; });
+                    std::unique_lock<std::mutex> lock{this->_mutex};
+                    this->_ready.wait(lock, [this] {
+                        return this->_enqueued.load(std::memory_order_acquire) > 0 ||
+                               !this->_running.load(std::memory_order_acquire);
+                    });
                 }
 
-                while (!dequeued) {
+                dequeue = false;
+                while (!dequeue && this->_running.load(std::memory_order_acquire)) {
 
                     // searches for the first lockable queue containing a task
                     // if no task has been found the loop wraps around
                     // and tries again for the queue identified with the thread index
-                    for (size_t n = 0; n < _count + 1; ++n) {
-                        if (_queues[(i + n) % _count].try_pop(task)) {
-                            dequeued = true;
-                            if (_enqueued > 0)
-                                _enqueued.fetch_sub(1, std::memory_order_release);
+                    for (size_t n = 0; n < this->_count + 1; ++n) {
+                        if (this->_enqueued.load(std::memory_order_acquire) == 0)
+                            break;
+
+                        if (this->_queues[(i + n) % this->_count].try_pop(task)) {
+                            dequeue = true;
+                            this->_enqueued.fetch_sub(1, std::memory_order_release);
 
                             task();
-                            _active_tasks.fetch_sub(1, std::memory_order_release);
+                            this->_active_tasks.fetch_sub(1, std::memory_order_release);
 
                             // notifies all waiting threads on wait_for_tasks to signal entire batch is finished
-                            if (_enqueued.load(std::memory_order_acquire) == 0 &&
-                                _active_tasks.load(std::memory_order_acquire) == 0) {
-                                std::unique_lock<std::mutex> lock{_mutex};
-                                _batch_finished.notify_all();
+                            if (this->_enqueued.load(std::memory_order_acquire) == 0 &&
+                                this->_active_tasks.load(std::memory_order_acquire) == 0) {
+                                this->_batch_finished.notify_all();
                             }
 
                             break;
                         }
                     }
 
-                    if (!(_running.load(std::memory_order_acquire) || _enqueued.load(std::memory_order_acquire) > 0))
+                    if (this->_enqueued.load(std::memory_order_acquire) == 0)
                         break;
                 }
             }
@@ -275,10 +286,10 @@ namespace core::threading {
         std::vector<std::thread>                    _threads;
         std::vector<ThreadsafeQueue<Function_type>> _queues;
 
-        std::atomic_size_t _enqueued;
-        std::atomic_size_t _active_tasks;
-        std::atomic_size_t _index;
-        std::atomic_bool   _running;
+        std::atomic_size_t _enqueued {0};
+        std::atomic_size_t _active_tasks {0};
+        std::atomic_size_t _index {0};
+        std::atomic_bool   _running {true};
 
         std::mutex _mutex;
 

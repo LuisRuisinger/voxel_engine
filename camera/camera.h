@@ -15,7 +15,7 @@
 
 #define YAW         0.0F
 #define PITCH       0.0F
-#define SPEED       10.0F
+#define SPEED       20.0F
 #define SENSITIVITY 0.1F
 
 namespace core::camera {
@@ -34,7 +34,7 @@ namespace core::camera {
 //
 
 namespace core::camera::perspective {
-    class Camera : util::Updateable {
+    class Camera {
     public:
         Camera(glm::vec3 initPosition, glm::vec3 initUp, float initYaw, float initPitch);
         Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
@@ -63,7 +63,7 @@ namespace core::camera::perspective {
         [[nodiscard]] auto getCameraFront() const ->  glm::vec3;
         [[nodiscard]] auto getCameraMask() const -> u8;
         auto GetViewMatrix() const -> glm::mat4;
-        auto update() -> void override;
+        auto update() -> void;
 
     private:
 

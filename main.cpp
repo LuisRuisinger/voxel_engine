@@ -1,5 +1,7 @@
 #include "globalstate.h"
 #include "util/singleton.h"
+#include "util/log.h"
+#include "util/assert.h"
 
 auto main() -> i32 {
     auto fun = [](GlobalGameState &globalState) -> void {
@@ -33,12 +35,14 @@ auto main() -> i32 {
         }
     };
 
+    LOG("Init");
     auto globalState = GlobalGameState {};
-    globalState._platform->init();
 
     u64 fps;
     u64 frames = 0;
     f64 step = glfwGetTime();
+
+    LOG("Init finished");
 
     while (!glfwWindowShouldClose(globalState._window)) {
         globalState._currentFrame = glfwGetTime();
@@ -47,16 +51,10 @@ auto main() -> i32 {
 
         fun(globalState);
 
-        // auto t_start = std::chrono::high_resolution_clock::now();
+        //globalState._presenter.tick(globalState._threadPool, *globalState._camera);
 
-        globalState._platform->tick(*(globalState._threadPool));
-
-        // auto t_end = std::chrono::high_resolution_clock::now();
-        // std::cout << std::chrono::duration<double, std::milli>(t_end-t_start).count() << std::endl;
-
-        globalState._renderer->updateGlobalBase(globalState._platform->getBase());
-        globalState._renderer->updateRenderDistance(RENDER_RADIUS);
-        globalState._renderer->frame(*(globalState._threadPool));
+        globalState._renderer.prepare_frame();
+        globalState._presenter.frame(globalState._threadPool, *globalState._camera);
 
         glfwSwapBuffers(globalState._window);
         glfwPollEvents();

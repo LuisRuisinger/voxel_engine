@@ -7,9 +7,11 @@
 
 #endif //OPENGL_3D_ENGINE_UPDATEABLE_H
 
+#include "../threading/thread_pool.h"
+
 namespace util {
     class Updateable {
     public:
-        virtual auto update() -> void = 0;
+        virtual auto update(core::threading::Tasksystem<> &) -> void = 0;
     };
 }

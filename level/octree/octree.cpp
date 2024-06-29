@@ -17,17 +17,17 @@ namespace core::level::octree {
     {}
 
     auto Octree::addPoint(u64 packedVoxel) -> node::Node * {
-        return node_inline::insertNode(packedVoxel, _packed, _root.get());
+        return node_inline::insertNode(packedVoxel, this->_packed, this->_root.get());
     }
 
     auto Octree::removePoint(u16 position) -> void {}
 
     auto Octree::cull(const glm::vec3 &position,
                       const camera::perspective::Camera &camera,
-                      const rendering::Renderer &renderer,
+                      Platform &platform,
                       std::vector<VERTEX> &voxelVec) const -> void {
-        const node::Args args = {position, camera, renderer, voxelVec};
-        _root->cull(args, camera::culling::INTERSECT);
+        const node::Args args = {position, camera, platform, voxelVec};
+        this->_root->cull(args, camera::culling::INTERSECT);
     }
 
     auto Octree::find(u32 packedVoxel) const -> std::optional<node::Node *> {
@@ -35,11 +35,11 @@ namespace core::level::octree {
     }
 
     auto Octree::updateFaceMask(u16 mask) -> u8 {
-        return _root->updateFaceMask(mask);
+        return this->_root->updateFaceMask(mask);
     }
 
     auto Octree::recombine() -> void {
         std::stack<node::Node *> stack;
-        _root->recombine(stack);
+        this->_root->recombine(stack);
     }
 }

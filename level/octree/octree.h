@@ -19,7 +19,6 @@
 #include "node_inline.h"
 #include "node.h"
 #include "../Model/mesh.h"
-#include "../../rendering/renderer.h"
 
 namespace core::level::octree {
 
@@ -32,7 +31,7 @@ namespace core::level::octree {
         auto removePoint(u16) -> void;
         auto cull(const glm::vec3 &,
                   const camera::perspective::Camera &,
-                  const rendering::Renderer &,
+                  Platform &_platform,
                   std::vector<VERTEX> &) const -> void;
         auto find(u32) const -> std::optional<node::Node *>;
         auto updateFaceMask(u16) -> u8;

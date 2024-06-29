@@ -18,7 +18,6 @@
 #include "../../util/aliases.h"
 #include "glad/glad.h"
 #include "../Model/mesh.h"
-#include "../../rendering/renderer.h"
 
 #define BASE_SIZE 1
 
@@ -125,13 +124,17 @@ namespace core::level::node_inline {
                 // spherical approximation of the position
                 // via distance between the position and current node
                 if (((current->_packed >> 50) & 0x3F)) {
-                    auto posVec3  = glm::vec3((packedVoxel >> 13) & 0x1F,
-                                              (packedVoxel >>  8) & 0x1F,
-                                              (packedVoxel >>  3) & 0x1F);
+                    auto posVec3 = glm::vec3 {
+                            (packedVoxel >> 13) & 0x1F,
+                            (packedVoxel >>  8) & 0x1F,
+                            (packedVoxel >>  3) & 0x1F
+                    };
 
-                    auto rootVec3 = glm::vec3((current->_packed >> 45) & 0x1F,
-                                              (current->_packed >> 40) & 0x1F,
-                                              (current->_packed >> 35) & 0x1F);
+                    auto rootVec3 = glm::vec3 {
+                            (current->_packed >> 45) & 0x1F,
+                            (current->_packed >> 40) & 0x1F,
+                            (current->_packed >> 35) & 0x1F
+                    };
 
                     u8 scale = 1 << ((current->_packed >> 32) & 0x7);
                     if ((std::pow(glm::distance(posVec3, rootVec3), 2) * 2) <= std::pow(scale, 2))

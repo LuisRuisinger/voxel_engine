@@ -42,11 +42,11 @@ namespace core::threading {
 
         auto try_push(T &&t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{_mutex, std::try_to_lock};
+                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
                 if (!lock)
                     return false;
 
-                _queue.emplace_back(std::forward<T>(t));
+                this->_queue.emplace_back(std::forward<T>(t));
             }
             return true;
         }
@@ -61,12 +61,12 @@ namespace core::threading {
 
         auto try_pop(T &t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{_mutex, std::try_to_lock};
-                if (!lock || _queue.empty())
+                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
+                if (!lock || this->_queue.empty())
                     return false;
 
-                t = std::move(_queue.front());
-                _queue.pop_front();
+                t = std::move(this->_queue.front());
+                this->_queue.pop_front();
             }
             return true;
         }

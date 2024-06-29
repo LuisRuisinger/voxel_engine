@@ -2,128 +2,204 @@
 // Created by Luis Ruisinger on 18.02.24.
 //
 
+#include <ranges>
+
 #include "platform.h"
 #include "../rendering/interface.h"
+#include "../util/assert.h"
 
-#define INDEX(_x, _y) ((((_x) + RENDER_RADIUS)) + (((_y) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
+#define INDEX(_x, _z) \
+    ((((_x) + RENDER_RADIUS)) + (((_z) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
+
+#define POSITION(_i, _r) \
+    (glm::vec2 { (((_i) % ((_r) * 2)) - (_r)), \
+                 (((_i) / ((_r) * 2)) - (_r))})
+
+#define DISTANCE_2D(_p1, _p2) \
+    (std::hypot((_p1).x - (_p2).x, (_p1).y - (_p2).y))
 
 namespace core::level {
 
-    //
-    //
-    //
-
-    // ----------------
-    // helper functions
-
-    static inline
-    auto calculateDistance2D(const glm::vec2 &p1, const glm::vec2 &p2) -> f32 {
-        return std::hypot(p1.x - p2.x, p1.y - p2.y);
-    }
-
-    //
-    //
-    //
-
-    // -----------------------
-    // platform implementation
-
-    Platform::Platform(rendering::Renderer &renderer)
-        : _renderer{renderer}
-        , _currentRoot{renderer.getCamera()->getCameraPosition().x, renderer.getCamera()->getCameraPosition().z}
-        , _loadedChunks{}
+    Platform::Platform(presenter::Presenter &_presenter)
+        : presenter{_presenter}
     {}
 
-    auto Platform::init() -> void {
-        for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x)
-            for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z)
-                if (calculateDistance2D(glm::vec2 {-0.5}, {x, z}) < RENDER_RADIUS)
-                    _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
+    /**
+     * @brief Update platform if needed. Load new chunks if threshold is hit.
+     *
+     * @param thread_pool Pool to offload tasks.
+     * @param camera Current active camera.
+     */
 
-        u16 idx = 0;
-        for (auto &x : _loadedChunks) {
-            if (x)
-                x->update(idx);
-            ++idx;
+    auto Platform::tick(threading::Tasksystem<> &thread_pool, camera::perspective::Camera &camera) -> void {
+        const auto &cameraPos = camera.getCameraPosition();
+
+        const auto new_root = glm::vec2{
+            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / 32.0F)) * 32.0F),
+            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.z / 32.0F)) * 32.0F)
+        };
+
+        ASSERT(static_cast<i32>(new_root.x) % 32 == 0, "global platform roots must be multiple of 32");
+        ASSERT(static_cast<i32>(new_root.y) % 32 == 0, "global platform roots must be multiple of 32");
+
+        // threshold to render new chunks is double the chunk size
+        if ((!this->queue_ready && DISTANCE_2D(this->current_root, new_root) == 64.0F) ||
+             !this->platform_ready) {
+
+            util::log::out() << util::log::Level::LOG_LEVEL_NORMAL
+                             << new_root
+                             << util::log::end;
+
+            load_chunks(thread_pool, new_root);
+            swap_chunks(new_root);
+            unload_chunks(thread_pool);
         }
     }
 
-    auto Platform::tick(threading::Tasksystem<> &thread_pool) -> void {
-        const auto &camera    = *_renderer.getCamera();
-        const auto &cameraPos = camera.getCameraPosition();
+    /**
+     * @brief Unload chunks whose shared count is 1, meaning they are no in use in this cycle.
+     *
+     * Through abusing the characteristics of shared_ptr we can enusre that only valid unused chunks
+     * will be destroyed. Chunks that are still in use but are also contained in this queue won't be
+     * altered due to the reference count being greater than 1.
+     *
+     * @param thread_pool Threadpool to parallel destroy unused chunks.
+     */
 
-        i32 nearestChunkX = static_cast<i32>(static_cast<i32>(cameraPos.x) / CHUNK_SIZE) * CHUNK_SIZE;
-        i32 nearestChunkZ = static_cast<i32>(static_cast<i32>(cameraPos.z) / CHUNK_SIZE) * CHUNK_SIZE;
+    auto Platform::unload_chunks(threading::Tasksystem<> &thread_pool) -> void {
+        for (size_t i = 0; i < this->queued_chunks.size(); ++i) {
+            if (this->queued_chunks[i] && this->queued_chunks[i].use_count() == 2)
+                thread_pool.enqueue_detach(
+                        std::move([](std::shared_ptr<chunk::Chunk> ptr) -> void {
+                            static_cast<void>(ptr);
+                        }),
 
-        const auto newRoot = glm::vec2 {
-                (abs(nearestChunkX - static_cast<i32>(_currentRoot.x)) > CHUNK_SIZE) ? nearestChunkX : _currentRoot.x,
-                (abs(nearestChunkZ - static_cast<i32>(_currentRoot.y)) > CHUNK_SIZE) ? nearestChunkZ : _currentRoot.y
-        };
+                        std::move(this->queued_chunks[i]));
+        }
+    }
 
-        // ----------------------------------------------------------------------------------------------------
-        // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
+    /**
+     * @brief Load new chunks and share ownership of currently loaded chunks that are still
+     *        visible in the new region.
+     *
+     * Chunks are guaranteed to be entirely generated once being enqueued in the thread pool.
+     *
+     * @param thread_pool Threadpool to parallel generate new chunks.
+     * @param new_root    The center of the new region.
+     */
 
-        if (calculateDistance2D(_currentRoot, newRoot) > CHUNK_SIZE) {
+    auto Platform::load_chunks(threading::Tasksystem<> &thread_pool, glm::vec2 new_root) -> void {
+        for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
+            for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
+                if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z)) < RENDER_RADIUS) {
+                    auto old_pos = (((glm::vec2(x, z) * 32.0F) + new_root) - current_root) / 32.0F;
 
-            // -------------------------------------------------------
-            // calculates all existing _loadedChunks inside our render radius
+                    if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
+                        this->platform_ready) [[likely]] {
 
-            for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
-                for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
+                        std::unique_lock lock {this->mutex};
+                        ASSERT(this->active_chunks[INDEX(old_pos.x, old_pos.y)].get(), "");
+                        this->queued_chunks[INDEX(x, z)] = this->active_chunks[INDEX(old_pos.x, old_pos.y)];
+                    }
+                    else {
+                        this->queued_chunks[INDEX(x, z)] = std::make_shared<chunk::Chunk>(INDEX(x, z));
+                        thread_pool.enqueue_detach(
+                                std::move([](chunk::Chunk *ptr, Platform *platform) -> void {
+                                    ASSERT(ptr, "Failed to generate on invalid ptr");
+                                    ptr->generate(platform);
+                                }),
 
-                    // ---------------------------------------------------------------------------------------
-                    // if the old camera position contains _loadedChunks we need in the new state we can extract them
+                                this->queued_chunks[INDEX(x, z)].get(),
+                                this);
+                    }
 
-                    // TODO: steal old chunks
-
-                    if (calculateDistance2D(glm::vec2 {-0.5}, {x, z}) < RENDER_RADIUS)
-                        _loadedChunks[INDEX(x, z)] = std::make_unique<chunk::Chunk>(INDEX(x, z), this);
                 }
-            }
-
-            _currentRoot = newRoot;
-
-            u16 idx = 0;
-            for (auto &x : _loadedChunks) {
-                if (x)
-                    x->update(idx);
-                ++idx;
             }
         }
 
-        auto filtered = _loadedChunks |
-                        std::views::filter([](const auto &ptr) -> bool { return ptr.operator bool(); }) |
-                        std::views::filter([this, &camera](const auto &ptr) -> bool { return ptr->visible(camera, *this); });
-
-        /*
-         * render steps :
-         *
-         * 1. determine visible chunks via (x,z) culling
-         * 2. determine visible chunsk via occlusion query from last frame
-         * 3. allocate buffer of size (sqrt(#visible chunks) * 32)^2 * 3 * 4 (3 : 3 planes visible, 4 : amount of vertices per face)
-         */
-
-        auto t_start = std::chrono::high_resolution_clock::now();
-        std::ranges::for_each(
-                filtered,
-                [&thread_pool, &camera, this](const auto &ptr) mutable -> void {
-                    thread_pool.enqueue_detach(
-
-                            // extracting voxels for rendering
-                            [](chunk::Chunk &ptr, camera::perspective::Camera &camera, Platform &platform) -> void {
-                                ptr.cull(camera, platform);
-                            },
-
-                            // args
-                            std::ref(*ptr.get()),
-                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
-                            std::ref(*this));
-                });
+        for (auto &ref : this->queued_chunks)
+            ASSERT(ref.use_count() < 3, "invalid reference count " + std::to_string(ref.use_count()));
 
         thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+    }
 
-        auto t_end = std::chrono::high_resolution_clock::now();
-        rendering::interface::set_render_time(std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start));
+    /**
+    * @brief Sliding window principle to swap active chunks with the new region.
+    *
+    * @param new_root    The center of the new region.
+    */
+
+    auto Platform::swap_chunks(glm::vec2 new_root) -> void {
+        std::unique_lock lock{this->mutex};
+        std::swap(this->active_chunks, this->queued_chunks);
+
+        this->current_root   = new_root;
+        this->queue_ready    = true;
+        this->platform_ready = true;
+
+        LOG("Chunks swapped");
+    }
+
+    /**
+     * @brief Extract visible mesh for current frame.
+     *
+     * @param thread_pool Parallel traversal of single chunks.
+     * @param camera      Active camera for this frame.
+     */
+
+    auto Platform::frame(threading::Tasksystem<> &thread_pool, camera::perspective::Camera &camera) -> void {
+
+        // check if new chunks need to be added to the active pool
+        // try lock to ensure no amount of frame freeze happens
+        std::unique_lock lock {this->mutex};
+
+        if (this->queue_ready) {
+            for (size_t i = 0; i < active_chunks.size(); ++i)
+
+                // we need to update every chunk here, thus we don't filter for visible chunks
+                if (active_chunks[i]) {
+                    thread_pool.enqueue_detach(
+                            std::move([](
+                                    u16 idx,
+                                    chunk::Chunk &ptr,
+                                    camera::perspective::Camera &camera,
+                                    Platform &platform) -> void {
+                                ptr.update_and_render(idx, camera, platform);
+                            }),
+
+                            static_cast<u16>(i),
+                            std::ref(*this->active_chunks[i].get()),
+                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
+                            std::ref(*this)
+                    );
+                }
+
+            this->queue_ready = false;
+        }
+        else [[likely]] {
+
+            // else we just render normally
+            for (size_t i = 0; i < active_chunks.size(); ++i)
+                if (active_chunks[i] && active_chunks[i]->visible(camera, *this)) {
+                    thread_pool.enqueue_detach(
+                            std::move([](
+                                    chunk::Chunk &ptr,
+                                    camera::perspective::Camera &camera,
+                                    Platform &platform) -> void {
+                                ptr.cull(camera, platform);
+                            }),
+
+                            std::ref(*this->active_chunks[i].get()),
+                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
+                            std::ref(*this)
+
+
+                    );
+                }
+        }
+
+        thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+        ASSERT(thread_pool.no_tasks(), "tasks in thread_pool remain after wait_for_tasks returned");
     }
 
     auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {
@@ -135,10 +211,10 @@ namespace core::level {
     }
 
     auto Platform::getBase() const -> glm::vec2 {
-        return _currentRoot;
+        return this->current_root;
     }
 
-    auto Platform::getRenderer() const -> const rendering::Renderer & {
-        return _renderer;
+    auto Platform::get_presenter() const -> presenter::Presenter & {
+        return this->presenter;
     }
 }
