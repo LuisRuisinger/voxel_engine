@@ -9,58 +9,46 @@
 #include <queue>
 
 #include "../util/aliases.h"
-#include "../util/tickable.h"
-#include "Chunk/chunk.h"
+#include "../util/observer.h"
+#include "chunk/chunk.h"
 #include "../rendering/renderer.h"
 
+#define MAX_RENDER_VOLUME (static_cast<u32>(RENDER_RADIUS * RENDER_RADIUS * 2 * 2))
+
+
 namespace core::level {
-    class Platform : util::Tickable {
+    namespace presenter {
+        class Presenter;
+    }
+
+    class Platform : public util::observer::Observer {
     public:
+        Platform(presenter::Presenter &presenter);
+        ~Platform() override = default;
 
-        Platform(rendering::Renderer &renderer);
-
-        // -------------------------------------
-        // deallocates and write back all _loadedChunks
-
-        ~Platform() = default;
-
-        // ----------------------------------
-        // loads and allocates initial _loadedChunks
-
-        auto init() -> void;
-
-        // ---------------------------------------------------------------------------------------------
-        // checks if the position of the camera has reached a certain threshold for rendering new _loadedChunks
-        // extracts visible faces
-
-        auto tick(threading::Tasksystem<> &) -> void override;
-
-        // ---------------------------------
-        // inserts a voxel into the platform
-
+        auto tick(threading::Tasksystem<> &, camera::perspective::Camera &) -> void override;
         auto insert(glm::vec3 point, u16 voxelID) -> void;
-
-        // ---------------------------------
-        // removes a voxel from the platform
-
+        auto frame(threading::Tasksystem<> &, camera::perspective::Camera &) -> void;
         auto remove(glm::vec3 point) -> void;
-
         auto getBase() const -> glm::vec2;
-
-        auto getRenderer() const -> const rendering::Renderer &;
+        auto get_presenter() const -> presenter::Presenter &;
 
     private:
+        auto unload_chunks(threading::Tasksystem<> &) -> void;
+        auto load_chunks(threading::Tasksystem<> &, glm::vec2) -> void;
+        auto swap_chunks(glm::vec2) -> void;
 
-        // -------------------------------
-        // information about the root node
+        std::vector<std::shared_ptr<chunk::Chunk>> active_chunks =
+                std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
 
-        std::array<std::unique_ptr<chunk::Chunk>, static_cast<u32>(RENDER_DISTANCE * RENDER_DISTANCE * 2 * 2)> _loadedChunks;
-        glm::vec2                               _currentRoot;
+        std::vector<std::shared_ptr<chunk::Chunk>> queued_chunks =
+                std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
 
-        // ----------------------
-        // handle to the _renderer
-
-        rendering::Renderer                 &_renderer;
+        glm::vec2                                   current_root   = {0.0F, 0.0F};
+        presenter::Presenter                       &presenter;
+        std::mutex                                  mutex;
+        std::atomic_bool                            queue_ready    = false;
+        std::atomic_bool                            platform_ready = false;
     };
 }
 

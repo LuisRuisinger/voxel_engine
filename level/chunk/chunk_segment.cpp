@@ -14,12 +14,15 @@ namespace core::level::chunk {
     ChunkSegment::ChunkSegment(ChunkSegment &&other) noexcept
         : _segmentIdx{other._segmentIdx}
         , _modified{other._modified}
+        , initialized{other.initialized.load(std::memory_order_acquire)}
         , _segment{std::move(other._segment)}
+
     {}
 
     auto ChunkSegment::operator=(ChunkSegment &&other) noexcept -> ChunkSegment & {
         _segmentIdx = other._segmentIdx;
         _modified   = other._modified;
+        initialized = other.initialized.load(std::memory_order_acquire);
         _segment    = std::move(other._segment);
 
         other._modified = false;

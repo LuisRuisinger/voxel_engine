@@ -5,6 +5,11 @@
 #ifndef OPENGL_3D_ENGINE_RENDERER_H
 #define OPENGL_3D_ENGINE_RENDERER_H
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+#include "interface.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -27,8 +32,7 @@
 #include "../Level/Model/Types/voxel.h"
 #include "../Level/Octree/boundingVolume.h"
 
-#define MAX_VERTICES_BUFFER ((u32) (131072 * 2))
-#define MAX_RENDER_VOLUME (64 * 64)
+#define MAX_VERTICES_BUFFER ((u32) (131072 * 2.5))
 
 namespace core::rendering {
 
@@ -53,27 +57,23 @@ namespace core::rendering {
         ~Renderer() = default;
 
         auto initGLFW() -> void;
+        auto initImGui() -> void;
         auto initShaders() -> void;
         auto initPipeline() -> void;
 
-        auto addVoxel(u64) const -> void;
-        auto add_voxel_vector(std::unique_ptr<std::vector<__m256i>> &&) const -> void;
-
         auto prepareBuffer() -> void;
-        auto updateBuffer(size_t) -> size_t;
+        auto updateBuffer(VERTEX *, size_t) -> void;
         auto updateProjectionMatrix() -> void;
         auto updateGlobalBase(glm::vec2) -> void;
         auto updateRenderDistance(u32) -> void;
 
-        auto frame(threading::Tasksystem<> &) -> void;
-        auto draw(u32) -> void;
+        auto prepare_frame() -> void;
+        auto frame() -> void;
         auto flush() -> void;
 
         auto getCamera() const -> const camera::perspective::Camera *;
         auto getWindow() const -> const GLFWwindow *;
-
-        // cube structures
-        std::array<VoxelStructure::CubeStructure, 1> _structures;
+        auto get_batch_size() const -> u64;
 
     private:
 
@@ -83,16 +83,15 @@ namespace core::rendering {
         GLFWwindow                                   *_window;
         std::shared_ptr<camera::perspective::Camera>  _camera;
 
+
         // vertex shader data
         // the chunk positions are compressed into 2 * 6 bit
         glm::mat4               _projection;
         std::unique_ptr<Shader> _shader;
 
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
-        std::unique_ptr<std::vector<VERTEX>> mutable _vertices;
-        std::mutex                           mutable _mutex;
-
-        std::unique_ptr<std::vector<u32>>            _indices;
+        size_t                     _vertices;
+        std::vector<u32>           _indices;
 
         // GPU buffers
         GLuint _buffers[Buffer::count];

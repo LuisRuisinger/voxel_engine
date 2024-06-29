@@ -20,30 +20,53 @@ namespace core::threading {
         { lock.try_lock() } -> std::convertible_to<bool>;
     };
 
+    //
+    //
+    //
+    //
+    //
+
     template<typename T, typename Lock = std::mutex>
     requires is_lockable<Lock>
     class ThreadsafeQueue {
     public:
 
+        /**
+         * @brief Tries to push an rvalue reference of T to the queue.
+         *        If locking the mutex fails the rvalue wont get stored.
+         *
+         * @param t Rvalue reference of template parameter T.
+         *
+         * @return Boolean indicating if pushing was successful.
+         */
+
         auto try_push(T &&t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{_mutex, std::try_to_lock};
+                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
                 if (!lock)
                     return false;
 
-                _queue.emplace_back(std::forward<T>(t));
+                this->_queue.emplace_back(std::forward<T>(t));
             }
             return true;
         }
 
+        /**
+         * @brief Tries to pop an element from the queue. Assigns it via moving to the reference.
+         *
+         * @param t Reference to instance of template parameter T.
+         *
+         * @return Boolean indicating if popping was successful.
+         */
+
         auto try_pop(T &t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{_mutex, std::try_to_lock};
-                if (!lock || _queue.empty())
+                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
+                if (!lock || this->_queue.empty())
                     return false;
 
-                t = std::move(_queue.front());
-                _queue.pop_front();
+                t = std::move(this->_queue.front());
+                this->_queue.pop_front();
             }
             return true;
         }

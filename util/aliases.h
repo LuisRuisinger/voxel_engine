@@ -13,7 +13,7 @@
 
 #define CHUNK_SIZE 64
 #define RENDER_RADIUS 8
-#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE)
+#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
 #define Enum(_name, ...)                                                      \
     struct _name {                                                            \
         enum : i32 { __VA_ARGS__ };                                           \
@@ -22,7 +22,6 @@
         public:                                                               \
             static constexpr  size_t count = sizeof(enum_size) / sizeof(i32); \
     }
-#define FROM_INDEX(_i) (glm::vec2 {((_i) % RENDER_RADIUS) - RENDER_RADIUS, ((_i) / RENDER_RADIUS) - RENDER_RADIUS})
 
 using u8  = uint8_t;
 using u16 = uint16_t;

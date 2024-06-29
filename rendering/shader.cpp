@@ -61,15 +61,15 @@ namespace core::rendering {
             }
 
             // shader Program
-            _ID = glCreateProgram();
-            glAttachShader(_ID, vertex);
-            glAttachShader(_ID, fragment);
-            glLinkProgram(_ID);
+            this->_ID = glCreateProgram();
+            glAttachShader(this->_ID, vertex);
+            glAttachShader(this->_ID, fragment);
+            glLinkProgram(this->_ID);
 
             // print linking errors if any
-            glGetProgramiv(_ID, GL_LINK_STATUS, &success);
+            glGetProgramiv(this->_ID, GL_LINK_STATUS, &success);
             if(!success) {
-                glGetProgramInfoLog(_ID, 512, nullptr, (char *) infoLog);
+                glGetProgramInfoLog(this->_ID, 512, nullptr, (char *) infoLog);
                 std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << (char *) infoLog << std::endl;
             }
 
@@ -83,11 +83,11 @@ namespace core::rendering {
     }
 
     auto Shader::use() -> void {
-        glUseProgram(_ID);
+        glUseProgram(this->_ID);
     }
 
     auto Shader::registerUniformLocation(std::string name) const -> void {
-        auto location = glGetUniformLocation(_ID, name.c_str());
+        auto location = glGetUniformLocation(this->_ID, name.c_str());
         this->uniformCache[name] = location;
     }
 

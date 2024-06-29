@@ -14,40 +14,38 @@
 #include "level/Model/mesh.h"
 #include "rendering/renderer.h"
 #include "level/Octree/octree.h"
-#include "level/platform.h"
+#include "level/presenter.h"
 #include "threading/thread_pool.h"
+#include "threading/ticked_executor.h"
 
 struct GlobalGameState {
 
     // frames
-    f64 _deltaTime;
-    f64 _lastFrame;
-    f64 _currentFrame;
+    f64 _deltaTime = 0.0;
+    f64 _lastFrame = 0.0;
+    f64 _currentFrame = 0.0;
 
     // engine
     std::shared_ptr<core::camera::perspective::Camera> _camera;
-    std::shared_ptr<core::rendering::Renderer>         _renderer;
-    std::shared_ptr<core::level::Platform>             _platform;
+    core::rendering::Renderer                          _renderer;
+    core::level::presenter::Presenter                  _presenter;
 
-    // threadpool
-    std::unique_ptr<core::threading::Tasksystem<>> _threadPool;
+    // threading
+    core::threading::Tasksystem<> _threadPool;
+    core::threading::ticked_executor::TickedExecutor<20> _ticked_executor;
 
     GLFWwindow *_window;
 
     GlobalGameState()
-        : _currentFrame{0.0}
-        , _deltaTime{0.0}
-        , _lastFrame{0.0}
-        , _camera{std::make_shared<core::camera::perspective::Camera>(
-                glm::vec3(0.0f, 2.5f, 0.0f),
-                glm::vec3(0.0f, 1.0f, 0.0f),
-                YAW,
-                PITCH)}
-        , _renderer{std::make_unique<core::rendering::Renderer>(_camera)}
-        , _platform{std::make_unique<core::level::Platform>(*(_renderer))}
-        , _threadPool{std::make_unique<core::threading::Tasksystem<>>()}
-        , _window{const_cast<GLFWwindow *>(_renderer->getWindow())}
-    {}
+        : _camera{std::make_shared<core::camera::perspective::Camera>(
+                glm::vec3(0.0f, 2.5f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), YAW, PITCH)}
+        , _renderer{_camera}
+        , _presenter{_renderer}
+        , _window{const_cast<GLFWwindow *>(_renderer.getWindow())}
+        , _ticked_executor{*_camera.get()}
+    {
+        _ticked_executor.attach(static_cast<util::observer::Observer *>(&_presenter));
+    }
 
     ~GlobalGameState() = default;
 };
