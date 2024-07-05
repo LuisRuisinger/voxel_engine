@@ -24,7 +24,7 @@ namespace util::tagged_ptr {
         _default_allocator(const _default_allocator<__T> &) {}
 
         template <typename ...Args>
-        INLINE static auto alloc(Args &&...args) -> _T * {
+        INLINE __attribute__((malloc)) static auto alloc(Args &&...args) -> _T * {
             static_assert(sizeof(_T) > 0);
             return new _T { std::forward<Args>(args)... };
         }
@@ -43,7 +43,7 @@ namespace util::tagged_ptr {
         _default_allocator(const _default_allocator<__T> &) {}
 
         template <typename ...Args>
-        INLINE static auto alloc(Args &&...args) -> _T * {
+        INLINE __attribute__((malloc)) static auto alloc(Args &&...args) -> _T * {
             static_assert(sizeof(_T) > 0);
             return new _T[_N] { std::forward<Args>(args)... };
         }
@@ -80,28 +80,6 @@ namespace util::tagged_ptr {
             ASSERT(!(canonical_ptr ^ reinterpret_cast<u64>(this->ptr)), "addresses uses more than 48 bits");
 #endif
             set_high(h);
-        }
-
-        /**
-         * @brief  Move semantics
-         * @tparam _H    Possible other type than the currently stored type.
-         * @tparam __P   Possible other type than the current stored pointer to.
-         * @param  other Rvalue TaggedUniquePtr instance
-         */
-        template <typename __P, typename _H>
-        INLINE TaggedUniquePtr(TaggedUniquePtr<__P, _H> &&other) noexcept {
-            this->ptr = other.ptr;
-            other.ptr = nullptr;
-        }
-
-        template <typename __P, typename _H>
-        INLINE auto operator=(TaggedUniquePtr<__P, _H> &&other) noexcept -> TaggedUniquePtr<__P, _H> & {
-            release();
-
-            this->ptr = other.ptr;
-            other.ptr = nullptr;
-
-            return *this;
         }
 
         /** @brief Destroys owned instance of P through its pointer. */
@@ -189,6 +167,10 @@ namespace util::tagged_ptr {
             return ((((r_ptr & ACCESS_BIT) >> 47) * ONE_MASK) & r_ptr) == 0;
         }
 
+        /**
+         * @tparam T Arbitrary type
+         * @return Member of type T
+         */
         template <typename T>
         [[nodiscard]]
         INLINE auto get() const {
@@ -227,6 +209,44 @@ namespace util::tagged_ptr {
             Allocator::dealloc(reinterpret_cast<PointerType *>(canonical_ptr));
         }
 
+        /**
+         * ----- Move constructor and assignment -----
+         *
+         *
+         *
+         *
+         *
+         * @brief  Move semantics
+         * @tparam _H    Possible other type than the currently stored type.
+         * @tparam __P   Possible other type than the current stored pointer to.
+         * @param  other Rvalue TaggedUniquePtr instance
+         */
+        template <typename __P, typename _H>
+        INLINE TaggedUniquePtr(TaggedUniquePtr<__P, _H> &&other) noexcept {
+            this->ptr = other.ptr;
+            other.ptr = nullptr;
+        }
+
+        template <typename __P, typename _H>
+        INLINE auto operator=(TaggedUniquePtr<__P, _H> &&other) noexcept -> TaggedUniquePtr<__P, _H> & {
+            release();
+
+            this->ptr = other.ptr;
+            other.ptr = nullptr;
+
+            return *this;
+        }
+
+        /**
+         * ----- Copy constructor and assingment -----
+         *
+         *
+         *
+         *
+         *
+         * We explicitly want to ensure ownership therefore copying a TaggedPtr
+         * or its wrapped pointer shouldn't be possible.
+         */
         TaggedUniquePtr(const TaggedUniquePtr &) =delete;
         auto operator=(const TaggedUniquePtr &) -> TaggedUniquePtr & =delete;
 
@@ -248,11 +268,24 @@ namespace util::tagged_ptr {
     /** @brief Ensures that this pointer type equals the size of a normal pointer */
     static_assert(sizeof(TaggedUniquePtr<uint16_t, uint16_t>) == sizeof(uint16_t *));
 
+
+
+
+
     /**
+     * ----- Factory to construct tagged Pointers -----
+     *
+     *
+     *
+     *
+     *
      * @brief  Factory function to construct a TaggedPtr
-     * @tparam Args Types of arguments used in the constructor of the underlying pointer.
-     * @param  args Arguments forwarded to construct the owned instance.
-     * @param  st   Instance of StoredType defaulted to bit representation of 0.
+     * @tparam _P         The type the pointer refers to.
+     * @tparam StoredType Type stored in the high 16 bit of the pointer.
+     * @tparam Allocator  Allocator used to allocate and deallocate the underlying pointer.
+     * @tparam Args       Types of arguments used in the constructor of the underlying pointer.
+     * @param  args       Arguments forwarded to construct the owned instance.
+     * @param  st         Instance of StoredType defaulted to bit representation of 0.
      * @return Instance of TaggedUniquePtr.
      */
     template <
@@ -265,6 +298,8 @@ namespace util::tagged_ptr {
             Args &&...args,
             StoredType st = binary_conversion::convert_from_binary<StoredType>(0))
             -> TaggedUniquePtr<_P, StoredType> {
+
+        // the following will be optimized to just a single in place initialization
         auto tagged_ptr = TaggedUniquePtr<_P, StoredType> {
             Allocator::alloc(std::forward<Args>(args)...),
             binary_conversion::convert_to_binary<StoredType>(st)
