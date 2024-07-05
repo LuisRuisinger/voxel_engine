@@ -12,75 +12,45 @@
 #define SET_BIT_INDEX(_v)                          ((__builtin_ffs(_v)) - 1)
 #define CHECK_BIT(_v, _p)                          ((_v) & (1 << (_p)))
 #define EXTRACT_ID(_v)                             ((_v) & 0x3FF)
-#define SOME_BIT_DIFFERS(_i1, _i2, _i3, _i4, _bit) ((((current->_nodes[(_i1)]._packed >> 50) & 0x3F) ^            \
-                                                     ((current->_nodes[(_i2)]._packed >> 50) & 0x3F)) & (_bit) || \
-                                                    (((current->_nodes[(_i1)]._packed >> 50) & 0x3F) ^            \
-                                                     ((current->_nodes[(_i3)]._packed >> 50) & 0x3F)) & (_bit) || \
-                                                    (((current->_nodes[(_i1)]._packed >> 50) & 0x3F) ^            \
-                                                     ((current->_nodes[(_i4)]._packed >> 50) & 0x3F)) & (_bit))
+#define SOME_BIT_DIFFERS(_p, _i1, _i2, _i3, _i4, _bit)                                                                   \
+    (((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i2)]._packed >> 50) & 0x3F)) & (_bit) || \
+     ((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i3)]._packed >> 50) & 0x3F)) & (_bit) || \
+     ((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i4)]._packed >> 50) & 0x3F)) & (_bit))
 
 namespace core::level::node {
 
+    // TODO: why the fuck are we actually fetching recursively the face mask ?? For what reason ??
     /**
-     * @brief Default constructor for the Node class.
-     *
-     * Initializes the node with null child nodes and zeroed-out packed data.
-     *
+     * @brief  Recursively traverses octree to update the nodes' packed_data with new chunk position.
+     * @param  packed_chunk Bitmask containing the new chunk's position.
+     * @return ????????
      */
-
-    Node::Node()
-        : _packed{0}
-    {}
-
-    /**
-     * @brief Destructor for the Node class.
-     *
-     * Frees memory allocated for child nodes if necessary.
-     */
-
-    /*
-    Node::~Node() noexcept {
-        if (!this->_nodes)
-            return;
-
-        u8 segments = (this->_packed >> 56) & 0xFF;
-        if (segments) {
-            for (u8 i = 0; i < 8; ++i) {
-                if (segments & node_inline::indexToSegment[i])
-                    this->_nodes[i].~Node();
-            }
-
-            std::free(this->_nodes);
-        }
-    }
-     */
-
-    auto Node::updateFaceMask(u16 packedChunk) -> u8 {
-        if (this->_nodes.is_null())
+    auto Node::updateFaceMask(u16 packed_chunk) -> u8 {
+        if (this->nodes.is_null())
             return 0;
 
         u64 faces = 0;
-        u8 segments = this->_packed >> 56;
+        u8 segments = this->packed_data >> 56;
 
-        this->_packed &= static_cast<u64>(UINT32_MAX) << 32 | static_cast<u64>(UINT16_MAX);
-        this->_packed |= static_cast<u64>(packedChunk) << 16;
+        this->packed_data &= static_cast<u64>(UINT32_MAX) << 32 | static_cast<u64>(UINT16_MAX);
+        this->packed_data |= static_cast<u64>(packed_chunk) << 16;
 
         if (!segments)
-            return static_cast<u8>((this->_packed >> 50) & 0x3F);
+            return static_cast<u8>((this->packed_data >> 50) & 0x3F);
 
         for (u8 i = 0; i < 8; ++i) {
-            if (segments & node_inline::indexToSegment[i]) {
-                faces |= static_cast<u64>(this->_nodes[i].updateFaceMask(packedChunk));
+            if (segments & node_inline::index_to_segment[i]) {
+                faces |= static_cast<u64>(this->nodes[i].updateFaceMask(packed_chunk));
             }
         }
 
-        this->_packed |= faces << 50;
-        return static_cast<u8>(this->_packed >> 50) & 0x3F;
+        this->packed_data |= faces << 50;
+        return static_cast<u8>(this->packed_data >> 50) & 0x3F;
     }
 
     auto Node::recombine(std::stack<Node *> &stack) -> void {
         /*
-        u8 segments = this->_packed >> 56;
+        u8 segments = this->packed_data >> 56;
 
         if (!segments)
             return;
@@ -88,8 +58,8 @@ namespace core::level::node {
         stack.push(this);
 
         for (u8 i = 0; i < 8; ++i)
-            if (segments & node_inline::indexToSegment[i])
-                this->_nodes[i].recombine(stack);
+            if (segments & node_inline::index_to_segment[i])
+                this->nodes[i].recombine(stack);
 
         Node *current;
 
@@ -97,7 +67,7 @@ namespace core::level::node {
         while (!stack.empty()) {
             current = stack.top();
 
-            if ((current->_packed >> 56) ^ 0xFF)
+            if ((current->packed_data >> 56) ^ 0xFF)
                 return;
 
             u8 faces   = 0;
@@ -107,16 +77,16 @@ namespace core::level::node {
 
                 // the voxelID's need to match, also the voxelID cannot be 0 which would indicate
                 // that the node does not contain a valid voxel
-                if ( (current->_nodes[i]._packed >> 56) ||
-                     (current->_nodes[i]._packed & 0xFF) != (current->_nodes[0]._packed & 0xFF) ||
-                     !(current->_nodes[i]._packed & 0xFF))
+                if ( (current->nodes[i].packed_data >> 56) ||
+                     (current->nodes[i].packed_data & 0xFF) != (current->nodes[0].packed_data & 0xFF) ||
+                     !(current->nodes[i].packed_data & 0xFF))
                     return;
 
                 // determine which faces to cull
-                faces |= (current->_nodes[i]._packed >> 50) & 0x3F;
+                faces |= (current->nodes[i].packed_data >> 50) & 0x3F;
             }
 
-            voxelID = current->_nodes[0]._packed & 0xFF;
+            voxelID = current->nodes[0].packed_data & 0xFF;
 
             // check if faces would be constructed that are partially occluded
             if (SOME_BIT_DIFFERS(2, 3, 6, 7, TOP_BIT)   || SOME_BIT_DIFFERS(0, 2, 4, 6, BACK_BIT) ||
@@ -124,33 +94,45 @@ namespace core::level::node {
                 SOME_BIT_DIFFERS(4, 5, 6, 7, RIGHT_BIT) || SOME_BIT_DIFFERS(0, 1, 4, 5, BOTTOM_BIT))
                 return;
 
-            std::free(current->_nodes);
+            std::free(current->nodes);
 
             // deleting the highest 14 bit, indicating a voxel or leaf node
-            current->_packed &= ~(static_cast<u64>(0x3FFF) << 50);
-            current->_packed |= static_cast<u64>(voxelID) << 50;
+            current->packed_data &= ~(static_cast<u64>(0x3FFF) << 50);
+            current->packed_data |= static_cast<u64>(voxelID) << 50;
 
             // adding the voxelID to the node
-            current->_packed |= voxelID;
+            current->packed_data |= voxelID;
 
             stack.pop();
         }
          */
     }
 
+    auto Node::face_merge() -> u8 {
+        if (this->nodes.is_null())
+            return 0;
+        // TODO: check if set of segments exists
+        // TODO: check if all children that form a face are equal
+        // TODO: if contain children call this recursivly on children
+        // TODO: mask bitmask
+        // TODO: set own TaggedPtr to the value and return the value
+        u8 face_merge = 0;
+        return face_merge;
+    }
+
     const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
     auto Node::cull(const Args &args, camera::culling::CollisionType type) const -> void {
-        const u64 faces = this->_packed & (static_cast<u64>(args._camera.getCameraMask()) << 50);
+        const u64 faces = this->packed_data & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
         if (!faces)
             return;
 
         if ((type == camera::culling::INTERSECT) &&
-            (this->_packed & node_inline::exponent_and) > node_inline::exponent_check) {
-            auto scale = 1 << ((this->_packed >> 32) & 0x7);
+            (this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) {
+            auto scale = 1 << ((this->packed_data >> 32) & 0x7);
             auto position = glm::vec3 {
-                    (this->_packed >> 45) & 0x1F, (this->_packed >> 40) & 0x1F, (this->_packed >> 35) & 0x1F
+                    (this->packed_data >> 45) & 0x1F, (this->packed_data >> 40) & 0x1F, (this->packed_data >> 35) & 0x1F
             };
 
             type = args._camera.inFrustum_type(args._point + position, scale);
@@ -158,18 +140,18 @@ namespace core::level::node {
                 return;
         }
 
-        auto segments = this->_packed >> 56;
+        auto segments = this->packed_data >> 56;
         if (segments) {
             for (u8 i = 0; i < 8; ++i) {
-                if (segments & node_inline::indexToSegment[i])
-                    this->_nodes[i].cull(args, type);
+                if (segments & node_inline::index_to_segment[i])
+                    this->nodes[i].cull(args, type);
             }
         }
         else if (faces) {
             auto &ref = args._platform.get_presenter().get_structure(0).mesh();
 
 #ifdef __AVX2__
-            __m256i voxelVec = _mm256_set1_epi64x(this->_packed & vertex_clear_mask);
+            __m256i voxelVec = _mm256_set1_epi64x(this->packed_data & vertex_clear_mask);
 
             for (size_t i = 0; i < 6; ++i) {
                 if ((faces >> 50) & (1 << i)) [[unlikely]] {
