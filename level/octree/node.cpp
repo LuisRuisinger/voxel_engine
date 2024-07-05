@@ -29,8 +29,7 @@ namespace core::level::node {
      */
 
     Node::Node()
-            : _nodes{nullptr}
-            , _packed{0}
+        : _packed{0}
     {}
 
     /**
@@ -39,6 +38,7 @@ namespace core::level::node {
      * Frees memory allocated for child nodes if necessary.
      */
 
+    /*
     Node::~Node() noexcept {
         if (!this->_nodes)
             return;
@@ -53,9 +53,10 @@ namespace core::level::node {
             std::free(this->_nodes);
         }
     }
+     */
 
     auto Node::updateFaceMask(u16 packedChunk) -> u8 {
-        if (!this->_nodes)
+        if (this->_nodes.is_null())
             return 0;
 
         u64 faces = 0;
@@ -78,6 +79,7 @@ namespace core::level::node {
     }
 
     auto Node::recombine(std::stack<Node *> &stack) -> void {
+        /*
         u8 segments = this->_packed >> 56;
 
         if (!segments)
@@ -133,6 +135,7 @@ namespace core::level::node {
 
             stack.pop();
         }
+         */
     }
 
     const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;

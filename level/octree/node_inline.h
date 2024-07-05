@@ -197,18 +197,17 @@ namespace core::level::node_inline {
                                        (static_cast<u64>(packedData) << 32) |
                                        (packedVoxel & 0xFFFF0000);
 
-                    current->_nodes  = static_cast<node::Node *>(
-                            std::aligned_alloc(alignof(node::Node), sizeof(node::Node) * 8));
+
+                    current->_nodes = util::tagged_ptr::make_tagged<node::Node [8], u16>();
+                    ASSERT(current->_nodes.get<node::Node>());
                 }
 
                 // if the chosen segment is not in use
-                if (!(segments & segment)) {
+                if (!(segments & segment))
+                    current->_packed |= (static_cast<u64>(segment) << 56) |
+                                        (static_cast<u64>(0x3F) << 50);
 
-                    // adding a new segment and initializing its corresponding node
-                    current->_packed |= (static_cast<u64>(segment) << 56) | (static_cast<u64>(0x3F) << 50);
-                    current->_nodes[index] = {};
-                }
-
+                ASSERT(&current->_nodes[0])
                 packedData = buildBbox(index, packedData);
                 current    = &current->_nodes[index];
             }
@@ -217,3 +216,4 @@ namespace core::level::node_inline {
 }
 
 #endif //OPENGL_3D_ENGINE_NODE_INLINE_H
+

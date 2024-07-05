@@ -31,8 +31,8 @@ namespace util::log {
         std::ostringstream oss;
         switch (kind) {
             case Level::LOG_LEVEL_DEBUG : oss << "[\033[38;5;208mDEBUG\033[0m]"; break;
-            case Level::LOG_LEVEL_NORMAL: oss << "[\033[38;5;46mLOG\033[0m]  ";  break;
-            case Level::LOG_LEVEL_WARN  : oss << "[\033[38;5;226mWARN\033[0m] "; break;
+            case Level::LOG_LEVEL_NORMAL: oss << "[\033[38;5;46mLOG\033[0m]";    break;
+            case Level::LOG_LEVEL_WARN  : oss << "[\033[38;5;226mWARN\033[0m]";  break;
             case Level::LOG_LEVEL_ERROR : oss << "[\033[1;31mERROR\033[0m]";     break;
         }
 
