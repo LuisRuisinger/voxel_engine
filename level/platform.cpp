@@ -31,7 +31,10 @@ namespace core::level {
      * @param camera Current active camera.
      */
 
-    auto Platform::tick(threading::Tasksystem<> &thread_pool, camera::perspective::Camera &camera) -> void {
+    auto Platform::tick(
+            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
+            camera::perspective::Camera &camera __attribute__((noescape)))
+            -> void {
         const auto &cameraPos = camera.getCameraPosition();
 
         const auto new_root = glm::vec2{
@@ -66,7 +69,7 @@ namespace core::level {
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
 
-    auto Platform::unload_chunks(threading::Tasksystem<> &thread_pool) -> void {
+    auto Platform::unload_chunks(threading::Tasksystem<> &thread_pool __attribute__((noescape))) -> void {
         for (size_t i = 0; i < this->queued_chunks.size(); ++i) {
             if (this->queued_chunks[i] && this->queued_chunks[i].use_count() == 2)
                 thread_pool.enqueue_detach(
@@ -88,7 +91,10 @@ namespace core::level {
      * @param new_root    The center of the new region.
      */
 
-    auto Platform::load_chunks(threading::Tasksystem<> &thread_pool, glm::vec2 new_root) -> void {
+    auto Platform::load_chunks(
+            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
+            glm::vec2 new_root)
+            -> void {
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
                 if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z)) < RENDER_RADIUS) {
@@ -104,8 +110,10 @@ namespace core::level {
                     else {
                         this->queued_chunks[INDEX(x, z)] = std::make_shared<chunk::Chunk>(INDEX(x, z));
                         thread_pool.enqueue_detach(
-                                std::move([](chunk::Chunk *ptr, Platform *platform) -> void {
-                                    ASSERT(ptr, "Failed to generate on invalid ptr");
+                                std::move([](
+                                        chunk::Chunk *ptr __attribute__((noescape)),
+                                        Platform *platform) -> void {
+                                    ASSERT(ptr);
                                     ptr->generate(platform);
                                 }),
 
@@ -147,7 +155,10 @@ namespace core::level {
      * @param camera      Active camera for this frame.
      */
 
-    auto Platform::frame(threading::Tasksystem<> &thread_pool, camera::perspective::Camera &camera) -> void {
+    auto Platform::frame(
+            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
+            camera::perspective::Camera &camera)
+            -> void {
 
         // check if new chunks need to be added to the active pool
         // try lock to ensure no amount of frame freeze happens
@@ -161,7 +172,7 @@ namespace core::level {
                     thread_pool.enqueue_detach(
                             std::move([](
                                     u16 idx,
-                                    chunk::Chunk &ptr,
+                                    chunk::Chunk &ptr __attribute__((noescape)),
                                     camera::perspective::Camera &camera,
                                     Platform &platform) -> void {
                                 ptr.update_and_render(idx, camera, platform);
@@ -183,7 +194,7 @@ namespace core::level {
                 if (active_chunks[i] && active_chunks[i]->visible(camera, *this)) {
                     thread_pool.enqueue_detach(
                             std::move([](
-                                    chunk::Chunk &ptr,
+                                    chunk::Chunk &ptr __attribute__((noescape)),
                                     camera::perspective::Camera &camera,
                                     Platform &platform) -> void {
                                 ptr.cull(camera, platform);
@@ -199,7 +210,7 @@ namespace core::level {
         }
 
         thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
-        ASSERT(thread_pool.no_tasks(), "tasks in thread_pool remain after wait_for_tasks returned");
+        ASSERT(thread_pool.no_tasks());
     }
 
     auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {

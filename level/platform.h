@@ -26,16 +26,20 @@ namespace core::level {
         Platform(presenter::Presenter &presenter);
         ~Platform() override = default;
 
-        auto tick(threading::Tasksystem<> &, camera::perspective::Camera &) -> void override;
+        auto tick(
+                threading::Tasksystem<> & __attribute__((noescape)),
+                camera::perspective::Camera & __attribute__((noescape))) -> void override;
         auto insert(glm::vec3 point, u16 voxelID) -> void;
-        auto frame(threading::Tasksystem<> &, camera::perspective::Camera &) -> void;
+        auto frame(
+                threading::Tasksystem<> & __attribute__((noescape)),
+                camera::perspective::Camera &) -> void;
         auto remove(glm::vec3 point) -> void;
         auto getBase() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
 
     private:
-        auto unload_chunks(threading::Tasksystem<> &) -> void;
-        auto load_chunks(threading::Tasksystem<> &, glm::vec2) -> void;
+        auto unload_chunks(threading::Tasksystem<> & __attribute__((noescape))) -> void;
+        auto load_chunks(threading::Tasksystem<> & __attribute__((noescape)), glm::vec2) -> void;
         auto swap_chunks(glm::vec2) -> void;
 
         std::vector<std::shared_ptr<chunk::Chunk>> active_chunks =

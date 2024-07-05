@@ -18,6 +18,7 @@
 #include "glad/glad.h"
 #include "../Model/mesh.h"
 #include "../../rendering/renderer.h"
+#include "../../util/tagged_ptr.h"
 
 #define BASE {CHUNK_SIZE / 2, CHUNK_SIZE / 2, CHUNK_SIZE / 2}
 #define CHUNK_BVEC {32.0F, BASE}
@@ -38,14 +39,6 @@
 #define SHIFT_Y 40
 #define SHIFT_Z 35
 
-#define DE_TAG(_p)                                                     \
-    (((((_p) >> 47) & 1) * static_cast<uintptr_t>(UINT16_MAX) << 48) | \
-    ((_p) & (static_cast<uintptr_t>(UINT16_MAX) << 32 | static_cast<uintptr_t>(UINT32_MAX))))
-
-#define EN_TAG(_m, _p)                    \
-    ((static_cast<uintptr_t>(_m) << 48) | \
-    ((_p) & (static_cast<uintptr_t>(UINT16_MAX) << 32 | static_cast<uintptr_t>(UINT32_MAX))))
-
 namespace core::level {
     class Platform;
 }
@@ -63,15 +56,21 @@ namespace core::level::node {
     //
     //
 
+    struct NodeImpl {
+
+    };
+
     struct Node {
         Node();
-        ~Node() noexcept;
+       // ~Node() noexcept;
+       ~Node() =default;
 
         auto cull(const Args &, camera::culling::CollisionType type) const -> void;
         auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
 
-        Node *_nodes;
+        //Node *_nodes;
+        util::tagged_ptr::TaggedUniquePtr<Node [8], uint16_t> _nodes;
         u64   _packed;
 
 

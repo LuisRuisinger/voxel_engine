@@ -23,6 +23,14 @@
             static constexpr  size_t count = sizeof(enum_size) / sizeof(i32); \
     }
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+    #define INLINE __forceinline
+#else
+    #define INLINE inline // Fallback for other compilers
+#endif
+
 using u8  = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
