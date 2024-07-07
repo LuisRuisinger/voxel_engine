@@ -141,14 +141,14 @@ namespace core::level::chunk {
                 break;
 
             case NODATA:
-                current->_packed &= ~cBit;
+                current->packed_data &= ~cBit;
                 break;
 
             case DATA:
-                neighbor->_packed &= (((neighbor->_packed >> 32) & 0x7) <= ((current->_packed >> 32) & 0x7))
-                        ? ~nBit : neighbor->_packed;
-                current->_packed  &= (((current->_packed >> 32) & 0x7) <= ((neighbor->_packed >> 32) & 0x7))
-                        ? ~cBit : current->_packed;
+                neighbor->packed_data &= (((neighbor->packed_data >> 32) & 0x7) <= ((current->packed_data >> 32) & 0x7))
+                        ? ~nBit : neighbor->packed_data;
+                current->packed_data  &= (((current->packed_data >> 32) & 0x7) <= ((neighbor->packed_data >> 32) & 0x7))
+                        ? ~cBit : current->packed_data;
                 break;
 
             default:

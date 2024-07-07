@@ -80,6 +80,8 @@ add_executable(
         util/assert.h
         util/atomic_shared_ptr.h
         util/perlin_noise.hpp
+        util/tagged_ptr.h
+        util/binary_conversion.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

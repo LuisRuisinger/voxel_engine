@@ -238,7 +238,7 @@ namespace util::tagged_ptr {
         }
 
         /**
-         * ----- Copy constructor and assingment -----
+         * ----- Copy constructor and assignment -----
          *
          *
          *

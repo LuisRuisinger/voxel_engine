@@ -56,22 +56,23 @@ namespace core::level::node {
     //
     //
 
-    struct NodeImpl {
-
-    };
-
     struct Node {
-        Node();
-       // ~Node() noexcept;
-       ~Node() =default;
+        Node() =default;
+        ~Node() =default;
+
+        Node(Node &&) noexcept =default;
+        auto operator=(Node &&) noexcept -> Node & =default;
+
+        Node(const Node &) =delete;
+        auto operator=(const Node &) =delete;
 
         auto cull(const Args &, camera::culling::CollisionType type) const -> void;
         auto updateFaceMask(u16) -> u8;
         auto recombine(std::stack<Node *> &stack) -> void;
+        auto face_merge() -> u8;
 
-        //Node *_nodes;
-        util::tagged_ptr::TaggedUniquePtr<Node [8], uint16_t> _nodes;
-        u64   _packed;
+        util::tagged_ptr::TaggedUniquePtr<Node [8], uint16_t> nodes       {};
+        u64                                                   packed_data { 0 };
 
 
 
@@ -85,6 +86,8 @@ namespace core::level::node {
         // offsetX: 3 | offsetY: 3 | offsetZ: 3 | uv: 4 | unused: 1 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
         // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | normals: 3 | unused: 5 | voxelID: 8 (exactly 32)
     };
+
+    static_assert(sizeof(Node) == 2 * sizeof(Node *));
 
     inline auto insertNode(u64 packedVoxel, u32 packedData, Node *current) -> Node *;
     inline auto findNode(u32 packedVoxel, Node *current) -> std::optional<Node *>;
