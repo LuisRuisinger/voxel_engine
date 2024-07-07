@@ -10,6 +10,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <tuple>
+#include <type_traits>
+
 #include "../../util/aliases.h"
 #include "../level/octree/octree.h"
 #include "../level/chunk/chunk_segment.h"

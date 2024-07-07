@@ -9,24 +9,21 @@
 
 namespace core::level::octree {
 
-    // ----------------------
-    // Octree implementation
-
-    Octree::Octree()
-        : _root{std::make_unique<node::Node>()}
-    {}
-
     auto Octree::addPoint(u64 packedVoxel) -> node::Node * {
         return node_inline::insertNode(packedVoxel, this->_packed, this->_root.get());
     }
 
     auto Octree::removePoint(u16 position) -> void {}
 
-    auto Octree::cull(const glm::vec3 &position,
-                      const camera::perspective::Camera &camera,
-                      Platform &platform,
-                      std::vector<VERTEX> &voxelVec) const -> void {
-        const node::Args args = {position, camera, platform, voxelVec};
+    auto Octree::cull(
+            const glm::vec3 &position,
+            const camera::perspective::Camera &camera,
+            Platform &platform,
+            std::vector<VERTEX> &voxelVec) const
+            -> void {
+        const node::Args args = {
+                position, camera, platform, voxelVec
+        };
         this->_root->cull(args, camera::culling::INTERSECT);
     }
 

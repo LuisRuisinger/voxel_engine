@@ -19,7 +19,11 @@
 #include "glad/glad.h"
 #include "../Model/mesh.h"
 
-#define BASE_SIZE 1
+#define BASE_SIZE  0x1
+#define MASK_3     0x7
+#define MASK_5     0x1F
+#define MASK_6     0x3F
+#define SHIFT_HIGH 32
 
 namespace core::level::node_inline {
 
@@ -78,11 +82,11 @@ namespace core::level::node_inline {
 
         // calculating 2^(n + 1) / 2^2 = 2^n / 2 = 2^(n - 1)
         // n + 1 because we need to fake a 32^3 segment as 64^3 to never need floats
-        u8 scale  = (1 << (packedData & 0x7)) >> 1;
+        u8 scale  = (1 << (packedData & MASK_3)) >> 1;
 
-        u8 x = ((packedData >> 13) & 0x1F) << 1;
-        u8 y = ((packedData >>  8) & 0x1F) << 1;
-        u8 z = ((packedData >>  3) & 0x1F) << 1;
+        u8 x = ((packedData >> 13) & MASK_5) << 1;
+        u8 y = ((packedData >>  8) & MASK_5) << 1;
+        u8 z = ((packedData >>  3) & MASK_5) << 1;
 
         x = static_cast<i8>(x) + scale * pX;
         y = static_cast<i8>(y) + scale * pY;
@@ -90,7 +94,7 @@ namespace core::level::node_inline {
 
         // the new packedData will always have its packed segments set to 0
         // selecting a node will set the respective segment
-        return (packedData & (0x3F << 18)) |
+        return (packedData & (MASK_6 << 18)) |
 
                // setting current position
                // because we shiftet the coordinates to the left
@@ -100,7 +104,7 @@ namespace core::level::node_inline {
                ((z & 0x3E) <<  2) |
 
                // the new factor
-               ((packedData & 0x7) - 1);
+               ((packedData & MASK_3) - 1);
     }
 
     /**
@@ -116,21 +120,21 @@ namespace core::level::node_inline {
 
                 // spherical approximation of the position
                 // via distance between the position and current node
-                if (((current->packed_data >> 50) & 0x3F)) {
-                    auto posVec3 = glm::vec3 {
-                            (packed_voxel >> 13) & 0x1F,
-                            (packed_voxel >> 8) & 0x1F,
-                            (packed_voxel >> 3) & 0x1F
+                if (((current->packed_data >> 50) & MASK_6)) {
+                    const auto position_vec = glm::vec3 {
+                            (packed_voxel >> 13) & MASK_5,
+                            (packed_voxel >>  8) & MASK_5,
+                            (packed_voxel >>  3) & MASK_5
                     };
 
-                    auto rootVec3 = glm::vec3 {
-                            (current->packed_data >> 45) & 0x1F,
-                            (current->packed_data >> 40) & 0x1F,
-                            (current->packed_data >> 35) & 0x1F
+                    const auto root_vec = glm::vec3 {
+                            (current->packed_data >> 45) & MASK_5,
+                            (current->packed_data >> 40) & MASK_5,
+                            (current->packed_data >> 35) & MASK_5
                     };
 
-                    u8 scale = 1 << ((current->packed_data >> 32) & 0x7);
-                    if ((std::pow(glm::distance(posVec3, rootVec3), 2) * 2) <= std::pow(scale, 2))
+                    const u8 scale = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
+                    if ((std::pow(glm::distance(position_vec, root_vec), 2) * 2) <= std::pow(scale, 2))
                         return std::make_optional(current);
                 }
                 else {
@@ -139,7 +143,7 @@ namespace core::level::node_inline {
             }
 
             // if the segment is not in use the voxel doesn't exist
-            auto index = selectChild(packed_voxel, current->packed_data >> 32);
+            const auto index = selectChild(packed_voxel, current->packed_data >> SHIFT_HIGH);
             if (!((current->packed_data >> 56) & index_to_segment[index]))
                 return std::nullopt;
 
@@ -168,8 +172,8 @@ namespace core::level::node_inline {
                 // setting all faces to visible
                 // shifting octree local data to the higher 32 bit
                 // adding the voxel unique data
-                current->packed_data = (static_cast<u64>(0x3F) << 50) |
-                                       (static_cast<u64>(data) << 32) |
+                current->packed_data = (static_cast<u64>(MASK_6) << 50) |
+                                       (static_cast<u64>(data) << SHIFT_HIGH) |
                                        (packed_voxel & UINT32_MAX);
                 return current;
             }
@@ -185,7 +189,7 @@ namespace core::level::node_inline {
                     // segments, faces, position and high 16 bit of the packed_voxel containing chunk data
                     // lowest 16 bit are set to 0
                     current->packed_data = (static_cast<u64>(segment) << 56) |
-                                           (static_cast<u64>(data) << 32) |
+                                           (static_cast<u64>(data) << SHIFT_HIGH) |
                                            (packed_voxel & 0xFFFF0000);
 
 
@@ -196,7 +200,7 @@ namespace core::level::node_inline {
                 // if the chosen segment is not in use
                 if (!(segments & segment))
                     current->packed_data |= (static_cast<u64>(segment) << 56) |
-                                            (static_cast<u64>(0x3F) << 50);
+                                            (static_cast<u64>(MASK_6) << 50);
 
                 ASSERT(&current->nodes[0])
                 data = buildBbox(index, data);

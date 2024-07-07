@@ -24,25 +24,28 @@ namespace core::level::octree {
 
     class Octree {
     public:
-        Octree();
+        Octree() =default;
         ~Octree() = default;
 
         auto addPoint(u64) -> node::Node *;
         auto removePoint(u16) -> void;
-        auto cull(const glm::vec3 &,
-                  const camera::perspective::Camera &,
-                  Platform &_platform,
-                  std::vector<VERTEX> &) const -> void;
+        auto cull(
+                const glm::vec3 &,
+                const camera::perspective::Camera &,
+                Platform &,
+                std::vector<VERTEX> &) const
+                -> void;
         auto find(u32) const -> std::optional<node::Node *>;
         auto updateFaceMask(u16) -> u8;
         auto recombine() -> void;
 
     private:
-        std::unique_ptr<node::Node>  _root;
 
-        // sets the base bounding volume for an octree
+        /** @brief Root of the octree */
+        std::unique_ptr<node::Node> _root = std::make_unique<node::Node>();
+
+        /** @brief Sets the base bounding volume for an octree */
         const u32 _packed = (0x3F << 18) | (0x10 << 13) | (0x10 << 8) | (0x10 << 3) | 5;
-
     };
 }
 
