@@ -20,7 +20,7 @@ namespace core::level::presenter {
         auto t_end  = std::chrono::high_resolution_clock::now();
         auto t_diff = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start);
 
-        this->_renderer.updateGlobalBase(this->_platform.getBase());
+        this->_renderer.updateGlobalBase(this->_platform.get_world_root());
         this->_renderer.updateRenderDistance(RENDER_RADIUS);
 
         for (size_t i = 0; i < this->_vertices.size(); i += this->_renderer.get_batch_size()) {

@@ -12,6 +12,7 @@
 #include "../util/observer.h"
 #include "chunk/chunk.h"
 #include "../rendering/renderer.h"
+#include "../util/reflections.h"
 
 #define MAX_RENDER_VOLUME (static_cast<u32>(RENDER_RADIUS * RENDER_RADIUS * 2 * 2))
 
@@ -24,18 +25,21 @@ namespace core::level {
     class Platform : public util::observer::Observer {
     public:
         Platform(presenter::Presenter &presenter);
-        ~Platform() override = default;
+        ~Platform() override =default;
 
         auto tick(
                 threading::Tasksystem<> & __attribute__((noescape)),
                 camera::perspective::Camera & __attribute__((noescape))) -> void override;
-        auto insert(glm::vec3 point, u16 voxelID) -> void;
         auto frame(
                 threading::Tasksystem<> & __attribute__((noescape)),
                 camera::perspective::Camera &) -> void;
-        auto remove(glm::vec3 point) -> void;
-        auto getBase() const -> glm::vec2;
+        auto get_world_root() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
+
+        template <typename Func, typename ...Args>
+        requires util::reflections::has_member_v<chunk::Chunk, Func>
+        INLINE auto request_handle(Func func, Args &&...args) const
+        -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...>;
 
     private:
         auto unload_chunks(threading::Tasksystem<> & __attribute__((noescape))) -> void;

@@ -13,9 +13,9 @@
 #define CHECK_BIT(_v, _p)                          ((_v) & (1 << (_p)))
 #define EXTRACT_ID(_v)                             ((_v) & 0x3FF)
 #define SOME_BIT_DIFFERS(_p, _i1, _i2, _i3, _i4, _bit)                                                                   \
-    (((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i2)]._packed >> 50) & 0x3F)) & (_bit) || \
-     ((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i3)]._packed >> 50) & 0x3F)) & (_bit) || \
-     ((((_p)->_nodes[(_i1)]._packed >> 50) & 0x3F) ^ (((_p)->_nodes[(_i4)]._packed >> 50) & 0x3F)) & (_bit))
+    (((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i2)]._packed >> 50) & MASK_6)) & (_bit) || \
+     ((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i3)]._packed >> 50) & MASK_6)) & (_bit) || \
+     ((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i4)]._packed >> 50) & MASK_6)) & (_bit))
 
 namespace core::level::node {
 
@@ -32,20 +32,18 @@ namespace core::level::node {
         u64 faces = 0;
         u8 segments = this->packed_data >> 56;
 
-        this->packed_data &= static_cast<u64>(UINT32_MAX) << 32 | static_cast<u64>(UINT16_MAX);
+        this->packed_data &= static_cast<u64>(UINT32_MAX) << SHIFT_HIGH | static_cast<u64>(UINT16_MAX);
         this->packed_data |= static_cast<u64>(packed_chunk) << 16;
 
         if (!segments)
-            return static_cast<u8>((this->packed_data >> 50) & 0x3F);
+            return static_cast<u8>((this->packed_data >> 50) & MASK_6);
 
-        for (u8 i = 0; i < 8; ++i) {
-            if (segments & node_inline::index_to_segment[i]) {
+        for (u8 i = 0; i < 8; ++i)
+            if (segments & node_inline::index_to_segment[i])
                 faces |= static_cast<u64>(this->nodes[i].updateFaceMask(packed_chunk));
-            }
-        }
 
         this->packed_data |= faces << 50;
-        return static_cast<u8>(this->packed_data >> 50) & 0x3F;
+        return static_cast<u8>(this->packed_data >> 50) & MASK_6;
     }
 
     auto Node::recombine(std::stack<Node *> &stack) -> void {
@@ -83,7 +81,7 @@ namespace core::level::node {
                     return;
 
                 // determine which faces to cull
-                faces |= (current->nodes[i].packed_data >> 50) & 0x3F;
+                faces |= (current->nodes[i].packed_data >> 50) & MASK_6;
             }
 
             voxelID = current->nodes[0].packed_data & 0xFF;
@@ -120,9 +118,13 @@ namespace core::level::node {
         return face_merge;
     }
 
-    const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
-
+    /**
+     * @brief Builds mesh through extraction of visible faces.
+     * @param args
+     * @param type Frustum intersection type used to determine if we need to test against the frustum.
+     */
     auto Node::cull(const Args &args, camera::culling::CollisionType type) const -> void {
+        const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
         const u64 faces = this->packed_data & (static_cast<u64>(args._camera.getCameraMask()) << 50);
 
         if (!faces)
@@ -130,9 +132,11 @@ namespace core::level::node {
 
         if ((type == camera::culling::INTERSECT) &&
             (this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) {
-            auto scale = 1 << ((this->packed_data >> 32) & 0x7);
-            auto position = glm::vec3 {
-                    (this->packed_data >> 45) & 0x1F, (this->packed_data >> 40) & 0x1F, (this->packed_data >> 35) & 0x1F
+            const auto scale = 1 << ((this->packed_data >> SHIFT_HIGH) & MASK_3);
+            const auto position = glm::vec3 {
+                    (this->packed_data >> 45) & MASK_5,
+                    (this->packed_data >> 40) & MASK_5,
+                    (this->packed_data >> 35) & MASK_5
             };
 
             type = args._camera.inFrustum_type(args._point + position, scale);
@@ -142,24 +146,29 @@ namespace core::level::node {
 
         auto segments = this->packed_data >> 56;
         if (segments) {
-            for (u8 i = 0; i < 8; ++i) {
+            for (u8 i = 0; i < 8; ++i)
                 if (segments & node_inline::index_to_segment[i])
                     this->nodes[i].cull(args, type);
-            }
-        }
-        else if (faces) {
-            auto &ref = args._platform.get_presenter().get_structure(0).mesh();
 
-#ifdef __AVX2__
+            return;
+        }
+
+        if (faces) {
+            const auto &ref = args._platform.get_presenter().get_structure(0).mesh();
+
+            #ifdef __AVX2__
             __m256i voxelVec = _mm256_set1_epi64x(this->packed_data & vertex_clear_mask);
 
             for (size_t i = 0; i < 6; ++i) {
+
+                // we often only see 1 face
                 if ((faces >> 50) & (1 << i)) [[unlikely]] {
                     __m256i vertexVec = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(ref[i].data()));
                     args._voxelVec.emplace_back(_mm256_or_si256(vertexVec, voxelVec));
                 }
             }
-#else
+
+            #else
             packedVoxel &= mask;
 
             for (size_t i = 0; i < 6; ++i) {
@@ -170,7 +179,7 @@ namespace core::level::node {
                         args._voxelVec.emplace_back(vertex | packedVoxel);
                 }
             }
-#endif
+            #endif
         }
     }
 }

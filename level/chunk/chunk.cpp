@@ -194,7 +194,7 @@ namespace core::level::chunk {
 
     auto Chunk::cull(const camera::perspective::Camera &camera, Platform &platform) const -> void {
         auto platformBase = glm::vec3(
-                platform.getBase().x, 0, platform.getBase().y);
+                platform.get_world_root().x, 0, platform.get_world_root().y);
         
         auto offset = 32.0F * glm::vec3(
                 static_cast<i32>(this->_chunkIdx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
@@ -241,6 +241,6 @@ namespace core::level::chunk {
                 static_cast<i32>(this->_chunkIdx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
         );
 
-        return camera.inFrustum(platform.getBase() + offset, 32);
+        return camera.inFrustum(platform.get_world_root() + offset, 32);
     }
 }

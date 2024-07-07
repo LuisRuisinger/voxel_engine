@@ -173,17 +173,17 @@ namespace util::tagged_ptr {
          */
         template <typename T>
         [[nodiscard]]
-        INLINE auto get() const {
-            if constexpr (std::is_same<T, PointerType>::value) {
+        INLINE auto get() const -> std::conditional<std::is_same_v<T, PointerType>, PointerType *, StoredType> {
+            if constexpr (std::is_same_v<T, PointerType>) {
                 return operator->();
             }
 
-            if constexpr (std::is_same<T, StoredType>::value) {
+            if constexpr (std::is_same_v<T, StoredType>) {
                 return extract_high();
             }
             else {
                 static_assert(
-                        std::is_same<T, PointerType>::value || std::is_same<T, StoredType>::value,
+                        std::is_same_v<T, PointerType> || std::is_same_v<T, StoredType>,
                         "Unsupported type");
             }
         }

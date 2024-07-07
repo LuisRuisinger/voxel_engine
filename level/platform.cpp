@@ -19,18 +19,15 @@
     (std::hypot((_p1).x - (_p2).x, (_p1).y - (_p2).y))
 
 namespace core::level {
-
     Platform::Platform(presenter::Presenter &_presenter)
         : presenter{_presenter}
     {}
 
     /**
      * @brief Update platform if needed. Load new chunks if threshold is hit.
-     *
      * @param thread_pool Pool to offload tasks.
      * @param camera Current active camera.
      */
-
     auto Platform::tick(
             threading::Tasksystem<> &thread_pool __attribute__((noescape)),
             camera::perspective::Camera &camera __attribute__((noescape)))
@@ -53,6 +50,7 @@ namespace core::level {
                              << new_root
                              << util::log::end;
 
+            // swapchain
             load_chunks(thread_pool, new_root);
             swap_chunks(new_root);
             unload_chunks(thread_pool);
@@ -61,14 +59,8 @@ namespace core::level {
 
     /**
      * @brief Unload chunks whose shared count is 1, meaning they are no in use in this cycle.
-     *
-     * Through abusing the characteristics of shared_ptr we can enusre that only valid unused chunks
-     * will be destroyed. Chunks that are still in use but are also contained in this queue won't be
-     * altered due to the reference count being greater than 1.
-     *
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
-
     auto Platform::unload_chunks(threading::Tasksystem<> &thread_pool __attribute__((noescape))) -> void {
         for (size_t i = 0; i < this->queued_chunks.size(); ++i) {
             if (this->queued_chunks[i] && this->queued_chunks[i].use_count() == 2)
@@ -84,13 +76,9 @@ namespace core::level {
     /**
      * @brief Load new chunks and share ownership of currently loaded chunks that are still
      *        visible in the new region.
-     *
-     * Chunks are guaranteed to be entirely generated once being enqueued in the thread pool.
-     *
      * @param thread_pool Threadpool to parallel generate new chunks.
      * @param new_root    The center of the new region.
      */
-
     auto Platform::load_chunks(
             threading::Tasksystem<> &thread_pool __attribute__((noescape)),
             glm::vec2 new_root)
@@ -103,7 +91,7 @@ namespace core::level {
                     if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
                         this->platform_ready) [[likely]] {
 
-                        std::unique_lock lock {this->mutex};
+                        std::unique_lock lock { this->mutex };
                         ASSERT(this->active_chunks[INDEX(old_pos.x, old_pos.y)].get(), "");
                         this->queued_chunks[INDEX(x, z)] = this->active_chunks[INDEX(old_pos.x, old_pos.y)];
                     }
@@ -133,12 +121,10 @@ namespace core::level {
 
     /**
     * @brief Sliding window principle to swap active chunks with the new region.
-    *
-    * @param new_root    The center of the new region.
+    * @param new_root The center of the new region.
     */
-
     auto Platform::swap_chunks(glm::vec2 new_root) -> void {
-        std::unique_lock lock{this->mutex};
+        std::unique_lock lock{ this->mutex };
         std::swap(this->active_chunks, this->queued_chunks);
 
         this->current_root   = new_root;
@@ -150,11 +136,9 @@ namespace core::level {
 
     /**
      * @brief Extract visible mesh for current frame.
-     *
      * @param thread_pool Parallel traversal of single chunks.
      * @param camera      Active camera for this frame.
      */
-
     auto Platform::frame(
             threading::Tasksystem<> &thread_pool __attribute__((noescape)),
             camera::perspective::Camera &camera)
@@ -162,7 +146,7 @@ namespace core::level {
 
         // check if new chunks need to be added to the active pool
         // try lock to ensure no amount of frame freeze happens
-        std::unique_lock lock {this->mutex};
+        std::unique_lock lock { this->mutex };
 
         if (this->queue_ready) {
             for (size_t i = 0; i < active_chunks.size(); ++i)
@@ -213,19 +197,46 @@ namespace core::level {
         ASSERT(thread_pool.no_tasks());
     }
 
-    auto Platform::insert(glm::vec3 point, u16 voxelID) -> void {
-        //this->loadedChunks->insert(point, _voxelID);
-    }
-
-    auto Platform::remove(glm::vec3 point) -> void {
-        //this->loadedChunks->remove(point);
-    }
-
-    auto Platform::getBase() const -> glm::vec2 {
+    /** @brief Get current root position of the platform. */
+    auto Platform::get_world_root() const -> glm::vec2 {
         return this->current_root;
     }
 
+    /** @brief Get handle to presenter handling the platform. */
     auto Platform::get_presenter() const -> presenter::Presenter & {
         return this->presenter;
+    }
+
+    /**
+     * @brief  Codegen proxy for underlying chunks.
+     *         Applies function on all chunks if no position is contained in the args.
+     * @tparam Func Function pointer type.
+     * @tparam Args Argument types.
+     * @param  func Function pointer to a member of chunk.
+     * @param  args Arguments to resolve the right function.
+     * @return Equal to the called function through the proxy.
+     */
+    template <typename Func, typename ...Args>
+    requires util::reflections::has_member_v<chunk::Chunk, Func>
+    INLINE auto Platform::request_handle(
+            Func func,
+            Args &&...args) const
+            -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...> {
+        using namespace util::reflections;
+        auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
+
+        if constexpr (has_type_v<glm::vec3, decltype(args_tuple)>) {
+            auto &vec = std::get<glm::vec3>(args_tuple);
+
+            // preprocessing
+            vec.x = (vec.x - this->current_root.x) / 32.0F;
+            vec.z = (vec.z - this->current_root.y) / 32.0F;
+
+            return (active_chunks[INDEX(vec.x, vec.z)].get()->*func)(std::forward<Args>(args)...);
+        }
+        else {
+            for (auto &chunk : this->active_chunks)
+                (chunk.get()->*func)(std::forward<Args>(args)...);
+        }
     }
 }
