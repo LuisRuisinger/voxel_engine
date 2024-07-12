@@ -17,23 +17,18 @@
 #include "../level/octree/octree.h"
 #include "../level/chunk/chunk_segment.h"
 
-#define CHUNK_SEGMENTS 16
-#define MIN_HEIGHT (-128)
-
-#define YNORMALIZED_INDEX_OFFSET \
-    (MIN_HEIGHT / CHUNK_SIZE * 2)
-
 #define CHUNK_SEGMENT_YOFFS(y) \
-    (CHUNK_SIZE * 0.5 * y + MIN_HEIGHT)
+    (CHUNK_SIZE * y + MIN_HEIGHT)
 
-#define CHUNK_SEGMENT_YNORMALIZE(_p) \
-    (glm::vec3 {(_p).x, static_cast<f32>((static_cast<i32>((_p).y) % (CHUNK_SIZE / 2)) + 0.5F), (_p).z})
+#define CHUNK_SEGMENT_Y_NORMALIZE(_p)                            \
+    glm::vec3 {                                                  \
+        (_p).x,                                                  \
+        static_cast<f32>(static_cast<i32>((_p).y) % CHUNK_SIZE), \
+        (_p).z                                                   \
+    }
 
-#define CHUNK_SEGMENT_YDIFF(p) \
-    (((i32) (p.y - MIN_HEIGHT)) / CHUNK_SIZE * 2)
-
-#define CHUNK_POS_3D(p) \
-    (glm::vec3 {p.x, 0, p.y})
+#define CHUNK_SEGMENT_Y_DIFF(_p) \
+    ((static_cast<i32>((_p).y) + abs(MIN_HEIGHT)) / CHUNK_SIZE)
 
 namespace core::level {
     class Platform;
@@ -51,14 +46,12 @@ namespace core::level::chunk {
     class Chunk {
     public:
         Chunk(u16);
-        ~Chunk() = default;
+        ~Chunk() =default;
 
         Chunk(Chunk &&) =default;
         auto operator=(Chunk &&) -> Chunk & =default;
 
         auto generate(Platform *) -> void;
-        auto destroy() -> void;
-
         auto insert(glm::vec3, u8, Platform *platform) -> void;
         auto remove(glm::vec3) -> void;
         auto cull(const core::camera::perspective::Camera &, Platform &) const -> void;

@@ -11,7 +11,9 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#define CHUNK_SIZE 64
+#define CHUNK_SEGMENTS 16
+#define MIN_HEIGHT -128
+#define CHUNK_SIZE 32
 #define RENDER_RADIUS 8
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
 #define Enum(_name, ...)                                                      \

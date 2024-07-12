@@ -35,15 +35,15 @@ namespace core::level {
         const auto &cameraPos = camera.getCameraPosition();
 
         const auto new_root = glm::vec2{
-            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / 32.0F)) * 32.0F),
-            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.z / 32.0F)) * 32.0F)
+            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / CHUNK_SIZE)) * CHUNK_SIZE),
+            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.z / CHUNK_SIZE)) * CHUNK_SIZE)
         };
 
-        ASSERT(static_cast<i32>(new_root.x) % 32 == 0, "global platform roots must be multiple of 32");
-        ASSERT(static_cast<i32>(new_root.y) % 32 == 0, "global platform roots must be multiple of 32");
+        ASSERT(static_cast<i32>(new_root.x) % CHUNK_SIZE == 0, "global platform roots must be multiple of 32");
+        ASSERT(static_cast<i32>(new_root.y) % CHUNK_SIZE == 0, "global platform roots must be multiple of 32");
 
         // threshold to render new chunks is double the chunk size
-        if ((!this->queue_ready && DISTANCE_2D(this->current_root, new_root) == 64.0F) ||
+        if ((!this->queue_ready && DISTANCE_2D(this->current_root, new_root) == CHUNK_SIZE * 2) ||
              !this->platform_ready) {
 
             util::log::out() << util::log::Level::LOG_LEVEL_NORMAL
@@ -66,11 +66,14 @@ namespace core::level {
             if (this->queued_chunks[i] && this->queued_chunks[i].use_count() == 2)
                 thread_pool.enqueue_detach(
                         std::move([](std::shared_ptr<chunk::Chunk> ptr) -> void {
+                            ASSERT(ptr.get());
                             static_cast<void>(ptr);
                         }),
 
                         std::move(this->queued_chunks[i]));
         }
+
+        LOG("Finished unload");
     }
 
     /**
@@ -86,13 +89,15 @@ namespace core::level {
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
                 if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z)) < RENDER_RADIUS) {
-                    auto old_pos = (((glm::vec2(x, z) * 32.0F) + new_root) - current_root) / 32.0F;
+                    auto old_pos =
+                            (((glm::vec2(x, z) * static_cast<f32>(CHUNK_SIZE)) + new_root) - current_root) /
+                            static_cast<f32>(CHUNK_SIZE);
 
                     if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
                         this->platform_ready) [[likely]] {
 
                         std::unique_lock lock { this->mutex };
-                        ASSERT(this->active_chunks[INDEX(old_pos.x, old_pos.y)].get(), "");
+                        ASSERT(this->active_chunks[INDEX(old_pos.x, old_pos.y)].get());
                         this->queued_chunks[INDEX(x, z)] = this->active_chunks[INDEX(old_pos.x, old_pos.y)];
                     }
                     else {
@@ -117,6 +122,7 @@ namespace core::level {
             ASSERT(ref.use_count() < 3, "invalid reference count " + std::to_string(ref.use_count()));
 
         thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+        LOG("Finished load");
     }
 
     /**
@@ -231,11 +237,11 @@ namespace core::level {
 
             // preprocessing
             auto idx = INDEX(
-                    (static_cast<i32>(x / 32.0F) - (this->current_root.x / 32.0F)),
-                    (static_cast<i32>(z / 32.0F) - (this->current_root.y / 32.0F)));
+                    (static_cast<i32>(x / CHUNK_SIZE) - (this->current_root.x / CHUNK_SIZE)),
+                    (static_cast<i32>(z / CHUNK_SIZE) - (this->current_root.y / CHUNK_SIZE)));
 
-            x = static_cast<i32>(x) % 32;
-            z = static_cast<i32>(z) % 32;
+            x = static_cast<i32>(x) % CHUNK_SIZE;
+            z = static_cast<i32>(z) % CHUNK_SIZE;
 
             return (active_chunks[idx].get()->*func)(std::forward<Args>(args)...);
         }

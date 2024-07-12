@@ -38,4 +38,8 @@ namespace core::level::octree {
     auto Octree::recombine() -> void {
         this->_root->recombine();
     }
+
+    auto Octree::update_chunk_mask(u16 mask) -> void {
+        this->_root->update_chunk_mask(mask);
+    }
 }

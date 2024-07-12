@@ -20,25 +20,6 @@
 #include "../../rendering/renderer.h"
 #include "../../util/tagged_ptr.h"
 
-#define BASE {CHUNK_SIZE / 2, CHUNK_SIZE / 2, CHUNK_SIZE / 2}
-#define CHUNK_BVEC {32.0F, BASE}
-
-#define EXTRACT_SCALE(_ptr) \
-    (((_ptr)->_packed >> 50) & 0x3F)
-
-#define EXTRACT_SEGMENTS(_ptr) \
-    ((_ptr)->_packed >> 56)
-
-#define SET_SCALE(_ptr, _value) \
-    ((_ptr)->_packed = ((_ptr)->_packed & ~(0x3F << 50)) | (((_values) & 0x3F) << 50))
-
-#define SET_SEGMENTS(_ptr, _value) \
-    ((_ptr)->_packed = ((_ptr)->_packed & ~(0xFF << 56)) | (((_values) & 0xFF) << 56))
-
-#define SHIFT_X 45
-#define SHIFT_Y 40
-#define SHIFT_Z 35
-
 namespace core::level {
     class Platform;
 }
@@ -50,10 +31,6 @@ namespace core::level::node {
         Platform                          &_platform;
         std::vector<VERTEX>               &_voxelVec;
     };
-
-    //
-    //
-    //
 
     struct Node {
         Node() =default;

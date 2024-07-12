@@ -37,6 +37,7 @@ namespace core::level::octree {
                 -> void;
         auto find(u32) const -> std::optional<node::Node *>;
         auto updateFaceMask(u16) -> u8;
+        auto update_chunk_mask(u16) -> void;
         auto recombine() -> void;
 
     private:

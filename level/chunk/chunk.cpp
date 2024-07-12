@@ -21,31 +21,29 @@ namespace core::level::chunk {
     }
 
     auto Chunk::generate(Platform *platform) -> void {
-        auto fun = [this](const glm::vec3 position, u8 voxelID, Platform *platform) -> void {
-            auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
-            auto &segment       = this->_chunksegments[CHUNK_SEGMENT_YDIFF(position)];
+        auto fun = [this](const glm::vec3 position, u8 voxel_ID, Platform *platform) -> void {
+            auto normalizedVec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+            auto &segment = this->_chunksegments[CHUNK_SEGMENT_Y_DIFF(position)];
 
-            u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
-            u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
-            u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+            u64 x = static_cast<u8>(normalizedVec.x) & MASK_5;
+            u64 y = static_cast<u8>(normalizedVec.y) & MASK_5;
+            u64 z = static_cast<u8>(normalizedVec.z) & MASK_5;
 
             // setting coordinates
-            u32 packedDataHighP = (x << 13) | (y << 8) | (z << 3) |
-
-                                  // setting scale to the biggest possible bounding volume
-                                  0x7;
+            u32 packed_data_highp = (x << 13) |
+                                    (y <<  8) |
+                                    (z <<  3) |
+                                    MASK_3;
 
             // 12 highest bit set to the index of the chunk inside chunk managing array
-            u32 packedDataLowP  = (this->_chunkIdx << 20) |
-
-                                  // 4 bits set to the segment index
-                                  (segment._segmentIdx << 16) |
-
-                                  // the identifier of the voxel
-                                  voxelID;
+            u32 packed_data_lowp  = (this->_chunkIdx << 20) |
+                                    (segment._segmentIdx << 16) |
+                                    voxel_ID;
 
             // adding the voxel
-            auto *node = segment._segment->addPoint((static_cast<u64>(packedDataHighP) << 32) | packedDataLowP);
+            auto *node = segment._segment->addPoint(
+                    (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
+            ++this->_size;
 
             // occlusion culling
             updateOcclusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
@@ -59,16 +57,10 @@ namespace core::level::chunk {
         auto gen = [&fun, &platform, this]() -> void {
 
             // generation
-            for (u8 x = 0; x < (CHUNK_SIZE / 2); ++x) {
-                for (u8 z = 0; z < (CHUNK_SIZE / 2); ++z) {
-                    for (u8 y = 0; y < 8 + x / 4; ++y) {
-                        auto point = glm::vec3{x, y, z};
-                        fun(point, 0, platform);
-
-                        ++this->_size;
-                    }
-                }
-            }
+            for (u8 x = 0; x < CHUNK_SIZE; ++x)
+                for (u8 z = 0; z < CHUNK_SIZE; ++z)
+                    for (u8 y = 0; y < 8 + x / 4; ++y)
+                        fun(glm::vec3{ x, y, z }, 0, platform);
 
             // compression
             for (size_t i = 0; i < _chunksegments.size(); ++i) {
@@ -81,38 +73,28 @@ namespace core::level::chunk {
         gen();
     }
 
-    auto Chunk::destroy() -> void {
-        for (size_t i = 0; i < _chunksegments.size(); ++i)
-            if (_chunksegments[i]._modified) {}
+    auto Chunk::insert(const glm::vec3 position, u8 voxel_ID, Platform *platform) -> void {
+        auto normalizedVec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+        auto &segment = this->_chunksegments[CHUNK_SEGMENT_Y_DIFF(position)];
 
-        _chunksegments.clear();
-    }
-
-    auto Chunk::insert(const glm::vec3 position, u8 voxelID, Platform *platform) -> void {
-        auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
-        auto &segment       = this->_chunksegments[CHUNK_SEGMENT_YDIFF(position)];
-
-        u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
-        u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
-        u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+        u64 x = static_cast<u8>(normalizedVec.x) & MASK_5;
+        u64 y = static_cast<u8>(normalizedVec.y) & MASK_5;
+        u64 z = static_cast<u8>(normalizedVec.z) & MASK_5;
 
         // setting coordinates
-        u32 packedDataHighP = (x << 13) | (y << 8) | (z << 3) |
-
-                              // setting scale to the biggest possible bounding volume
-                              0x7;
+        u32 packed_data_highp = (x << 13) |
+                                (y <<  8) |
+                                (z <<  3) |
+                                MASK_3;
 
         // 12 highest bit set to the index of the chunk inside chunk managing array
-        u32 packedDataLowP  = (this->_chunkIdx << 20) |
-
-                              // 4 bits set to the segment index
-                              (segment._segmentIdx << 16) |
-
-                              // the identifier of the voxel
-                              voxelID;
+        u32 packed_data_lowp  = (this->_chunkIdx << 20) |
+                                (segment._segmentIdx << 16) |
+                                voxel_ID;
 
         // adding the voxel
-        auto *node = segment._segment->addPoint((static_cast<u64>(packedDataHighP) << 32) | packedDataLowP);
+        auto *node = segment._segment->addPoint(
+                (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
         ++this->_size;
 
         // occlusion culling
@@ -145,9 +127,13 @@ namespace core::level::chunk {
                 break;
 
             case DATA:
-                neighbor->packed_data &= (((neighbor->packed_data >> 32) & 0x7) <= ((current->packed_data >> 32) & 0x7))
+                neighbor->packed_data &=
+                        (((neighbor->packed_data >> SHIFT_HIGH) & MASK_3) <=
+                         ((current->packed_data  >> SHIFT_HIGH) & MASK_3))
                         ? ~nBit : neighbor->packed_data;
-                current->packed_data  &= (((current->packed_data >> 32) & 0x7) <= ((neighbor->packed_data >> 32) & 0x7))
+                current->packed_data  &=
+                        (((current->packed_data  >> SHIFT_HIGH) & MASK_3) <=
+                         ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3))
                         ? ~cBit : current->packed_data;
                 break;
 
@@ -157,56 +143,58 @@ namespace core::level::chunk {
     }
 
     auto Chunk::find(glm::vec3 position, Platform *platform) -> std::pair<node::Node *, ChunkData> {
-        if ((position.x < 0.0F || position.x > 32.0F) ||
-            (position.z < 0.0F || position.z > 32.0F)) {
+        if ((position.x < 0.0F || position.x > CHUNK_SIZE) ||
+            (position.z < 0.0F || position.z > CHUNK_SIZE)) {
 
-            // ------------------
-            // outside this chunk
+            // TODO: let chunk store a weak_ptr to neighbouring chunks
+            // TODO: use neightbour for occlusion culling
 
-            // TODO
-
-            return {nullptr, EMPTY};
+            return { nullptr, EMPTY };
         }
         else {
-            auto  normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
-            auto &segment       = this->_chunksegments[CHUNK_SEGMENT_YDIFF(position)];
+            auto normalizedVec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+            auto &segment = this->_chunksegments[CHUNK_SEGMENT_Y_DIFF(position)];
 
-            u64 x = static_cast<u8>(normalizedVec.x) & 0x1F;
-            u64 y = static_cast<u8>(normalizedVec.y) & 0x1F;
-            u64 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+            u64 x = static_cast<u8>(normalizedVec.x) & MASK_5;
+            u64 y = static_cast<u8>(normalizedVec.y) & MASK_5;
+            u64 z = static_cast<u8>(normalizedVec.z) & MASK_5;
 
-            auto opt = segment._segment->find((x << 13) | (y << 8) | (z << 3) | 0x7);
+            auto opt = segment._segment->find((x << 13) | (y << 8) | (z << 3) | MASK_3);
             return opt.has_value()
-                ? std::pair {opt.value(), DATA}
-                : std::pair {nullptr, EMPTY};
+                ? std::pair { opt.value(), DATA }
+                : std::pair { nullptr, EMPTY };
         }
     }
 
     auto Chunk::remove(glm::vec3 position) -> void {
-        auto normalizedVec = CHUNK_SEGMENT_YNORMALIZE(position);
+        auto normalizedVec = CHUNK_SEGMENT_Y_NORMALIZE(position);
 
-        u16 x = static_cast<u8>(normalizedVec.x) & 0x1F;
-        u16 y = static_cast<u8>(normalizedVec.y) & 0x1F;
-        u16 z = static_cast<u8>(normalizedVec.z) & 0x1F;
+        u16 x = static_cast<u8>(normalizedVec.x) & MASK_5;
+        u16 y = static_cast<u8>(normalizedVec.y) & MASK_5;
+        u16 z = static_cast<u8>(normalizedVec.z) & MASK_5;
 
-        this->_chunksegments[CHUNK_SEGMENT_YDIFF(position)]._segment->removePoint((x << 10) | (y << 5) | z);
+        this->_chunksegments[CHUNK_SEGMENT_Y_DIFF(position)]._segment->removePoint((x << 10) | (y << 5) | z);
     }
 
     auto Chunk::cull(const camera::perspective::Camera &camera, Platform &platform) const -> void {
         auto platformBase = glm::vec3(
                 platform.get_world_root().x, 0, platform.get_world_root().y);
         
-        auto offset = 32.0F * glm::vec3(
+        auto offset = static_cast<f32>(CHUNK_SIZE) * glm::vec3 {
                 static_cast<i32>(this->_chunkIdx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
                 -4,
                 static_cast<i32>(this->_chunkIdx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
-        );
+        };
 
         auto extracted_faces = std::vector<VERTEX> {};
         for (u8 i = 0; i < this->_chunksegments.size(); ++i) {
             if (this->_chunksegments[i].initialized)
                 this->_chunksegments[i]._segment->cull(
-                        platformBase + offset + glm::vec3(0.0F, i * 32.0F, 0.0F),
+                        platformBase + offset + glm::vec3 {
+                            0.0F,
+                            i * static_cast<f32>(CHUNK_SIZE),
+                            0.0F
+                        },
                         camera,
                         platform,
                         extracted_faces);
@@ -217,13 +205,14 @@ namespace core::level::chunk {
     }
 
     auto Chunk::update_and_render(
-            u16 chunkIdx,
+            u16 chunk_idx,
             const core::camera::perspective::Camera &camera,
-            Platform &platform) -> void {
-        this->_chunkIdx = chunkIdx & 0xFFF;
+            Platform &platform)
+            -> void {
+        this->_chunkIdx = chunk_idx & 0xFFF;
 
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
-            this->_faces |= this->_chunksegments[i]._segment->updateFaceMask((this->_chunkIdx << 4) | i);
+            this->_chunksegments[i]._segment->update_chunk_mask((this->_chunkIdx << 4) | i);
 
         cull(camera, platform);
     }
@@ -237,11 +226,11 @@ namespace core::level::chunk {
         if (!faces || !this->_size)
             return false;
 
-        auto offset = 32.0F * glm::vec2(
+        auto offset = static_cast<f32>(CHUNK_SIZE) * glm::vec2 {
                 static_cast<i32>(this->_chunkIdx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
                 static_cast<i32>(this->_chunkIdx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
-        );
+        };
 
-        return camera.inFrustum(platform.get_world_root() + offset, 32);
+        return camera.inFrustum(platform.get_world_root() + offset, CHUNK_SIZE);
     }
 }
