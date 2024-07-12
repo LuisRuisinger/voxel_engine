@@ -38,7 +38,10 @@ namespace core::level {
 
         template <typename Func, typename ...Args>
         requires util::reflections::has_member_v<chunk::Chunk, Func>
-        INLINE auto request_handle(Func func, Args &&...args) const
+        INLINE auto request_handle(
+                threading::Tasksystem<> & __attribute__((noescape)),
+                Func func,
+                Args &&...args) const
         -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...>;
 
     private:

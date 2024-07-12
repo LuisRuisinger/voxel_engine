@@ -44,10 +44,11 @@ namespace core::level::presenter {
     }
 
     auto Presenter::add_voxel_vector(std::vector<VERTEX> &&vec) -> void {
-        {
-            std::scoped_lock lock{this->_mutex};
-            this->_vertices.insert(this->_vertices.end(), vec.begin(), vec.end());
-        }
+        std::scoped_lock lock { this->_mutex };
+        this->_vertices.insert(
+                this->_vertices.end(),
+                std::make_move_iterator(vec.begin()),
+                std::make_move_iterator(vec.end()));
     }
 
     auto Presenter::get_structure(u16 i) -> VoxelStructure::CubeStructure & {

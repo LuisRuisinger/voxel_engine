@@ -36,7 +36,6 @@ namespace core::level::octree {
     }
 
     auto Octree::recombine() -> void {
-        std::stack<node::Node *> stack;
-        this->_root->recombine(stack);
+        this->_root->recombine();
     }
 }

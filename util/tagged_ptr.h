@@ -98,7 +98,8 @@ namespace util::tagged_ptr {
          */
         [[nodiscard]]
         INLINE auto extract_high() const -> StoredType {
-            return binary_conversion::convert_from_binary<StoredType>(this->ptr >> 48);
+            return binary_conversion::convert_from_binary<StoredType>(
+                    static_cast<u16>(reinterpret_cast<u64>(this->ptr) >> 48));
         }
 
         /**

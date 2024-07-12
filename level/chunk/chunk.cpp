@@ -233,7 +233,8 @@ namespace core::level::chunk {
     }
 
     auto Chunk::visible(const camera::perspective::Camera &camera, const Platform &platform) const -> bool {
-        if (!this->_faces || !this->_size)
+        const u64 faces = this->_faces & static_cast<u64>(camera.getCameraMask());
+        if (!faces || !this->_size)
             return false;
 
         auto offset = 32.0F * glm::vec2(

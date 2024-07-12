@@ -162,9 +162,9 @@ namespace core::level {
                                 ptr.update_and_render(idx, camera, platform);
                             }),
 
-                            static_cast<u16>(i),
-                            std::ref(*this->active_chunks[i].get()),
-                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
+                            i,
+                            std::ref(*this->active_chunks[i]),
+                            std::ref(camera),
                             std::ref(*this)
                     );
                 }
@@ -185,7 +185,7 @@ namespace core::level {
                             }),
 
                             std::ref(*this->active_chunks[i].get()),
-                            std::ref(const_cast<camera::perspective::Camera &>(camera)),
+                            std::ref(camera),
                             std::ref(*this)
 
 
@@ -219,24 +219,36 @@ namespace core::level {
     template <typename Func, typename ...Args>
     requires util::reflections::has_member_v<chunk::Chunk, Func>
     INLINE auto Platform::request_handle(
+            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
             Func func,
             Args &&...args) const
             -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...> {
         using namespace util::reflections;
-        auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
+        constexpr auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
 
         if constexpr (has_type_v<glm::vec3, decltype(args_tuple)>) {
-            auto &vec = std::get<glm::vec3>(args_tuple);
+            auto &[x, _, z] = std::get<glm::vec3>(args_tuple);
 
             // preprocessing
-            vec.x = (vec.x - this->current_root.x) / 32.0F;
-            vec.z = (vec.z - this->current_root.y) / 32.0F;
+            auto idx = INDEX(
+                    (static_cast<i32>(x / 32.0F) - (this->current_root.x / 32.0F)),
+                    (static_cast<i32>(z / 32.0F) - (this->current_root.y / 32.0F)));
 
-            return (active_chunks[INDEX(vec.x, vec.z)].get()->*func)(std::forward<Args>(args)...);
+            x = static_cast<i32>(x) % 32;
+            z = static_cast<i32>(z) % 32;
+
+            return (active_chunks[idx].get()->*func)(std::forward<Args>(args)...);
         }
         else {
             for (auto &chunk : this->active_chunks)
-                (chunk.get()->*func)(std::forward<Args>(args)...);
+                thread_pool.enqueue_detach(
+                        std::move([](std::weak_ptr<chunk::Chunk> chunk, Func func, Args ...args) -> void {
+                            if (auto s_ptr = chunk.lock())
+                                (s_ptr.get()->*func)(std::forward<Args>(args)...);
+                            }),
+                        chunk,
+                        std::forward<Func>(func),
+                        std::forward<Args>(args)...);
         }
     }
 }

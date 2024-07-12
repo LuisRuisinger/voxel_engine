@@ -8,114 +8,97 @@
 #include "node_inline.h"
 #include "../presenter.h"
 
-#define ONE_BIT_SET_ONLY(_v)                       ((_v) && !((_v) & ((_v) - 1)))
-#define SET_BIT_INDEX(_v)                          ((__builtin_ffs(_v)) - 1)
-#define CHECK_BIT(_v, _p)                          ((_v) & (1 << (_p)))
-#define EXTRACT_ID(_v)                             ((_v) & 0x3FF)
-#define SOME_BIT_DIFFERS(_p, _i1, _i2, _i3, _i4, _bit)                                                                   \
-    (((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i2)]._packed >> 50) & MASK_6)) & (_bit) || \
-     ((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i3)]._packed >> 50) & MASK_6)) & (_bit) || \
-     ((((_p)->_nodes[(_i1)]._packed >> 50) & MASK_6) ^ (((_p)->_nodes[(_i4)]._packed >> 50) & MASK_6)) & (_bit))
-
 namespace core::level::node {
 
-    // TODO: why the fuck are we actually fetching recursively the face mask ?? For what reason ??
-    /**
-     * @brief  Recursively traverses octree to update the nodes' packed_data with new chunk position.
-     * @param  packed_chunk Bitmask containing the new chunk's position.
-     * @return ????????
-     */
-    auto Node::updateFaceMask(u16 packed_chunk) -> u8 {
-        if (this->nodes.is_null())
-            return 0;
+    /** @brief Mask to extract packed data without the packed chunk information. */
+    static constexpr const u64 mask_off_chunk = (UINT64_MAX << SHIFT_HIGH) | static_cast<u64>(UINT16_MAX);
 
-        u64 faces = 0;
+    /** @brief Mask to transform a vertex point to a face. */
+    static constexpr const u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
+
+    /** @brief  Checks if all children of a node equal in being leaves, in volume and in voxel_ID. */
+    static constexpr const auto fun = [] <typename ...Args> (Node *node, Args ...args) -> bool {
+        if (node->packed_data >> 56 ^ 0xFF)
+            return false;
+
+        if (((node->nodes->operator[](args).packed_data >> 56) || ...))
+            return false;
+
+        if (!(((node->nodes->operator[](args).packed_data >> SHIFT_HIGH) & MASK_3) == ...))
+            return false;
+
+        return ((node->nodes->operator[](args).packed_data & 0xFF) == ...);
+    };
+
+    /**
+     * @brief  Updates the mask inside the packed voxel data and recursivly builds a face mask.
+     * @param  mask Packed chunk data containing chunk offset and chunksegment offset.
+     * @return Face mask for the current cubic area.
+     */
+    auto Node::updateFaceMask(u16 mask) -> u8 {
+        u8 faces = 0;
         u8 segments = this->packed_data >> 56;
 
-        this->packed_data &= static_cast<u64>(UINT32_MAX) << SHIFT_HIGH | static_cast<u64>(UINT16_MAX);
-        this->packed_data |= static_cast<u64>(packed_chunk) << 16;
-
+        this->packed_data = (this->packed_data & mask_off_chunk) | (static_cast<u64>(mask) << 16);
         if (!segments)
             return static_cast<u8>((this->packed_data >> 50) & MASK_6);
 
         for (u8 i = 0; i < 8; ++i)
             if (segments & node_inline::index_to_segment[i])
-                faces |= static_cast<u64>(this->nodes[i].updateFaceMask(packed_chunk));
+                faces |= this->nodes->operator[](i).updateFaceMask(mask);
 
-        this->packed_data |= faces << 50;
-        return static_cast<u8>(this->packed_data >> 50) & MASK_6;
+        this->packed_data |= static_cast<u64>(faces) << 50;
+        return faces;
     }
 
-    auto Node::recombine(std::stack<Node *> &stack) -> void {
-        /*
+    /**
+     * @brief Updates the mask inside the packed voxel data.
+     *        Happens when chunks are moved in another loaded area.
+     * @param mask Packed chunk data containing chunk offset and chunksegment offset.
+     */
+    auto Node::update_chunk_mask(u16 mask) -> void {
+        this->packed_data = (this->packed_data & mask_off_chunk) | (static_cast<u64>(mask) << 16);
+
         u8 segments = this->packed_data >> 56;
-
-        if (!segments)
-            return;
-
-        stack.push(this);
-
         for (u8 i = 0; i < 8; ++i)
             if (segments & node_inline::index_to_segment[i])
-                this->nodes[i].recombine(stack);
-
-        Node *current;
-
-        // combining same sized volumes
-        while (!stack.empty()) {
-            current = stack.top();
-
-            if ((current->packed_data >> 56) ^ 0xFF)
-                return;
-
-            u8 faces   = 0;
-            u8 voxelID = 0;
-
-            for (u8 i = 0; i < 8; ++i) {
-
-                // the voxelID's need to match, also the voxelID cannot be 0 which would indicate
-                // that the node does not contain a valid voxel
-                if ( (current->nodes[i].packed_data >> 56) ||
-                     (current->nodes[i].packed_data & 0xFF) != (current->nodes[0].packed_data & 0xFF) ||
-                     !(current->nodes[i].packed_data & 0xFF))
-                    return;
-
-                // determine which faces to cull
-                faces |= (current->nodes[i].packed_data >> 50) & MASK_6;
-            }
-
-            voxelID = current->nodes[0].packed_data & 0xFF;
-
-            // check if faces would be constructed that are partially occluded
-            if (SOME_BIT_DIFFERS(2, 3, 6, 7, TOP_BIT)   || SOME_BIT_DIFFERS(0, 2, 4, 6, BACK_BIT) ||
-                SOME_BIT_DIFFERS(1, 3, 5, 7, FRONT_BIT) || SOME_BIT_DIFFERS(0, 1, 2, 3, LEFT_BIT) ||
-                SOME_BIT_DIFFERS(4, 5, 6, 7, RIGHT_BIT) || SOME_BIT_DIFFERS(0, 1, 4, 5, BOTTOM_BIT))
-                return;
-
-            std::free(current->nodes);
-
-            // deleting the highest 14 bit, indicating a voxel or leaf node
-            current->packed_data &= ~(static_cast<u64>(0x3FFF) << 50);
-            current->packed_data |= static_cast<u64>(voxelID) << 50;
-
-            // adding the voxelID to the node
-            current->packed_data |= voxelID;
-
-            stack.pop();
-        }
-         */
+                this->nodes->operator[](i).update_chunk_mask(mask);
     }
 
-    auto Node::face_merge() -> u8 {
-        if (this->nodes.is_null())
-            return 0;
-        // TODO: check if set of segments exists
-        // TODO: check if all children that form a face are equal
-        // TODO: if contain children call this recursivly on children
-        // TODO: mask bitmask
-        // TODO: set own TaggedPtr to the value and return the value
-        u8 face_merge = 0;
-        return face_merge;
+    /**
+     * @brief Recombines the underlying octree to a SVO.
+     *        Cubic areas of equal voxels will be combined to a bigger voxel.
+     *        Therefore we would traverse less nodes and can destroy children (which represent smaller areas / voxels).
+     * @param stack
+     */
+    auto Node::recombine() -> void {
+        u8 segments = this->packed_data >> 56;
+
+        // removing unnecessary nodes containing <= 1 child
+        if (!(segments & (segments - 1))) {
+            for (u8 i = 0; i < 8; ++i)
+                if (segments & node_inline::index_to_segment[i]) {
+                    this->packed_data = this->nodes->operator[](i).packed_data;
+                    this->nodes = std::move(this->nodes->operator[](i).nodes);
+                }
+        }
+
+        // recombine children
+        for (u8 i = 0; i < 8; ++i)
+            if (segments & node_inline::index_to_segment[i])
+                this->nodes->operator[](i).recombine();
+
+        // checks if all children equal each other
+        if (!fun(this, 0, 1, 2, 3, 4, 5, 6, 7))
+            return;
+
+        // deleting highest 8 bit and lowest 8 bit
+        // indicating no subsequent segments follow and resetting the voxel_ID
+        this->packed_data &= (UINT64_MAX >> 8) & (UINT64_MAX << 8);
+        this->packed_data |= this->nodes->operator[](0).packed_data & 0xFF;
+
+        // reset nodes
+        this->nodes = {};
     }
 
     /**
@@ -124,12 +107,11 @@ namespace core::level::node {
      * @param type Frustum intersection type used to determine if we need to test against the frustum.
      */
     auto Node::cull(const Args &args, camera::culling::CollisionType type) const -> void {
-        const constexpr u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
         const u64 faces = this->packed_data & (static_cast<u64>(args._camera.getCameraMask()) << 50);
-
         if (!faces)
             return;
 
+        // frustum check
         if ((type == camera::culling::INTERSECT) &&
             (this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) {
             const auto scale = 1 << ((this->packed_data >> SHIFT_HIGH) & MASK_3);
@@ -148,12 +130,9 @@ namespace core::level::node {
         if (segments) {
             for (u8 i = 0; i < 8; ++i)
                 if (segments & node_inline::index_to_segment[i])
-                    this->nodes[i].cull(args, type);
-
-            return;
+                    this->nodes->operator[](i).cull(args, type);
         }
-
-        if (faces) {
+        else {
             const auto &ref = args._platform.get_presenter().get_structure(0).mesh();
 
             #ifdef __AVX2__

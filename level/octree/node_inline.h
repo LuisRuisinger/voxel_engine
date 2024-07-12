@@ -147,7 +147,7 @@ namespace core::level::node_inline {
             if (!((current->packed_data >> 56) & index_to_segment[index]))
                 return std::nullopt;
 
-            current = &current->nodes[index];
+            current = &(current->nodes->operator[](index));
         }
     }
 
@@ -192,9 +192,7 @@ namespace core::level::node_inline {
                                            (static_cast<u64>(data) << SHIFT_HIGH) |
                                            (packed_voxel & 0xFFFF0000);
 
-
-                    current->nodes = util::tagged_ptr::make_tagged<node::Node [8], u16>();
-                    ASSERT(current->nodes.get<node::Node>());
+                    current->nodes = std::make_unique<std::array<node::Node, 8>>();
                 }
 
                 // if the chosen segment is not in use
@@ -202,9 +200,9 @@ namespace core::level::node_inline {
                     current->packed_data |= (static_cast<u64>(segment) << 56) |
                                             (static_cast<u64>(MASK_6) << 50);
 
-                ASSERT(&current->nodes[0])
+                ASSERT(current->nodes.get());
                 data = buildBbox(index, data);
-                current    = &current->nodes[index];
+                current = &(current->nodes->operator[](index));
             }
         }
     }

@@ -44,7 +44,6 @@ namespace core::level {
 }
 
 namespace core::level::node {
-
     struct Args {
         const glm::vec3                   &_point;
         const camera::perspective::Camera &_camera;
@@ -68,14 +67,11 @@ namespace core::level::node {
 
         auto cull(const Args &, camera::culling::CollisionType type) const -> void;
         auto updateFaceMask(u16) -> u8;
-        auto recombine(std::stack<Node *> &stack) -> void;
-        auto face_merge() -> u8;
+        auto recombine() -> void;
+        auto update_chunk_mask(u16) -> void;
 
-        util::tagged_ptr::TaggedUniquePtr<Node [8], uint16_t> nodes       {};
-        u64                                                   packed_data { 0 };
-
-
-
+        std::unique_ptr<std::array<Node, 8>> nodes {};
+        u64 packed_data { 0 };
 
         // segments: 8 | faces: 6 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
         // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 8 | voxelID: 8 (exactly 32)
