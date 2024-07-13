@@ -17,7 +17,7 @@ namespace core::level::node {
     static constexpr const u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
     /** @brief  Checks if all children of a node equal in being leaves, in volume and in voxel_ID. */
-    static constexpr const auto fun = [] <typename ...Args> (Node *node, Args ...args) -> bool {
+    static constexpr const auto check_combinable = [] <typename ...Args> (Node *node, Args ...args) -> bool {
         if (node->packed_data >> 56 ^ 0xFF)
             return false;
 
@@ -28,6 +28,12 @@ namespace core::level::node {
             return false;
 
         return ((node->nodes->operator[](args).packed_data & 0xFF) == ...);
+    };
+
+    /** @brief Extracts all faces of given nodes and combines them. */
+    static constexpr const auto combine_faces = [] <typename ...Args> (Node *node, Args ...args) -> u64 {
+        static constexpr const u64 mask = static_cast<u64>(MASK_6) << 50;
+        return (node->nodes->operator[](args).packed_data | ...) & mask;
     };
 
     /**
@@ -75,6 +81,8 @@ namespace core::level::node {
         u8 segments = this->packed_data >> 56;
 
         // removing unnecessary nodes containing <= 1 child
+        // traversal path to leaves will be shorter
+        // and we reduce the amount of memory to store the platform
         if (!(segments & (segments - 1))) {
             for (u8 i = 0; i < 8; ++i)
                 if (segments & node_inline::index_to_segment[i]) {
@@ -89,12 +97,15 @@ namespace core::level::node {
                 this->nodes->operator[](i).recombine();
 
         // checks if all children equal each other
-        if (!fun(this, 0, 1, 2, 3, 4, 5, 6, 7))
+        if (!check_combinable(this, 0, 1, 2, 3, 4, 5, 6, 7))
             return;
 
-        // deleting highest 8 bit and lowest 8 bit
-        // indicating no subsequent segments follow and resetting the voxel_ID
-        this->packed_data &= (UINT64_MAX >> 8) & (UINT64_MAX << 8);
+        // deleting highest 14 bit and lowest 8 bit
+        // deletes segments indicating no sub areas follow
+        // deletes dirty faces the recalculate them in an higher order volume
+        // deletes dirty voxel_ID to assign one of the subareas
+        this->packed_data &= (UINT64_MAX >> 14) & (UINT64_MAX << 8);
+        this->packed_data |= combine_faces(this, 0, 1, 2, 3, 4, 5, 6, 7);
         this->packed_data |= this->nodes->operator[](0).packed_data & 0xFF;
 
         // reset nodes

@@ -39,15 +39,15 @@ namespace core::level::chunk {
         // -------------------------------------------
         // underlying octree, managing the cubic space
 
-        std::unique_ptr<octree::Octree> _segment;
+        std::unique_ptr<octree::Octree> root;
 
         // ------------------------------------------------------------
         // indicator if the segment got manipulated (for serialization)
 
-        bool _modified;
+        bool chunk_modified;
         std::atomic_bool initialized = false;
 
-        u8 _segmentIdx;
+        u8 segment_idx;
     };
 }
 

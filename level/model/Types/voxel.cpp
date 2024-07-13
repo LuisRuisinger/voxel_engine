@@ -4,8 +4,11 @@
 
 #include "voxel.h"
 
-#define POS_CONV(_p) (static_cast<u64>(((_p) + 0.5F) * 4.0F) & 0x7)
-#define UV_CONV(_p)  (static_cast<u64>((_p) * 2.0F) & 0x3)
+#define POS_CONV(_p) \
+    (static_cast<u64>(((_p) + 0.5F) * 4.0F) & 0x7)
+
+#define UV_CONV(_p)  \
+    (static_cast<u64>((_p) * 2.0F) & 0x3)
 
 namespace VoxelStructure {
     CubeStructure::CubeStructure()

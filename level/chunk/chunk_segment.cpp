@@ -6,26 +6,26 @@
 
 namespace core::level::chunk {
     ChunkSegment::ChunkSegment(u8 segmentIdx)
-        : _segmentIdx{segmentIdx}
-        , _modified{false}
-        , _segment{std::make_unique<octree::Octree>()}
+        : segment_idx{segmentIdx}
+        , chunk_modified{false}
+        , root{std::make_unique<octree::Octree>()}
     {}
 
     ChunkSegment::ChunkSegment(ChunkSegment &&other) noexcept
-        : _segmentIdx{other._segmentIdx}
-        , _modified{other._modified}
+        : segment_idx{other.segment_idx}
+        , chunk_modified{other.chunk_modified}
         , initialized{other.initialized.load(std::memory_order_acquire)}
-        , _segment{std::move(other._segment)}
+        , root{std::move(other.root)}
 
     {}
 
     auto ChunkSegment::operator=(ChunkSegment &&other) noexcept -> ChunkSegment & {
-        _segmentIdx = other._segmentIdx;
-        _modified   = other._modified;
+        segment_idx = other.segment_idx;
+        chunk_modified   = other.chunk_modified;
         initialized = other.initialized.load(std::memory_order_acquire);
-        _segment    = std::move(other._segment);
+        root    = std::move(other.root);
 
-        other._modified = false;
+        other.chunk_modified = false;
         return *this;
     }
 }

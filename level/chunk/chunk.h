@@ -67,12 +67,12 @@ namespace core::level::chunk {
         // ------------------------------------------------------
         // a vector of cubic segments which a chunk is split into
 
-        std::vector<ChunkSegment> _chunksegments;
-        u16                       _chunkIdx;
+        std::vector<ChunkSegment> chunk_segments {};
+        u16                       chunk_idx;
 
         // used for determing if enqueue in threadpool needed
-        u32 _size;
-        u8  _faces;
+        u32 size { 0 };
+        u8  faces { 0 };
     };
 }
 

@@ -36,8 +36,12 @@ void main()  {
     uint chunkIdx  =  high >> 20;
     uint segmentdx = (high >> 16) & 0xFU;
 
-    vec3 position = (vec3(xObjectSpace, yObjectSpace, zObjectSpace) * 0.25F - vec3(0.5F)) * scale +
+    vec3 position = (vec3(xObjectSpace, yObjectSpace, zObjectSpace) * 0.25F * scale) +
                     vec3(xChunkSpace, yChunkSpace, zChunkSpace) +
+                    vec3(-0.5) * (scale) +
+
+                    // error correction
+                    vec3(-0.5) * float(bool(scale > 1)) +
                     fromIndex(int(chunkIdx), segmentdx) - vec3(0.0F, 128.0F, 0.0F) +
                     vec3(worldbase.x, 0.0F, worldbase.y);
 
