@@ -11,30 +11,16 @@
 namespace core::level::node {
 
     /** @brief Mask to extract packed data without the packed chunk information. */
-    static constexpr const u64 mask_off_chunk = (UINT64_MAX << SHIFT_HIGH) | static_cast<u64>(UINT16_MAX);
+    static constexpr const u64 mask_off_chunk =
+            (UINT64_MAX << SHIFT_HIGH) | static_cast<u64>(UINT16_MAX);
 
     /** @brief Mask to transform a vertex point to a face. */
     static constexpr const u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
-    /** @brief  Checks if all children of a node equal in being leaves, in volume and in voxel_ID. */
-    static constexpr const auto check_combinable = [] <typename ...Args> (Node *node, Args ...args) -> bool {
-        if (node->packed_data >> 56 ^ 0xFF)
-            return false;
-
-        if (((node->nodes->operator[](args).packed_data >> 56) || ...))
-            return false;
-
-        if (!(((node->nodes->operator[](args).packed_data >> SHIFT_HIGH) & MASK_3) == ...))
-            return false;
-
-        return ((node->nodes->operator[](args).packed_data & 0xFF) == ...);
-    };
-
-    /** @brief Extracts all faces of given nodes and combines them. */
-    static constexpr const auto combine_faces = [] <typename ...Args> (Node *node, Args ...args) -> u64 {
-        static constexpr const u64 mask = static_cast<u64>(MASK_6) << 50;
-        return (node->nodes->operator[](args).packed_data | ...) & mask;
-    };
+    Node::Node()
+            : nodes       { nullptr },
+              packed_data { 0       }
+    {}
 
     /**
      * @brief  Updates the mask inside the packed voxel data and recursivly builds a face mask.
@@ -74,7 +60,8 @@ namespace core::level::node {
     /**
      * @brief Recombines the underlying octree to a SVO.
      *        Cubic areas of equal voxels will be combined to a bigger voxel.
-     *        Therefore we would traverse less nodes and can destroy children (which represent smaller areas / voxels).
+     *        Therefore we would traverse less nodes and can destroy children
+     *        (which represent smaller areas / voxels).
      * @param stack
      */
     auto Node::recombine() -> void {
@@ -97,7 +84,7 @@ namespace core::level::node {
                 this->nodes->operator[](i).recombine();
 
         // checks if all children equal each other
-        if (!check_combinable(this, 0, 1, 2, 3, 4, 5, 6, 7))
+        if (!node_inline::check_combinable(this, 0, 1, 2, 3, 4, 5, 6, 7))
             return;
 
         // deleting highest 14 bit and lowest 8 bit
@@ -105,7 +92,7 @@ namespace core::level::node {
         // deletes dirty faces the recalculate them in an higher order volume
         // deletes dirty voxel_ID to assign one of the subareas
         this->packed_data &= (UINT64_MAX >> 14) & (UINT64_MAX << 8);
-        this->packed_data |= combine_faces(this, 0, 1, 2, 3, 4, 5, 6, 7);
+        this->packed_data |= node_inline::combine_faces(this, 0, 1, 2, 3, 4, 5, 6, 7);
         this->packed_data |= this->nodes->operator[](0).packed_data & 0xFF;
 
         // reset nodes
@@ -115,10 +102,14 @@ namespace core::level::node {
     /**
      * @brief Builds mesh through extraction of visible faces.
      * @param args
-     * @param type Frustum intersection type used to determine if we need to test against the frustum.
+     * @param type Frustum intersection type used to determine
+     *             if we need to test against the frustum.
      */
-    auto Node::cull(const Args &args, camera::culling::CollisionType type) const -> void {
-        const u64 faces = this->packed_data & (static_cast<u64>(args._camera.getCameraMask()) << 50);
+    auto Node::cull(Args &args, camera::culling::CollisionType type) const -> void {
+        const u64 faces =
+                this->packed_data &
+                (static_cast<u64>(args._camera.getCameraMask()) << 50);
+
         if (!faces)
             return;
 
@@ -144,6 +135,7 @@ namespace core::level::node {
                     this->nodes->operator[](i).cull(args, type);
         }
         else {
+            ASSERT_EQ(faces);
             const auto &ref = args._platform.get_presenter().get_structure(0).mesh();
 
             #ifdef __AVX2__
@@ -153,8 +145,19 @@ namespace core::level::node {
 
                 // we often only see 1 face
                 if ((faces >> 50) & (1 << i)) [[unlikely]] {
-                    __m256i vertexVec = _mm256_loadu_si256(reinterpret_cast<__m256i const *>(ref[i].data()));
-                    args._voxelVec.emplace_back(_mm256_or_si256(vertexVec, voxelVec));
+                    __m256i vertexVec = _mm256_loadu_si256(
+                            reinterpret_cast<__m256i const *>(ref[i].data()));
+                    vertexVec = _mm256_or_si256(vertexVec, voxelVec);
+
+                    ASSERT_NEQ(
+                            reinterpret_cast<u64>(&args._voxelVec[args.actual_size]) %
+                            sizeof(VERTEX));
+
+                    _mm256_store_si256(
+                            const_cast<__m256i *>(&args._voxelVec[args.actual_size]),
+                            vertexVec);
+
+                    ++args.actual_size;
                 }
             }
 
@@ -171,5 +174,19 @@ namespace core::level::node {
             }
             #endif
         }
+    }
+
+    auto Node::count_mask(u64 mask) -> size_t {
+        auto segments = this->packed_data >> 56;
+        if (segments) {
+            size_t sum = 0;
+            for (u8 i = 0; i < 8; ++i)
+                if (segments & node_inline::index_to_segment[i])
+                    sum += this->nodes->operator[](i).count_mask(mask);
+
+            return sum;
+        }
+
+        return ((this->packed_data >> 50) & MASK_6) && (this->packed_data & mask);
     }
 }

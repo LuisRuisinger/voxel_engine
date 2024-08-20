@@ -63,7 +63,7 @@ namespace core::level::node_inline {
      * @param  packed_data_high The high 32 bit of the current node containing position and scale.
      * @return A u8 mask for the chosen child of the current node.
      */
-    INLINE static
+    inline static
     auto selectChild(u32 packed_voxel, u32 packed_data_high) -> u8 {
         return (((packed_voxel & x_and) >= (packed_data_high & x_and)) << 2) |
                (((packed_voxel & y_and) >= (packed_data_high & y_and)) << 1) |
@@ -76,7 +76,7 @@ namespace core::level::node_inline {
      * @param  packedData The high 32 bit of the current node containing position and scale
      * @return A u32 mask equal to the packed data's high 32 bit of a node
      */
-    INLINE static
+    inline static
     auto buildBbox(u8 childMask, u32 packedData) -> u32 {
         auto [pX, pY, pZ] = index_to_prefix[childMask];
 
@@ -114,38 +114,39 @@ namespace core::level::node_inline {
      * @return A std::optional containing either the voxel or none
      */
     inline static
-    auto findNode(u32 packed_voxel, node::Node *current) -> std::optional<node::Node *> {
+    auto findNode(u32 packed_voxel, node::Node *current) -> node::Node * {
         for(;;) {
             if (!(current->packed_data >> 56)) {
 
                 // spherical approximation of the position
                 // via distance between the position and current node
-                if (((current->packed_data >> 50) & MASK_6)) {
-                    const auto position_vec = glm::vec3 {
-                            (packed_voxel >> 13) & MASK_5,
-                            (packed_voxel >>  8) & MASK_5,
-                            (packed_voxel >>  3) & MASK_5
-                    };
+                if (!((current->packed_data >> 50) & MASK_6))
+                    return nullptr;
 
-                    const auto root_vec = glm::vec3 {
-                            (current->packed_data >> 45) & MASK_5,
-                            (current->packed_data >> 40) & MASK_5,
-                            (current->packed_data >> 35) & MASK_5
-                    };
+                const auto position_vec = glm::vec3 {
+                        (packed_voxel >> 13) & MASK_5,
+                        (packed_voxel >>  8) & MASK_5,
+                        (packed_voxel >>  3) & MASK_5
+                };
 
-                    const u8 scale = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
-                    if ((std::pow(glm::distance(position_vec, root_vec), 2) * 2) <= std::pow(scale, 2))
-                        return std::make_optional(current);
-                }
-                else {
-                    return std::nullopt;
-                }
+                const auto root_vec = glm::vec3 {
+                        (current->packed_data >> 45) & MASK_5,
+                        (current->packed_data >> 40) & MASK_5,
+                        (current->packed_data >> 35) & MASK_5
+                };
+
+                // radius generation from bitmask stored exponent
+                // the exponent scales the side of the bounding volume of each
+                // level of the SVO hierarchy
+                const u8 cube_side = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
+                if (glm::distance(position_vec, root_vec) <= sqrt(2) * cube_side)
+                    return current;
             }
 
             // if the segment is not in use the voxel doesn't exist
             const auto index = selectChild(packed_voxel, current->packed_data >> SHIFT_HIGH);
             if (!((current->packed_data >> 56) & index_to_segment[index]))
-                return std::nullopt;
+                return nullptr;
 
             current = &(current->nodes->operator[](index));
         }
@@ -156,55 +157,116 @@ namespace core::level::node_inline {
      *
      * Calculates the position of the voxel inside the tree via using the u32 higher half of
      * the last node's (or root's) packed_data packed data.
-     * The high 16 bit of the lower 32 bit of packed_data will be set with the packed_voxel high 16 bit of
-     * the lower 32 bit to contain the chunk information.
+     * The high 16 bit of the lower 32 bit of packed_data will be set
+     * with the packed_voxel high 16 bit of the lower 32 bit to contain the chunk information.
      * The lowest 16 bit of packed_data will be set to 0 unless the node becomes a voxel.
      *
      * @param  packed_voxel The voxel compressed in a u64
      * @param  data         The current bounding box of the last node (or root of the tree)
      * @return The address of inserted Voxel
      */
-    inline
+    inline static
     auto insertNode(u64 packed_voxel, u32 data, node::Node *current) -> node::Node * {
         for(;;) {
-            if ((1 << (data & 0x7)) == BASE_SIZE) {
+            if ((1 << (data & MASK_3)) == BASE_SIZE) {
 
                 // setting all faces to visible
                 // shifting octree local data to the higher 32 bit
                 // adding the voxel unique data
-                current->packed_data = (static_cast<u64>(MASK_6) << 50) |
-                                       (static_cast<u64>(data) << SHIFT_HIGH) |
-                                       (packed_voxel & UINT32_MAX);
+                current->packed_data =
+                        (static_cast<u64>(MASK_6) << 50) |
+                        (static_cast<u64>(data) << SHIFT_HIGH) |
+                        (packed_voxel & UINT32_MAX);
                 return current;
             }
             else {
-                u8 index    = selectChild(packed_voxel >> 32, data);
+                u8 index    = selectChild(packed_voxel >> SHIFT_HIGH, data);
                 u8 segment  = index_to_segment[index];
                 u8 segments = current->packed_data >> 56;
 
                 // if the node does not contain any children
                 if (!segments) {
+                    // the following MUST happen in this order because this
+                    // isn't protected for a multithreaded context
+                    // if we would set the segment first and then initialize the nodes
+                    // the behavior is undefined because another thread could search for
+                    // this node and try to access it because its getting indicated by
+                    // the bitmask before even the construction happened
+
+                    // initializes the 8 new children with the default initializer of Node
+                    current->nodes = std::make_unique<std::array<node::Node, 8>>();
 
                     // initializing the current node's packed data field with
-                    // segments, faces, position and high 16 bit of the packed_voxel containing chunk data
-                    // lowest 16 bit are set to 0
-                    current->packed_data = (static_cast<u64>(segment) << 56) |
-                                           (static_cast<u64>(data) << SHIFT_HIGH) |
-                                           (packed_voxel & 0xFFFF0000);
-
-                    current->nodes = std::make_unique<std::array<node::Node, 8>>();
+                    // segments, faces, position and high 16 bit of the packed_voxel
+                    // containing chunk data lowest 16 bit are set to 0
+                    current->packed_data =
+                            (static_cast<u64>(segment) << 56) |
+                            (static_cast<u64>(data) << SHIFT_HIGH) |
+                            (packed_voxel & 0xFFFF0000);
                 }
 
                 // if the chosen segment is not in use
                 if (!(segments & segment))
-                    current->packed_data |= (static_cast<u64>(segment) << 56) |
-                                            (static_cast<u64>(MASK_6) << 50);
+                    current->packed_data |=
+                            (static_cast<u64>(segment) << 56) |
+                            (static_cast<u64>(MASK_6) << 50);
 
-                ASSERT(current->nodes.get());
+                ASSERT_EQ(current->nodes.get());
                 data = buildBbox(index, data);
                 current = &(current->nodes->operator[](index));
             }
         }
+    }
+
+    /**
+     * @brief  Checks if all subareas of the current volume can be combined to the current volume.
+     * @tparam Args Type of node indices. Should be std::integral.
+     * @param  node Node ptr to the current node whose children we observe.
+     * @param  args Parameter pack of indices.
+     * @return Boolean indicating if children are combinable to volume of the size of the current node.
+     */
+    template <typename ...Args>
+    requires std::conjunction_v<std::is_integral<Args> ...>
+    INLINE static
+    auto check_combinable(node::Node *node, Args ...args) -> bool {
+
+        // all children must be in use
+        if ((node->packed_data >> 56) ^ 0xFF)
+            return false;
+
+        // all children must be leaves to ensure equal cubic subareas
+        if (((node->nodes->operator[](args).packed_data >> 56) || ...))
+            return false;
+
+        // all children must be of equal size
+        if (!(((node->nodes->operator[](args).packed_data >> SHIFT_HIGH) & MASK_3) == ...))
+            return false;
+
+        // all children must contain the same voxel
+        if (!((node->nodes->operator[](args).packed_data & 0xFF) == ...))
+            return false;
+
+        return true;
+    }
+
+    /**
+     * @brief  Combines faces of all children to a combined face mask.
+     * @tparam Args Type of node indices. Should be std::integral.
+     * @param  node Node ptr to the current node whose children we observe.
+     * @param  args Parameter pack of indices.
+     * @return Non-shifted, combined face mask.
+     */
+    template <typename ...Args>
+    requires std::conjunction_v<std::is_integral<Args> ...>
+    INLINE static
+    auto combine_faces(node::Node *node, Args ...args) -> u64 {
+
+        // mask to extract the faces of each node
+        // packed node data in 64 bit representation assumed here
+        static constexpr const u64 mask = static_cast<u64>(MASK_6) << 50;
+
+        // retunrs combined faces of all children
+        return (node->nodes->operator[](args).packed_data | ...) & mask;
     }
 }
 

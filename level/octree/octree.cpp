@@ -19,15 +19,16 @@ namespace core::level::octree {
             const glm::vec3 &position,
             const camera::perspective::Camera &camera,
             Platform &platform,
-            std::vector<VERTEX> &voxelVec) const
+            const VERTEX *voxelVec,
+            u64 &actual_size) const
             -> void {
-        const node::Args args = {
-                position, camera, platform, voxelVec
+        node::Args args = {
+                position, camera, platform, voxelVec, actual_size
         };
         this->_root->cull(args, camera::culling::INTERSECT);
     }
 
-    auto Octree::find(u32 packedVoxel) const -> std::optional<node::Node *> {
+    auto Octree::find(u32 packedVoxel) const -> node::Node * {
         return node_inline::findNode(packedVoxel, _root.get());
     }
 
@@ -41,5 +42,9 @@ namespace core::level::octree {
 
     auto Octree::update_chunk_mask(u16 mask) -> void {
         this->_root->update_chunk_mask(mask);
+    }
+
+    auto Octree::count_mask(u64 mask) -> size_t {
+        return this->_root->count_mask(mask);
     }
 }

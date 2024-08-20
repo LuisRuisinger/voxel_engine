@@ -35,8 +35,17 @@ namespace core::level {
 }
 
 namespace core::level::chunk {
-    enum ChunkData {
-        EMPTY, NODATA, DATA
+    enum ChunkData : u8 {
+        EMPTY,
+        NODATA,
+        DATA
+    };
+
+    enum Position : u8 {
+        LEFT,
+        RIGHT,
+        FRONT,
+        BACK
     };
 
     //
@@ -52,27 +61,33 @@ namespace core::level::chunk {
         auto operator=(Chunk &&) -> Chunk & =default;
 
         auto generate(Platform *) -> void;
-        auto insert(glm::vec3, u8, Platform *platform) -> void;
+        auto insert(glm::vec3, u8, Platform *platform, bool recombine = true) -> void;
         auto remove(glm::vec3) -> void;
         auto cull(const core::camera::perspective::Camera &, Platform &) const -> void;
         auto update_and_render(u16, const core::camera::perspective::Camera &, Platform &) -> void;
 
-        auto find(glm::vec3, Platform *platform) -> std::pair<node::Node *, ChunkData>;
-        auto updateOcclusion(node::Node *, std::pair<node::Node *, ChunkData>, u64, u64) -> void;
+        auto find(glm::vec3, Platform *platform) -> node::Node *;
+        auto updateOcclusion(node::Node *, node::Node *, u64, u64) -> void;
         auto visible(const camera::perspective::Camera &, const Platform &) const -> bool;
         auto index() const -> u16;
+        auto add_neigbor(Position, std::shared_ptr<Chunk>) -> void;
+
+        struct Faces {
+            auto operator[](u64 mask) -> size_t &;
+            std::array<size_t, 6> stored_faces;
+        };
 
     private:
 
-        // ------------------------------------------------------
-        // a vector of cubic segments which a chunk is split into
-
+        std::vector<std::pair<Position, std::weak_ptr<Chunk>>> neighbors {};
         std::vector<ChunkSegment> chunk_segments {};
         u16                       chunk_idx;
 
-        // used for determing if enqueue in threadpool needed
         u32 size { 0 };
         u8  faces { 0 };
+
+        mutable size_t cur_frame_alloc_size { 0 };
+        mutable Faces mask_container;
     };
 }
 

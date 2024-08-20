@@ -33,12 +33,14 @@ namespace core::level::octree {
                 const glm::vec3 &,
                 const camera::perspective::Camera &,
                 Platform &,
-                std::vector<VERTEX> &) const
+                const VERTEX *,
+                u64 &) const
                 -> void;
-        auto find(u32) const -> std::optional<node::Node *>;
+        auto find(u32) const -> node::Node *;
         auto updateFaceMask(u16) -> u8;
         auto update_chunk_mask(u16) -> void;
         auto recombine() -> void;
+        auto count_mask(u64) -> size_t;
 
     private:
 

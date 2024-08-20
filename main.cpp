@@ -35,19 +35,18 @@ auto main() -> i32 {
         }
     };
 
-    LOG("Init");
+    LOG("Init core");
     auto globalState = GlobalGameState {};
+    LOG("Init core finished");
 
     u64 fps;
     u64 frames = 0;
     f64 step = glfwGetTime();
 
-    LOG("Init finished");
-
     while (!glfwWindowShouldClose(globalState._window)) {
         globalState._currentFrame = glfwGetTime();
-        globalState._deltaTime    = globalState._currentFrame - globalState._lastFrame;
-        globalState._lastFrame    = globalState._currentFrame;
+        globalState._deltaTime = globalState._currentFrame - globalState._lastFrame;
+        globalState._lastFrame = globalState._currentFrame;
 
         fun(globalState);
 
@@ -61,5 +60,5 @@ auto main() -> i32 {
     }
 
     glfwTerminate();
-    exit(EXIT_SUCCESS);
+    std::exit(EXIT_SUCCESS);
 }

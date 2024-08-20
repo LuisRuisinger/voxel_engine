@@ -32,48 +32,44 @@ namespace core::threading {
     public:
 
         /**
-         * @brief Tries to push an rvalue reference of T to the queue.
-         *        If locking the mutex fails the rvalue wont get stored.
-         *
-         * @param t Rvalue reference of template parameter T.
-         *
+         * @brief  Tries to push an rvalue reference of T to the queue.
+         *         If locking the mutex fails the rvalue wont get stored.
+         * @param  t Rvalue reference of template parameter T.
          * @return Boolean indicating if pushing was successful.
          */
 
         auto try_push(T &&t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
+                std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
                 if (!lock)
                     return false;
 
-                this->_queue.emplace_back(std::forward<T>(t));
+                this->queue.emplace_back(std::forward<T>(t));
             }
             return true;
         }
 
         /**
-         * @brief Tries to pop an element from the queue. Assigns it via moving to the reference.
-         *
-         * @param t Reference to instance of template parameter T.
-         *
+         * @brief  Tries to pop an element from the queue. Assigns it via moving to the reference.
+         * @param  t Reference to instance of template parameter T.
          * @return Boolean indicating if popping was successful.
          */
 
         auto try_pop(T &t) -> bool {
             {
-                std::unique_lock<std::mutex> lock{this->_mutex, std::try_to_lock};
-                if (!lock || this->_queue.empty())
+                std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
+                if (!lock || this->queue.empty())
                     return false;
 
-                t = std::move(this->_queue.front());
-                this->_queue.pop_front();
+                t = std::move(this->queue.front());
+                this->queue.pop_front();
             }
             return true;
         }
 
     private:
-        std::deque<T> _queue;
-        Lock          _mutex;
+        std::deque<T> queue;
+        Lock mutex;
     };
 }
 

@@ -11,27 +11,11 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#define CHUNK_SEGMENTS 16
-#define MIN_HEIGHT -128
-#define CHUNK_SIZE 32
-#define RENDER_RADIUS 8
+#define CHUNK_SEGMENTS  16
+#define MIN_HEIGHT      -128
+#define CHUNK_SIZE      32
+#define RENDER_RADIUS   4
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
-#define Enum(_name, ...)                                                      \
-    struct _name {                                                            \
-        enum : i32 { __VA_ARGS__ };                                           \
-        private:                                                              \
-            struct enum_size { int __VA_ARGS__; };                            \
-        public:                                                               \
-            static constexpr  size_t count = sizeof(enum_size) / sizeof(i32); \
-    }
-
-#if defined(__GNUC__) || defined(__clang__)
-    #define INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-    #define INLINE __forceinline
-#else
-    #define INLINE inline // Fallback for other compilers
-#endif
 
 using u8  = uint8_t;
 using u16 = uint16_t;
@@ -44,5 +28,28 @@ using i64 = int64_t;
 using f32 = float_t;
 using f64 = double_t;
 
+#define Enum(_name, ...)                                                     \
+    struct _name {                                                           \
+        enum : i32 { __VA_ARGS__ };                                          \
+        private:                                                             \
+            struct enum_size { i32 __VA_ARGS__; };                           \
+        public:                                                              \
+            static constexpr size_t count = sizeof(enum_size) / sizeof(i32); \
+    }
+
+#if defined(__GNUC__) || defined(__clang__)
+    #define INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+    #define INLINE __forceinline
+#else
+    #define INLINE inline
+#endif
+
+#ifdef __AVX2__
+#include <immintrin.h>
+    #define VERTEX __m256i
+#else
+    #define VERTEX u64
+#endif
 
 #endif //OPENGL_3D_ENGINE_ALIASES_H

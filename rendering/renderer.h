@@ -18,13 +18,6 @@
 
 #include "../threading/thread_pool.h"
 
-#ifdef __AVX2__
-#include <immintrin.h>
-    #define VERTEX __m256i
-#else
-    #define VERTEX u64
-#endif
-
 #include "../util/aliases.h"
 #include "shader.h"
 #include "../Level/Model/mesh.h"
@@ -61,8 +54,9 @@ namespace core::rendering {
         auto initShaders() -> void;
         auto initPipeline() -> void;
 
-        auto prepareBuffer() -> void;
-        auto updateBuffer(VERTEX *, size_t) -> void;
+        auto prepare_buffer(size_t) -> void *;
+        auto updateBuffer(const VERTEX *, size_t) -> void;
+        auto unmap_buffer(size_t) -> void;
         auto updateProjectionMatrix() -> void;
         auto updateGlobalBase(glm::vec2) -> void;
         auto updateRenderDistance(u32) -> void;
@@ -90,7 +84,7 @@ namespace core::rendering {
         std::unique_ptr<Shader> _shader;
 
         // dynamic vertex vector - contains the current visible verticies for the hooked camera
-        size_t                     _vertices;
+        std::atomic_size_t         _vertices;
         std::vector<u32>           _indices;
 
         // GPU buffers

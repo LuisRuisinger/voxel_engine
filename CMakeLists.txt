@@ -37,6 +37,13 @@ add_library(imgui
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/imgui_impl_opengl3.cpp
         ${IMGUI_DIR}/imgui_impl_glfw.cpp
+        level/model/tile/meshes/tile.cpp
+        level/model/tile/meshes/tile.h
+        level/model/tile/explicit/dirt.cpp
+        level/model/tile/explicit/cobblestone.cpp
+        level/model/tile/explicit/stone.cpp
+        level/model/tile/tile_atlas.cpp
+        level/model/tile/tile_atlas.h
 )
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -82,6 +89,9 @@ add_executable(
         util/perlin_noise.hpp
         util/tagged_ptr.h
         util/binary_conversion.h
+        core/memory/linear_allocator_threadsafe.h
+        core/memory/memory.h
+        core/memory/arena_allocator.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

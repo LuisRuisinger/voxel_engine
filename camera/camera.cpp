@@ -19,7 +19,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1800.0 / 1200.0, -2.0F, 32.0F * (RENDER_RADIUS * 2));
+        setFrustum(45.0f, 1920.0F / 1080.0F, -2.0F, 32.0F * (RENDER_RADIUS * 2));
         update();
     }
 
@@ -36,7 +36,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1800.0 / 1200.0, -2.0F, 32.0F * (RENDER_RADIUS * 2));
+        setFrustum(45.0f, 1920.0F / 1080.0F, -2.0F, 32.0F * (RENDER_RADIUS * 2));
         update();
     }
 
@@ -74,13 +74,13 @@ namespace core::camera::perspective {
     }
 
     auto Camera::update() -> void {
-        f32 cosYaw   = cos(glm::radians(this->_yaw));
-        f32 cosPitch = cos(glm::radians(this->_pitch));
+        f32 cos_yaw   = cos(glm::radians(this->_yaw));
+        f32 cos_pitch = cos(glm::radians(this->_pitch));
 
         this->_front = {
-                cosYaw * cosPitch,
+                cos_yaw * cos_pitch,
                 sin(glm::radians(this->_pitch)),
-                sin(glm::radians(this->_yaw)) * cosPitch
+                sin(glm::radians(this->_yaw)) * cos_pitch
         };
 
         this->_front = glm::normalize(this->_front);

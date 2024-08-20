@@ -34,7 +34,9 @@ namespace util::reflections {
     constexpr auto tuple_from_params(Args ...args) -> std::tuple<Args ...> {
         return std::tuple<
                 typename std::add_lvalue_reference<
-                        typename std::add_const<Args>::type>::type...> { std::forward<Args>(args)... };
+                        typename std::add_const<Args>::type>::type...> {
+                            std::forward<Args>(args)...
+                        };
     }
 
 }

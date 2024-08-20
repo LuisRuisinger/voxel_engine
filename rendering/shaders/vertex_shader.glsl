@@ -9,6 +9,7 @@ uniform mat4 projection;
 uniform int  render_radius;
 
 out vec2 TexCoord;
+out float Height;
 
 vec3 fromIndex(int chunkIdx, uint segmentIdx) {
     int render_diameter = render_radius * 2;
@@ -49,4 +50,6 @@ void main()  {
 
     gl_Position = projection * view * vec4(position, 1.0F);
     TexCoord = vec2(tex.x, tex.y - 1.0F);
+
+    Height = position.y;
 }

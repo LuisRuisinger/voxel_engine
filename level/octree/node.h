@@ -26,14 +26,15 @@ namespace core::level {
 
 namespace core::level::node {
     struct Args {
-        const glm::vec3                   &_point;
+        const glm::vec3 &_point;
         const camera::perspective::Camera &_camera;
-        Platform                          &_platform;
-        std::vector<VERTEX>               &_voxelVec;
+        Platform &_platform;
+        const VERTEX *_voxelVec;
+        u64 &actual_size;
     };
 
     struct Node {
-        Node() =default;
+        Node();
         ~Node() =default;
 
         Node(Node &&) noexcept =default;
@@ -42,10 +43,11 @@ namespace core::level::node {
         Node(const Node &) =delete;
         auto operator=(const Node &) =delete;
 
-        auto cull(const Args &, camera::culling::CollisionType type) const -> void;
+        auto cull(Args &, camera::culling::CollisionType type) const -> void;
         auto updateFaceMask(u16) -> u8;
         auto recombine() -> void;
         auto update_chunk_mask(u16) -> void;
+        auto count_mask(u64) -> size_t;
 
         std::unique_ptr<std::array<Node, 8>> nodes {};
         u64 packed_data { 0 };
@@ -63,7 +65,7 @@ namespace core::level::node {
     static_assert(sizeof(Node) == 2 * sizeof(Node *));
 
     inline auto insertNode(u64 packedVoxel, u32 packedData, Node *current) -> Node *;
-    inline auto findNode(u32 packedVoxel, Node *current) -> std::optional<Node *>;
+    inline auto findNode(u32 packedVoxel, Node *current) -> Node *;
 }
 
 #endif //OPENGL_3D_ENGINE_NODE_H

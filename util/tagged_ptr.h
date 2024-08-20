@@ -77,7 +77,7 @@ namespace util::tagged_ptr {
             u64 cleared_ptr = reinterpret_cast<u64>(this->ptr) & CLEAR_MASK;
             u64 canonical_ptr = cleared_ptr | (((cleared_ptr & ACCESS_BIT) >> 47) * ONE_MASK);
 
-            ASSERT(!(canonical_ptr ^ reinterpret_cast<u64>(this->ptr)), "addresses uses more than 48 bits");
+            ASSERT_EQ(!(canonical_ptr ^ reinterpret_cast<u64>(this->ptr)), "addresses uses more than 48 bits");
 #endif
             set_high(h);
         }
@@ -122,7 +122,7 @@ namespace util::tagged_ptr {
             u64 cleared_ptr = reinterpret_cast<u64>(this->ptr) & CLEAR_MASK;
             u64 canonical_ptr = cleared_ptr | (((cleared_ptr & ACCESS_BIT) >> 47) * ONE_MASK);
 
-            ASSERT(canonical_ptr);
+            ASSERT_EQ(canonical_ptr);
             return reinterpret_cast<PointerType *>(canonical_ptr);
         }
 
@@ -135,7 +135,7 @@ namespace util::tagged_ptr {
             u64 cleared_ptr = reinterpret_cast<u64>(this->ptr) & CLEAR_MASK;
             u64 canonical_ptr = cleared_ptr | (((cleared_ptr & ACCESS_BIT) >> 47) * ONE_MASK);
 
-            ASSERT(canonical_ptr);
+            ASSERT_EQ(canonical_ptr);
             return *(reinterpret_cast<PointerType *>(canonical_ptr));
         }
 
@@ -306,7 +306,7 @@ namespace util::tagged_ptr {
             binary_conversion::convert_to_binary<StoredType>(st)
         };
 
-        ASSERT(!tagged_ptr.is_null());
+        ASSERT_EQ(!tagged_ptr.is_null());
         return tagged_ptr;
     }
 }

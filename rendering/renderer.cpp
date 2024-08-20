@@ -18,8 +18,8 @@ namespace core::rendering {
         : _camera{std::move(camera)}
         , _vertices{0}
         , _indices{}
-        , _width{1800}
-        , _height{1200}
+        , _width{1920}
+        , _height{1080}
         , _projection{}
         , _buffers{}
     {
@@ -64,7 +64,7 @@ namespace core::rendering {
             });
 
             // vsync
-            glfwSwapInterval(1);
+            glfwSwapInterval(0);
 
             // glad: load all OpenGL function pointers
             if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
@@ -106,7 +106,7 @@ namespace core::rendering {
         this->_indices.insert(this->_indices.end(), indices_buffer.arr, indices_buffer.end());
 
         glEnable(GL_DEPTH_TEST);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
@@ -135,7 +135,25 @@ namespace core::rendering {
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
-    auto Renderer::updateBuffer(VERTEX *ptr, size_t len) -> void {
+    auto Renderer::prepare_buffer(size_t len) -> void * {
+        glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES_BUFFER * sizeof(u64), nullptr, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, this->_buffers[Buffer::VBO]);
+
+        void *buf = glMapBufferRange(
+                GL_ARRAY_BUFFER,
+                0,
+                static_cast<GLsizeiptr>(len * sizeof(VERTEX)),
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+        if (!buf) {
+            int32_t err = glGetError();
+            throw std::runtime_error{"ERR::RENDERER::UPDATEBUFFER::BUFFERHANDLE::" + std::to_string(err) + "\n"};
+        }
+
+        return buf;
+    }
+
+    auto Renderer::updateBuffer(const VERTEX *ptr, size_t len) -> void {
         glBufferData(GL_ARRAY_BUFFER, MAX_VERTICES_BUFFER * sizeof(u64), nullptr, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, this->_buffers[Buffer::VBO]);
 
@@ -150,10 +168,15 @@ namespace core::rendering {
             throw std::runtime_error{"ERR::RENDERER::UPDATEBUFFER::BUFFERHANDLE::" + std::to_string(err) + "\n"};
         }
         else {
-            __builtin_memcpy(bufferData, ptr, len * sizeof(VERTEX));
+            std::memcpy(bufferData, ptr, len * sizeof(VERTEX));
             this->_vertices = len;
             glUnmapBuffer(GL_ARRAY_BUFFER);
         }
+    }
+
+    auto Renderer::unmap_buffer(size_t len) -> void {
+        glUnmapBuffer(GL_ARRAY_BUFFER);
+        this->_vertices = len;
     }
 
     auto Renderer::prepare_frame() -> void {

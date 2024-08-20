@@ -31,7 +31,7 @@ namespace core::level {
                 threading::Tasksystem<> & __attribute__((noescape)),
                 camera::perspective::Camera & __attribute__((noescape))) -> void override;
         auto frame(
-                threading::Tasksystem<> & __attribute__((noescape)),
+                threading::Tasksystem<> &,
                 camera::perspective::Camera &) -> void;
         auto get_world_root() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
@@ -44,10 +44,13 @@ namespace core::level {
                 Args &&...args) const
         -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...>;
 
+        auto get_visible_faces(camera::perspective::Camera &camera) -> size_t;
+
     private:
-        auto unload_chunks(threading::Tasksystem<> & __attribute__((noescape))) -> void;
-        auto load_chunks(threading::Tasksystem<> & __attribute__((noescape)), glm::vec2) -> void;
-        auto swap_chunks(glm::vec2) -> void;
+        auto unload_chunks(threading::Tasksystem<> & __attribute__((noescape))) -> Platform &;
+        auto load_chunks(threading::Tasksystem<> & __attribute__((noescape)), glm::vec2) -> Platform &;
+        auto swap_chunks(glm::vec2) -> Platform &;
+        auto add_neighbour(glm::vec2, i32, i32) -> void;
 
         std::vector<std::shared_ptr<chunk::Chunk>> active_chunks =
                 std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
