@@ -59,20 +59,11 @@ namespace core::level {
                                    chunk::Position,
                                    chunk::Position) -> void;
 
-        /*
-        std::vector<std::shared_ptr<chunk::Chunk>> active_chunks =
-                std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
-
-        std::vector<std::shared_ptr<chunk::Chunk>> queued_chunks =
-                std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
-        */
-
         std::unordered_map<chunk::Chunk *, std::shared_ptr<chunk::Chunk>> chunks;
         std::unordered_map<u32, chunk::Chunk *> active_chunks;
         std::unordered_map<u32, chunk::Chunk *> queued_chunks;
 
         std::vector<std::pair<u32, chunk::Chunk *>> active_chunks_vec;
-
 
         glm::vec2                                   current_root   = {0.0F, 0.0F};
         presenter::Presenter                       &presenter;

@@ -65,10 +65,12 @@ namespace core::level {
         };
 
         DEBUG_LOG("Unloading chunks");
+
+        std::vector<decltype(this->chunks)::key_type> to_erase;
         for (auto &[_, k] : this->queued_chunks) {
 
             bool active = false;
-            for (auto &[__, v] : this->active_chunks) {
+            for (const auto &[__, v] : this->active_chunks) {
                 if (k == v) {
                     active = true;
                     break;
@@ -77,14 +79,16 @@ namespace core::level {
 
             if (!active) {
                 thread_pool.enqueue_detach(destroy, std::move(this->chunks[k]));
-                this->chunks.erase(k);
+                to_erase.push_back(k);
             }
         }
 
-        this->queued_chunks.clear();
-        thread_pool.wait_for_tasks();
+        for (auto &k : to_erase)
+            this->chunks.erase(k);
 
+        this->queued_chunks.clear();
         DEBUG_LOG("Finished unloading chunks");
+
         return *this;
     }
 
@@ -92,8 +96,7 @@ namespace core::level {
                                          i32 j,
                                          chunk::Position p1,
                                          chunk::Position p2) -> void {
-        if (j > -1 &&
-            j < MAX_RENDER_VOLUME &&
+        if (j > -1 && j < MAX_RENDER_VOLUME &&
             this->queued_chunks.contains(j)) {
             this->queued_chunks[i]->add_neigbor(p1, this->chunks[this->queued_chunks[j]]);
             this->queued_chunks[j]->add_neigbor(p2, this->chunks[this->queued_chunks[i]]);
