@@ -6,10 +6,9 @@
 #include "chunk.h"
 #include "../presenter.h"
 #include "../../util/assert.h"
-#include "../../util/perlin_noise.hpp"
 
 namespace core::level::chunk {
-    auto Chunk::Faces::operator[](u64 mask) -> size_t & {
+    auto Chunk::Faces::operator[](u64 mask) -> u64 & {
         switch (mask) {
             case TOP_BIT   : return this->stored_faces[0];
             case BOTTOM_BIT: return this->stored_faces[1];
@@ -39,19 +38,9 @@ namespace core::level::chunk {
                         insert(glm::vec3{ x, y, z }, 0, platform, false);
                 }
 
-        // compression
-        for (size_t i = 0; i < chunk_segments.size(); ++i) {
-            // this->chunk_segments[i].root->recombine();
-            this->faces |= this->chunk_segments[i].root->updateFaceMask((this->chunk_idx << 4) | i);
-            this->chunk_segments[i].initialized = true;
-
-            this->mask_container[TOP_BIT]    += this->chunk_segments[i].root->count_mask(TOP_BIT);
-            this->mask_container[BOTTOM_BIT] += this->chunk_segments[i].root->count_mask(BOTTOM_BIT);
-            this->mask_container[FRONT_BIT]  += this->chunk_segments[i].root->count_mask(FRONT_BIT);
-            this->mask_container[BACK_BIT]   += this->chunk_segments[i].root->count_mask(BACK_BIT);
-            this->mask_container[LEFT_BIT]   += this->chunk_segments[i].root->count_mask(LEFT_BIT);
-            this->mask_container[RIGHT_BIT]  += this->chunk_segments[i].root->count_mask(RIGHT_BIT);
-        }
+        for (size_t i = 0; i < chunk_segments.size(); ++i)
+            this->faces |= this->chunk_segments[i].root->updateFaceMask(
+                    (this->chunk_idx << 4) | i);
     }
 
     auto Chunk::insert(
@@ -69,14 +58,15 @@ namespace core::level::chunk {
         u32 packed_data_highp = (x << 13) | (y <<  8) | (z <<  3) | MASK_3;
 
         // 12 highest bit set to the index of the chunk inside chunk managing array
-        u32 packed_data_lowp  =
-                (this->chunk_idx << 20) |
-                (segment.segment_idx << 16) |
-                voxel_ID;
+        u32 packed_data_lowp = (this->chunk_idx << 20) |
+                               (segment.segment_idx << 16) |
+                               voxel_ID;
 
         auto *node = segment.root->addPoint(
                 (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
         ++this->size;
+
+        f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
 
         // occlusion culling
         updateOcclusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
@@ -94,19 +84,34 @@ namespace core::level::chunk {
     }
 
     inline
-    auto Chunk::updateOcclusion(
-            node::Node *current,
-            node::Node *neighbor,
-            u64 cBit,
-            u64 nBit) -> void {
+    auto Chunk::updateOcclusion(node::Node *current,
+                                node::Node *neighbor,
+                                u64 cBit,
+                                u64 nBit) -> void {
         if (neighbor) {
-            if (((neighbor->packed_data >> SHIFT_HIGH) & MASK_3) <=
-                ((current->packed_data  >> SHIFT_HIGH) & MASK_3))
-                neighbor->packed_data &= ~nBit;
 
-            if (((current->packed_data  >> SHIFT_HIGH) & MASK_3) <=
-                ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3))
-                current->packed_data &= ~cBit;
+            // every voxel we insert has BASE_SIZE and thus is guaranteed
+            // to be blocked if a neighbor exists for this face
+            current->packed_data &= ~cBit;
+
+            // bit is already not set
+            if (!(neighbor->packed_data & nBit))
+                return;
+
+            // the neighbor is a simple BASE_SIZE voxel
+            auto neighbor_cube_side = 1 << ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3);
+            if (neighbor_cube_side == BASE_SIZE) {
+                neighbor->packed_data &= ~nBit;
+                return;
+            }
+
+            // the neighbor is bigger than BASE_SIZE
+            // we need to check for all other possible voxels if the block it
+            auto center = glm::vec3 {
+                    (neighbor->packed_data >> (13 + SHIFT_HIGH)) & MASK_5,
+                    (neighbor->packed_data >> (8  + SHIFT_HIGH)) & MASK_5,
+                    (neighbor->packed_data >> (3  + SHIFT_HIGH)) & MASK_5
+            };
         }
     }
 
@@ -199,8 +204,7 @@ namespace core::level::chunk {
 
         auto sum = 0;
         for (u64 i = 0; i < 6; ++i)
-            if (camera.getCameraMask() & i)
-                sum += this->mask_container[i << 50];
+                sum += this->mask_container[static_cast<u64>(1) << (50 + i)];
 
         if (!sum)
             return;
@@ -231,18 +235,29 @@ namespace core::level::chunk {
                 threading::worker_id);
     }
 
-    auto Chunk::update_and_render(
-            u16 nchunk_idx,
-            const core::camera::perspective::Camera &camera,
-            Platform &platform) -> void {
-        std::remove_if(
-                this->neighbors.begin(),
-                this->neighbors.end(),
-                [](const auto& ref) -> bool {
-            const auto &[p, w] = ref;
-            return w.expired();
-        });
+    auto Chunk::recombine() -> void {
+        for (auto &ref : this->chunk_segments)
+            if (!ref.initialized) {
 
+                // compress SVO
+                ref.root->recombine();
+
+                // count renderable faces
+                this->mask_container[TOP_BIT]    += ref.root->count_mask(TOP_BIT);
+                this->mask_container[BOTTOM_BIT] += ref.root->count_mask(BOTTOM_BIT);
+                this->mask_container[FRONT_BIT]  += ref.root->count_mask(FRONT_BIT);
+                this->mask_container[BACK_BIT]   += ref.root->count_mask(BACK_BIT);
+                this->mask_container[LEFT_BIT]   += ref.root->count_mask(LEFT_BIT);
+                this->mask_container[RIGHT_BIT]  += ref.root->count_mask(RIGHT_BIT);
+
+                // indicate readiness
+                ref.initialized = true;
+            }
+    }
+
+    auto Chunk::update_and_render(u16 nchunk_idx,
+                                  const core::camera::perspective::Camera &camera,
+                                  Platform &platform) -> void {
         this->chunk_idx = nchunk_idx & 0xFFF;
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments[i].root->update_chunk_mask((this->chunk_idx << 4) | i);
@@ -261,9 +276,11 @@ namespace core::level::chunk {
         if (!face_mask || !this->size)
             return false;
 
-        auto offset = static_cast<f32>(CHUNK_SIZE) * glm::vec2 {
-                static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
-                static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+        auto offset =
+                static_cast<f32>(CHUNK_SIZE) *
+                glm::vec2 {
+                    static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                    static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
         };
 
         return camera.inFrustum(platform.get_world_root() + offset, CHUNK_SIZE);

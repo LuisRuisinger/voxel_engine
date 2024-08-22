@@ -138,8 +138,8 @@ namespace core::level::node_inline {
                 // radius generation from bitmask stored exponent
                 // the exponent scales the side of the bounding volume of each
                 // level of the SVO hierarchy
-                const u8 cube_side = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
-                if (glm::distance(position_vec, root_vec) <= sqrt(2) * cube_side)
+                const u8 cur_cube_side = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
+                if (glm::distance(position_vec, root_vec) <= sqrt(2) * cur_cube_side)
                     return current;
             }
 
@@ -149,6 +149,7 @@ namespace core::level::node_inline {
                 return nullptr;
 
             current = &(current->nodes->operator[](index));
+            ASSERT_EQ(current);
         }
     }
 

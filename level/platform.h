@@ -28,35 +28,51 @@ namespace core::level {
         ~Platform() override =default;
 
         auto tick(
-                threading::Tasksystem<> & __attribute__((noescape)),
-                camera::perspective::Camera & __attribute__((noescape))) -> void override;
+                threading::Tasksystem<> &,
+                camera::perspective::Camera &) -> void override;
         auto frame(
                 threading::Tasksystem<> &,
                 camera::perspective::Camera &) -> void;
         auto get_world_root() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
 
-        template <typename Func, typename ...Args>
+        template <
+                typename Func,
+                typename ...Args,
+                typename Ret = std::invoke_result_t<Func, chunk::Chunk*, Args...>>
         requires util::reflections::has_member_v<chunk::Chunk, Func>
-        INLINE auto request_handle(
-                threading::Tasksystem<> & __attribute__((noescape)),
-                Func func,
-                Args &&...args) const
-        -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...>;
+        INLINE auto request_handle(threading::Tasksystem<> &,
+                                   Func func,
+                                   Args &&...args) const -> Ret {
+            using namespace util::reflections;
+            constexpr auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
+        }
 
         auto get_visible_faces(camera::perspective::Camera &camera) -> size_t;
 
     private:
-        auto unload_chunks(threading::Tasksystem<> & __attribute__((noescape))) -> Platform &;
-        auto load_chunks(threading::Tasksystem<> & __attribute__((noescape)), glm::vec2) -> Platform &;
+        auto unload_chunks(threading::Tasksystem<> &) -> Platform &;
+        auto load_chunks(threading::Tasksystem<> &, glm::vec2) -> Platform &;
         auto swap_chunks(glm::vec2) -> Platform &;
-        auto add_neighbour(glm::vec2, i32, i32) -> void;
+        auto init_chunk_neighbours(i32,
+                                   i32,
+                                   chunk::Position,
+                                   chunk::Position) -> void;
 
+        /*
         std::vector<std::shared_ptr<chunk::Chunk>> active_chunks =
                 std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
 
         std::vector<std::shared_ptr<chunk::Chunk>> queued_chunks =
                 std::vector<std::shared_ptr<chunk::Chunk>>(MAX_RENDER_VOLUME);
+        */
+
+        std::unordered_map<chunk::Chunk *, std::shared_ptr<chunk::Chunk>> chunks;
+        std::unordered_map<u32, chunk::Chunk *> active_chunks;
+        std::unordered_map<u32, chunk::Chunk *> queued_chunks;
+
+        std::vector<std::pair<u32, chunk::Chunk *>> active_chunks_vec;
+
 
         glm::vec2                                   current_root   = {0.0F, 0.0F};
         presenter::Presenter                       &presenter;

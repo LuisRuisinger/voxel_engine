@@ -177,16 +177,20 @@ namespace core::level::node {
     }
 
     auto Node::count_mask(u64 mask) -> size_t {
+        size_t sum = 0;
+
         auto segments = this->packed_data >> 56;
         if (segments) {
-            size_t sum = 0;
-            for (u8 i = 0; i < 8; ++i)
+            for (auto i = 0; i < 8; ++i)
                 if (segments & node_inline::index_to_segment[i])
                     sum += this->nodes->operator[](i).count_mask(mask);
-
-            return sum;
+        }
+        else {
+            for (auto i = 0; i < 6; ++i)
+                if (this->packed_data & mask)
+                    ++sum;
         }
 
-        return ((this->packed_data >> 50) & MASK_6) && (this->packed_data & mask);
+        return sum;
     }
 }

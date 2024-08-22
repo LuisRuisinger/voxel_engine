@@ -50,10 +50,7 @@ namespace core::threading::ticked_executor {
         auto notfiy() -> void override {
             for (auto &obs : this->_observers)
                 obs->tick(this->_thread_pool, this->_camera);
-
-            // we want for all tick tasks to be finished in the current tick
-            // it does not matter if the tick interval stalls
-            this->_thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+            this->_thread_pool.wait_for_tasks();
         }
 
         auto run() -> void {
@@ -65,17 +62,11 @@ namespace core::threading::ticked_executor {
                     });
                 }
 
-#ifdef DEBUG
-                auto t_start_heartbeat = std::chrono::steady_clock::now();
-#endif
-
-                while (this->_observer_count.load(std::memory_order_acquire) > 0 && this->_running) {
+                while (this->_observer_count.load(std::memory_order_acquire) > 0 &&
+                       this->_running) {
                     auto t_start = std::chrono::high_resolution_clock::now();
 
                     notfiy();
-
-                    // TODO: remove when fixed stealing and updating chunks
-                    return;
 
                     auto t_end  = std::chrono::high_resolution_clock::now();
                     auto t_diff = std::chrono::duration_cast<std::chrono::milliseconds>(t_end - t_start);
@@ -83,19 +74,6 @@ namespace core::threading::ticked_executor {
                     auto sleep_duration = std::chrono::milliseconds(1000 / N) - t_diff;
                     if (sleep_duration > std::chrono::milliseconds(0))
                         std::this_thread::sleep_for(sleep_duration);
-
-#ifdef DEBUG
-                    auto t_end_heartbeat  = std::chrono::steady_clock::now();
-                    auto t_diff_heartbeat = std::chrono::duration_cast<std::chrono::seconds>(
-                            t_end_heartbeat - t_start_heartbeat);
-
-                    if (t_diff_heartbeat.count() >= 1) {
-                        LOG("Tick heartbeat");
-
-                        // reset timer
-                        t_start_heartbeat = std::chrono::steady_clock::now();
-                    }
-#endif
                 }
             }
         }

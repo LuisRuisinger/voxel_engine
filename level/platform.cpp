@@ -19,7 +19,7 @@
     (std::hypot((_p1).x - (_p2).x, (_p1).y - (_p2).y))
 
 #define LOAD_THRESHOLD(_p1, _p2) \
-    (DISTANCE_2D((_p1), (_p2)) == CHUNK_SIZE * 2)
+    (DISTANCE_2D((_p1), (_p2)) >= CHUNK_SIZE * 2)
 
 namespace core::level {
     Platform::Platform(presenter::Presenter &_presenter)
@@ -31,10 +31,8 @@ namespace core::level {
      * @param thread_pool Pool to offload tasks.
      * @param camera Current active camera.
      */
-    auto Platform::tick(
-            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
-            camera::perspective::Camera &camera __attribute__((noescape)))
-            -> void {
+    auto Platform::tick(threading::Tasksystem<> &thread_pool,
+                        camera::perspective::Camera &camera) -> void {
         const auto &cameraPos = camera.getCameraPosition();
         const auto new_root = glm::vec2{
             static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / CHUNK_SIZE)) * CHUNK_SIZE),
@@ -61,25 +59,57 @@ namespace core::level {
      * @brief Unload chunks whose shared count is 1, meaning they are no in use in this cycle.
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
-    auto Platform::unload_chunks(
-            threading::Tasksystem<> &thread_pool __attribute__((noescape))) -> Platform & {
+    auto Platform::unload_chunks(threading::Tasksystem<> &thread_pool) -> Platform & {
         static auto destroy = [](std::shared_ptr<chunk::Chunk> ptr) -> void {
             ASSERT_EQ(ptr.get());
-            static_cast<void>(ptr);
         };
 
         DEBUG_LOG("Unloading chunks");
-        for (size_t i = 0; i < this->queued_chunks.size(); ++i) {
-            if (this->queued_chunks[i] &&
-                this->queued_chunks[i].use_count() == 2)
-                thread_pool.enqueue_detach(
-                        destroy,
-                        std::move(this->queued_chunks[i]));
+        for (auto &[_, k] : this->queued_chunks) {
+
+            bool active = false;
+            for (auto &[__, v] : this->active_chunks) {
+                if (k == v) {
+                    active = true;
+                    break;
+                }
+            }
+
+            if (!active) {
+                thread_pool.enqueue_detach(destroy, std::move(this->chunks[k]));
+                this->chunks.erase(k);
+            }
         }
+
+        this->queued_chunks.clear();
+        thread_pool.wait_for_tasks();
 
         DEBUG_LOG("Finished unloading chunks");
         return *this;
     }
+
+    auto Platform::init_chunk_neighbours(i32 i,
+                                         i32 j,
+                                         chunk::Position p1,
+                                         chunk::Position p2) -> void {
+        if (j > -1 &&
+            j < MAX_RENDER_VOLUME &&
+            this->queued_chunks.contains(j)) {
+            this->queued_chunks[i]->add_neigbor(p1, this->chunks[this->queued_chunks[j]]);
+            this->queued_chunks[j]->add_neigbor(p2, this->chunks[this->queued_chunks[i]]);
+        }
+    }
+
+#define INIT_NEIGHBOR(_x, _z) ({                                                    \
+        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x) - 1, (_z)),       \
+                                    chunk::Position::BACK, chunk::Position::FRONT); \
+        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x) + 1, (_z)),       \
+                                    chunk::Position::FRONT, chunk::Position::BACK); \
+        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x), (_z) - 1),       \
+                                    chunk::Position::LEFT, chunk::Position::RIGHT); \
+        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x), (_z) + 1),       \
+                                    chunk::Position::RIGHT, chunk::Position::LEFT); \
+    })
 
     /**
      * @brief Load new chunks and share ownership of currently loaded chunks that are still
@@ -87,99 +117,63 @@ namespace core::level {
      * @param thread_pool Threadpool to parallel generate new chunks.
      * @param new_root    The center of the new region.
      */
-    auto Platform::load_chunks(
-            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
-            glm::vec2 new_root)
-            -> Platform & {
-        static auto generate = [](
-                chunk::Chunk *ptr __attribute__((noescape)),
-                Platform *platform) -> void {
+    auto Platform::load_chunks(threading::Tasksystem<> &thread_pool,
+                               glm::vec2 new_root) -> Platform & {
+        static auto generate = [](chunk::Chunk *ptr, Platform *platform) -> void {
             ASSERT_EQ(ptr);
             ptr->generate(platform);
         };
 
+        static auto compress = [](chunk::Chunk *ptr) -> void {
+            ASSERT_EQ(ptr);
+            ptr->recombine();
+        };
+
+        std::vector<u64> generated {};
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
                 if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z)) < RENDER_RADIUS) {
+
+                    // position of the (x, z) chunk in the coordinate space of
+                    // the old root
                     auto old_pos =
                             (glm::vec2(x, z) * static_cast<f32>(CHUNK_SIZE) +
-                            new_root -
-                            current_root) / static_cast<f32>(CHUNK_SIZE);
+                            new_root - current_root) / static_cast<f32>(CHUNK_SIZE);
 
                     if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
                         this->platform_ready) [[likely]] {
 
-                        std::unique_lock lock { this->mutex };
-                        ASSERT_EQ(this->active_chunks[INDEX(old_pos.x, old_pos.y)].get());
                         this->queued_chunks[INDEX(x, z)] =
                                 this->active_chunks[INDEX(old_pos.x, old_pos.y)];
-
-                        add_neighbour(old_pos, x, z);
+                        INIT_NEIGHBOR(x, z);
                     }
                     else {
-                        this->queued_chunks[INDEX(x, z)] =
-                                std::make_shared<chunk::Chunk>(INDEX(x, z));
+                        auto ptr = std::make_shared<chunk::Chunk>(INDEX(x, z));
+                        auto chunk = ptr.get();
 
-                        add_neighbour(old_pos, x, z);
-                        thread_pool.enqueue_detach(
-                                generate,
-                                this->queued_chunks[INDEX(x, z)].get(),
-                                this);
+                        this->chunks[chunk] = std::move(ptr);
+                        this->queued_chunks[INDEX(x, z)] = chunk;
+                        INIT_NEIGHBOR(x, z);
+
+                        // generate new chunk
+                        thread_pool.enqueue_detach(generate, chunk, this);
+                        generated.push_back(INDEX(x, z));
                     }
 
                 }
             }
         }
 
-        thread_pool.wait_for_tasks(std::chrono::milliseconds(0));
+        thread_pool.wait_for_tasks();
+
+        for (auto i : generated)
+            thread_pool.enqueue_detach(
+                    compress,
+                    this->queued_chunks[i]);
+
+        thread_pool.wait_for_tasks();
         DEBUG_LOG("Finished chunk initialization");
         return *this;
-    }
-
-    auto Platform::add_neighbour(glm::vec2 root, i32 x, i32 z) -> void {
-        if (INDEX(x - 1, z) > -1 &&
-            this->queued_chunks[INDEX(x - 1, z)]) {
-            this->queued_chunks[INDEX(x, z)]->add_neigbor(
-                    chunk::Position::BACK,
-                    this->queued_chunks[INDEX(x - 1, z)]);
-
-            this->queued_chunks[INDEX(x - 1, z)]->add_neigbor(
-                    chunk::Position::FRONT,
-                    this->queued_chunks[INDEX(x, z)]);
-        }
-
-        if (INDEX(x + 1, z) < MAX_RENDER_VOLUME &&
-            this->queued_chunks[INDEX(x + 1, z)]) {
-            this->queued_chunks[INDEX(x, z)]->add_neigbor(
-                    chunk::Position::FRONT,
-                    this->queued_chunks[INDEX(x + 1, z)]);
-
-            this->queued_chunks[INDEX(x + 1, z)]->add_neigbor(
-                    chunk::Position::BACK,
-                    this->queued_chunks[INDEX(x, z)]);
-        }
-
-        if (INDEX(x, z - 1) > -1 &&
-            this->queued_chunks[INDEX(x, z - 1)]) {
-            this->queued_chunks[INDEX(x, z)]->add_neigbor(
-                    chunk::Position::LEFT,
-                    this->queued_chunks[INDEX(x, z - 1)]);
-
-            this->queued_chunks[INDEX(x, z - 1)]->add_neigbor(
-                    chunk::Position::RIGHT,
-                    this->queued_chunks[INDEX(x, z)]);
-        }
-
-        if (INDEX(x, z + 1) < MAX_RENDER_VOLUME &&
-            this->queued_chunks[INDEX(x, z + 1)]) {
-            this->queued_chunks[INDEX(x, z)]->add_neigbor(
-                    chunk::Position::RIGHT,
-                    this->queued_chunks[INDEX(x, z + 1)]);
-
-            this->queued_chunks[INDEX(x, z + 1)]->add_neigbor(
-                    chunk::Position::LEFT,
-                    this->queued_chunks[INDEX(x, z)]);
-        }
     }
 
     /**
@@ -187,12 +181,18 @@ namespace core::level {
     * @param new_root The center of the new region.
     */
     auto Platform::swap_chunks(glm::vec2 new_root) -> Platform & {
-        std::unique_lock lock{ this->mutex };
-        std::swap(this->active_chunks, this->queued_chunks);
+        {
+            std::unique_lock lock { this->mutex };
+            std::swap(this->active_chunks, this->queued_chunks);
 
-        this->current_root = new_root;
-        this->queue_ready = true;
-        this->platform_ready = true;
+            this->active_chunks_vec.clear();
+            for (const auto &[k, v] : this->active_chunks)
+                this->active_chunks_vec.emplace_back(k, v);
+
+            this->current_root = new_root;
+            this->queue_ready = true;
+            this->platform_ready = true;
+        }
 
         DEBUG_LOG("Chunks swapped");
         return *this;
@@ -203,49 +203,48 @@ namespace core::level {
      * @param thread_pool Parallel traversal of single chunks.
      * @param camera      Active camera for this frame.
      */
-    auto Platform::frame(
-            threading::Tasksystem<> &thread_pool,
-            camera::perspective::Camera &camera)
-            -> void {
-        static auto update_render_fun = [](
-                u16 idx,
-                chunk::Chunk &ptr,
-                camera::perspective::Camera &camera,
-                Platform &platform) -> void {
-            ptr.update_and_render(idx, camera, platform);
+    auto Platform::frame(threading::Tasksystem<> &thread_pool,
+                         camera::perspective::Camera &camera) -> void {
+        static auto update_render_fun = [](u16 idx,
+                                           chunk::Chunk *ptr,
+                                           camera::perspective::Camera &camera,
+                                           Platform &platform) -> void {
+            ptr->update_and_render(idx, camera, platform);
         };
 
-        static auto render_fun = [](
-                chunk::Chunk &ptr,
-                camera::perspective::Camera &camera,
-                Platform &platform) -> void {
-            ptr.cull(camera, platform);
+        static auto render_fun = [](chunk::Chunk *ptr,
+                                    camera::perspective::Camera &camera,
+                                    Platform &platform) -> void {
+            ptr->cull(camera, platform);
         };
 
         // check if new chunks need to be added to the active pool
         // try lock to ensure no amount of frame freeze happens
         std::unique_lock lock { this->mutex };
 
+
         if (this->queue_ready) {
-            for (size_t i = 0; i < active_chunks.size(); ++i)
-                if (active_chunks[i])
-                    thread_pool.enqueue_detach(
-                            update_render_fun,
-                            i,
-                            std::ref(*this->active_chunks[i]),
-                            std::ref(camera),
-                            std::ref(*this));
+            for (const auto& [k, v] : this->active_chunks_vec) {
+                if (v) {
+                    thread_pool.enqueue_detach(update_render_fun,
+                                               k,
+                                               v,
+                                               std::ref(camera),
+                                               std::ref(*this));
+                }
+            }
 
             this->queue_ready = false;
         }
         else [[likely]] {
-            for (size_t i = 0; i < active_chunks.size(); ++i)
-                if (active_chunks[i] && active_chunks[i]->visible(camera, *this))
-                    thread_pool.enqueue_detach(
-                            render_fun,
-                            std::ref(*this->active_chunks[i].get()),
-                            std::ref(camera),
-                            std::ref(*this));
+            for (const auto& [_, v] : this->active_chunks_vec) {
+                if (v) {
+                    thread_pool.enqueue_detach(render_fun,
+                                               v,
+                                               std::ref(camera),
+                                               std::ref(*this));
+                }
+            }
         }
 
         thread_pool.wait_for_tasks();
@@ -259,53 +258,5 @@ namespace core::level {
     /** @brief Get handle to presenter handling the platform. */
     auto Platform::get_presenter() const -> presenter::Presenter & {
         return this->presenter;
-    }
-
-    /**
-     * @brief  Codegen proxy for underlying chunks.
-     *         Applies function on all chunks if no position is contained in the args.
-     * @tparam Func Function pointer type.
-     * @tparam Args Argument types.
-     * @param  func Function pointer to a member of chunk.
-     * @param  args Arguments to resolve the right function.
-     * @return Equal to the called function through the proxy.
-     */
-    template <typename Func, typename ...Args>
-    requires util::reflections::has_member_v<chunk::Chunk, Func>
-    INLINE auto Platform::request_handle(
-            threading::Tasksystem<> &thread_pool __attribute__((noescape)),
-            Func func,
-            Args &&...args) const
-            -> std::invoke_result_t<decltype(func), chunk::Chunk*, Args...> {
-        using namespace util::reflections;
-        constexpr auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
-
-        if constexpr (has_type_v<glm::vec3, decltype(args_tuple)>) {
-            auto &[x, _, z] = std::get<glm::vec3>(args_tuple);
-
-            // preprocessing
-            auto idx = INDEX(
-                    (static_cast<i32>(x / CHUNK_SIZE) - (this->current_root.x / CHUNK_SIZE)),
-                    (static_cast<i32>(z / CHUNK_SIZE) - (this->current_root.y / CHUNK_SIZE)));
-
-            x = static_cast<i32>(x) % CHUNK_SIZE;
-            z = static_cast<i32>(z) % CHUNK_SIZE;
-
-            return (active_chunks[idx].get()->*func)(std::forward<Args>(args)...);
-        }
-        else {
-            for (auto &chunk : this->active_chunks)
-                thread_pool.enqueue_detach(
-                        std::move([](
-                                std::weak_ptr<chunk::Chunk> chunk,
-                                Func func,
-                                Args ...args) -> void {
-                            if (auto s_ptr = chunk.lock())
-                                (s_ptr.get()->*func)(std::forward<Args>(args)...);
-                            }),
-                        chunk,
-                        std::forward<Func>(func),
-                        std::forward<Args>(args)...);
-        }
     }
 }

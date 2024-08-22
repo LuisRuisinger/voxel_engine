@@ -131,7 +131,10 @@ namespace core::threading {
          * @param  args Arguments that will be passed to fun.
          * @return A future of the result of fun.
          */
-        template<typename F, typename ...Args , typename Ret = std::invoke_result_t<F &&, Args &&...>>
+        template<
+                typename F,
+                typename ...Args ,
+                typename Ret = std::invoke_result_t<F &&, Args &&...>>
         requires std::invocable<F, Args...>
         auto enqueue(F &&fun, Args &&...args) -> std::future<Ret> {
 #ifdef __cpp_lib_move_only_function
@@ -184,7 +187,7 @@ namespace core::threading {
          * @param timeout Timeout after which the calling thread returns. Defaulted to 5ms.
          *                If set to 0 no timeout will be applied.
          */
-        auto wait_for_tasks(std::chrono::milliseconds timeout = std::chrono::milliseconds(3)) -> void {
+        auto wait_for_tasks() -> void {
             while (!no_tasks())
                 std::this_thread::yield();
         }

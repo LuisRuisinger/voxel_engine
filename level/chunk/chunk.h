@@ -16,6 +16,7 @@
 #include "../../util/aliases.h"
 #include "../level/octree/octree.h"
 #include "../level/chunk/chunk_segment.h"
+#include "../../util/result.h"
 
 #define CHUNK_SEGMENT_YOFFS(y) \
     (CHUNK_SIZE * y + MIN_HEIGHT)
@@ -71,10 +72,12 @@ namespace core::level::chunk {
         auto visible(const camera::perspective::Camera &, const Platform &) const -> bool;
         auto index() const -> u16;
         auto add_neigbor(Position, std::shared_ptr<Chunk>) -> void;
+        auto recombine() -> void;
+
 
         struct Faces {
-            auto operator[](u64 mask) -> size_t &;
-            std::array<size_t, 6> stored_faces;
+            auto operator[](u64 mask) -> u64 &;
+            std::array<u64, 6> stored_faces;
         };
 
     private:
