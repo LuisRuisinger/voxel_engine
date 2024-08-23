@@ -36,12 +36,6 @@ namespace core::level {
 }
 
 namespace core::level::chunk {
-    enum ChunkData : u8 {
-        EMPTY,
-        NODATA,
-        DATA
-    };
-
     enum Position : u8 {
         LEFT,
         RIGHT,

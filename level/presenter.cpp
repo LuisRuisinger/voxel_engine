@@ -47,8 +47,8 @@ namespace core::level::presenter {
         auto t_end = std::chrono::high_resolution_clock::now();
         auto t_diff = std::chrono::duration_cast<std::chrono::microseconds>(t_end - t_start);
 
-        this->renderer.updateGlobalBase(this->platform.get_world_root());
-        this->renderer.updateRenderDistance(RENDER_RADIUS);
+        this->renderer.update_current_global_base(this->platform.get_world_root());
+        this->renderer.update_render_distance(RENDER_RADIUS);
 
         auto vertex_sum = 0;
         auto draw_calls = 0;
@@ -58,7 +58,7 @@ namespace core::level::presenter {
                 if (this->storage[i][j].size > 0) {
                     ASSERT_EQ(this->storage[i][j].size <= this->renderer.get_batch_size());
 
-                    this->renderer.updateBuffer(
+                    this->renderer.update_buffer(
                             this->storage[i][j].mem,
                             this->storage[i][j].size);
                     this->renderer.frame();

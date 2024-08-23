@@ -22,65 +22,42 @@
 #include "../Level/Model/Types/voxel.h"
 #include "../Level/Octree/boundingVolume.h"
 
-#define MAX_VERTICES_BUFFER ((u32) (131072 * 2.5))
+#define MAX_VERTICES_BUFFER (static_cast<u32>(131072 * 2.5))
 
 namespace core::rendering {
-
-    //
-    //
-    //
-
-    //
-    //
-    //
-
     Enum(Buffer, VAO, VBO, EBO);
-
-    //
-    //
-    //
 
     class Renderer {
     public:
-        explicit Renderer();
-
+        Renderer();
         ~Renderer() = default;
 
-        auto initImGui(GLFWwindow *) -> void;
-        auto initShaders() -> void;
-        auto initPipeline() -> void;
+        // renderer init
+        auto init_ImGui(GLFWwindow *) -> void;
+        auto init_shaders() -> void;
+        auto init_pipeline() -> void;
 
-        auto prepare_buffer(size_t) -> void *;
-        auto updateBuffer(const VERTEX *, size_t) -> void;
-        auto unmap_buffer(size_t) -> void;
-        auto updateProjectionMatrix(i32, i32) -> void;
-        auto updateGlobalBase(glm::vec2) -> void;
-        auto updateRenderDistance(u32) -> void;
-
+        // per frame pipeline
         auto prepare_frame(camera::perspective::Camera &camera) -> void;
+        auto update_buffer(const VERTEX *, size_t) -> void;
         auto frame() -> void;
-        auto flush() -> void;
 
+        // uniforms
+        auto update_projection_matrix(i32, i32) -> void;
+        auto update_current_global_base(glm::vec2) -> void;
+        auto update_render_distance(u32) -> void;
+
+        // getter
         auto get_batch_size() const -> u64;
 
     private:
+        std::unique_ptr<Shader> shader;
+        glm::mat4 projection_matrix;
 
-        // general renderer data
-        //u32                                           _width;
-        //u32                                           _height;
-        //GLFWwindow                                   *_window;
+        std::atomic<size_t> vertex_buffer_size;
+        std::vector<u32> indices;
 
-        // vertex shader data
-        // the chunk positions are compressed into 2 * 6 bit
-        glm::mat4               _projection;
-        std::unique_ptr<Shader> _shader;
-
-        // dynamic vertex vector - contains the current visible verticies for the hooked camera
-        std::atomic_size_t         _vertices;
-        std::vector<u32>           _indices;
-
-        // GPU buffers
-        GLuint _buffers[Buffer::count];
+        GLuint gpu_buffers[Buffer::count];
     };
 }
 

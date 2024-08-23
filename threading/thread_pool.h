@@ -175,7 +175,8 @@ namespace core::threading::task_system {
         }
 
         /**
-         * @brief  Check if all tasks have been finished and no unscheduled work remains. Non-blocking.
+         * @brief  Check if all tasks have been finished and no unscheduled work remains.
+         *         Non-blocking.
          * @return Boolean value to indicate if batch is finished.
          */
         auto no_tasks() -> bool {

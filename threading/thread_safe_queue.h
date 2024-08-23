@@ -12,6 +12,8 @@
 #include <optional>
 #include <future>
 
+#include "../../util/log.h"
+
 namespace core::threading {
     template<typename Lock>
     concept is_lockable = requires(Lock&& lock) {
@@ -19,12 +21,6 @@ namespace core::threading {
         lock.unlock();
         { lock.try_lock() } -> std::convertible_to<bool>;
     };
-
-    //
-    //
-    //
-    //
-    //
 
     template<typename T, typename Lock = std::mutex>
     requires is_lockable<Lock>
@@ -39,6 +35,7 @@ namespace core::threading {
          */
 
         auto try_push(T &&t) -> bool {
+            DEBUG_LOG(sizeof(t));
             {
                 std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
                 if (!lock)
