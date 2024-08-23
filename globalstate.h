@@ -16,42 +16,79 @@
 #include "level/Octree/octree.h"
 #include "level/presenter.h"
 #include "threading/thread_pool.h"
-#include "threading/ticked_executor.h"
+#include "threading/scheduled_executor.h"
+#include "core/io/key_mapping.h"
 
-struct GlobalGameState {
+#define DEFAULT_VIEW std::make_shared<core::camera::perspective::Camera>( \
+    glm::vec3(0.0f, 2.5f, 0.0f),                                          \
+    glm::vec3(0.0f, 1.0f, 0.0f),                                          \
+    YAW,                                                                  \
+    PITCH)
 
-    // memory
-    core::memory::arena_allocator::ArenaAllocator allocator;
+class Engine {
+public:
+    static auto init() -> void {
+        Engine::executor.enqueue_detach(std::move([&]() -> void {
+            Engine::presenter.tick(Engine::chunk_pool, *Engine::camera.get());
+        }));
 
-    // engine
-    std::shared_ptr<core::camera::perspective::Camera> _camera;
-    core::rendering::Renderer                          _renderer;
-    core::level::presenter::Presenter                  _presenter;
-    GLFWwindow *_window;
-
-    // threading
-    core::threading::Tasksystem<> _threadPool;
-    core::threading::ticked_executor::TickedExecutor<20> _ticked_executor;
-
-    // frames
-    f64 _deltaTime = 0.0;
-    f64 _lastFrame = 0.0;
-    f64 _currentFrame = 0.0;
-
-    GlobalGameState()
-        : _camera{std::make_shared<core::camera::perspective::Camera>(
-                glm::vec3(0.0f, 2.5f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), YAW, PITCH)}
-        , _renderer{_camera}
-        ,  allocator {}
-        , _presenter{_renderer, &allocator}
-        , _window{const_cast<GLFWwindow *>(_renderer.getWindow())}
-        , _ticked_executor{*_camera.get()}
-    {
-        _ticked_executor.attach(static_cast<util::observer::Observer *>(&_presenter));
+        DEBUG_LOG("Engine init finished");
     }
 
-    ~GlobalGameState() = default;
+    static auto run() -> void {
+        while (!glfwWindowShouldClose(Engine::window)) {
+            Engine::time = glfwGetTime();
+            Engine::delta_time = Engine::time - Engine::last_frame;
+            Engine::last_frame = time;
+
+            core::io::key_mapping::parse_input(Engine::window,
+                                               Engine::camera.get(),
+                                               Engine::delta_time);
+
+            Engine::renderer.prepare_frame();
+            Engine::presenter.frame(Engine::render_pool, *Engine::camera);
+
+            glfwSwapBuffers(Engine::window);
+            glfwPollEvents();
+        }
+
+        glfwTerminate();
+    }
+
+private:
+    // allocator
+    static core::memory::arena_allocator::ArenaAllocator allocator;
+
+    // engine
+    static std::shared_ptr<core::camera::perspective::Camera> camera;
+    static core::rendering::Renderer renderer;
+    static core::level::presenter::Presenter presenter;
+    static GLFWwindow *window;
+
+    // threading
+    static core::threading::Tasksystem<> render_pool;
+    static core::threading::Tasksystem<> chunk_pool;
+    static core::threading::executor::ScheduledExecutor<> executor;
+
+    // frames
+    static f64 delta_time;
+    static f64 last_frame;
+    static f64 time;
 };
+
+core::memory::arena_allocator::ArenaAllocator      Engine::allocator   {};
+std::shared_ptr<core::camera::perspective::Camera> Engine::camera      { DEFAULT_VIEW };
+core::rendering::Renderer                          Engine::renderer    { Engine::camera };
+core::level::presenter::Presenter                  Engine::presenter   { Engine::renderer, &Engine::allocator };
+GLFWwindow *                                       Engine::window      { const_cast<GLFWwindow *>(Engine::renderer.getWindow()) };
+core::threading::Tasksystem<>                      Engine::render_pool {};
+core::threading::Tasksystem<>                      Engine::chunk_pool  {};
+core::threading::executor::ScheduledExecutor<>     Engine::executor    {};
+f64                                                Engine::delta_time  { 0.0F };
+f64                                                Engine::last_frame  { 0.0F };
+f64                                                Engine::time        { 0.0F };
+
+
 
 
 #endif //OPENGL_3D_ENGINE_GLOBALSTATE_H
