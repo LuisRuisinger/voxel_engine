@@ -8,14 +8,13 @@
 #include <thread>
 #include <list>
 
-#include "../util/observable.h"
-#include "../camera/camera.h"
+#include "thread.h"
 
 namespace core::threading::executor {
 
     template<
             u32 TPS = 20,
-            typename Function_type = functor::default_function_type>
+            typename Function_type = thread::functor::default_function_type>
     class ScheduledExecutor {
     public:
         ScheduledExecutor()

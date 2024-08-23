@@ -18,6 +18,7 @@
 #include "threading/thread_pool.h"
 #include "threading/scheduled_executor.h"
 #include "core/io/key_mapping.h"
+#include "core/io/window_handler.h"
 
 #define DEFAULT_VIEW std::make_shared<core::camera::perspective::Camera>( \
     glm::vec3(0.0f, 2.5f, 0.0f),                                          \
@@ -28,27 +29,53 @@
 class Engine {
 public:
     static auto init() -> void {
+        DEBUG_LOG("Engine init");
+        auto window = Engine::window_handler.init().unwrap();
+
+        DEBUG_LOG("Init framebuffer size callbacks");
+        Engine::window_handler.add_framebuffer_size_callback(0, std::move([&]() -> void {
+            Engine::camera->setFrustumAspect(
+                    static_cast<f32>(window_handler.width / window_handler.height));
+        }));
+
+        Engine::window_handler.add_framebuffer_size_callback(1, std::move([&]() -> void {
+            Engine::renderer.updateProjectionMatrix(window_handler.width, window_handler.height);
+        }));
+
+        DEBUG_LOG("Init cursor position callbacks");
+        Engine::window_handler.add_cursor_position_callback(0, std::move([&]() -> void {
+            Engine::camera->ProcessMouseMovement(window_handler.xpos, window_handler.ypos);
+        }));
+
+        DEBUG_LOG("Init scheduled executor callbacks")
         Engine::executor.enqueue_detach(std::move([&]() -> void {
             Engine::presenter.tick(Engine::chunk_pool, *Engine::camera.get());
         }));
 
+        DEBUG_LOG("Init renderer");
+        Engine::renderer.initImGui(window);
+        Engine::renderer.initShaders();
+        Engine::renderer.initPipeline();
+        Engine::renderer.updateProjectionMatrix(Engine::window_handler.width,
+                                                Engine::window_handler.height);
         DEBUG_LOG("Engine init finished");
     }
 
     static auto run() -> void {
-        while (!glfwWindowShouldClose(Engine::window)) {
+        auto window = Engine::window_handler.get_window().unwrap();
+
+        while (!glfwWindowShouldClose(window)) {
             Engine::time = glfwGetTime();
             Engine::delta_time = Engine::time - Engine::last_frame;
             Engine::last_frame = time;
 
-            core::io::key_mapping::parse_input(Engine::window,
-                                               Engine::camera.get(),
-                                               Engine::delta_time);
+            core::io::key_mapping::parse_input(
+                    window, Engine::camera.get(), Engine::delta_time);
 
-            Engine::renderer.prepare_frame();
+            Engine::renderer.prepare_frame(*Engine::camera);
             Engine::presenter.frame(Engine::render_pool, *Engine::camera);
 
-            glfwSwapBuffers(Engine::window);
+            glfwSwapBuffers(window);
             glfwPollEvents();
         }
 
@@ -56,18 +83,22 @@ public:
     }
 
 private:
+    // GLFW
+    static core::io::window_handler::WindowHandler window_handler;
+
     // allocator
     static core::memory::arena_allocator::ArenaAllocator allocator;
 
     // engine
     static std::shared_ptr<core::camera::perspective::Camera> camera;
     static core::rendering::Renderer renderer;
+    static core::level::Platform platform;
     static core::level::presenter::Presenter presenter;
-    static GLFWwindow *window;
+    // static GLFWwindow *window;
 
     // threading
-    static core::threading::Tasksystem<> render_pool;
-    static core::threading::Tasksystem<> chunk_pool;
+    static core::threading::task_system::Tasksystem<> render_pool;
+    static core::threading::task_system::Tasksystem<> chunk_pool;
     static core::threading::executor::ScheduledExecutor<> executor;
 
     // frames
@@ -76,17 +107,17 @@ private:
     static f64 time;
 };
 
-core::memory::arena_allocator::ArenaAllocator      Engine::allocator   {};
-std::shared_ptr<core::camera::perspective::Camera> Engine::camera      { DEFAULT_VIEW };
-core::rendering::Renderer                          Engine::renderer    { Engine::camera };
-core::level::presenter::Presenter                  Engine::presenter   { Engine::renderer, &Engine::allocator };
-GLFWwindow *                                       Engine::window      { const_cast<GLFWwindow *>(Engine::renderer.getWindow()) };
-core::threading::Tasksystem<>                      Engine::render_pool {};
-core::threading::Tasksystem<>                      Engine::chunk_pool  {};
-core::threading::executor::ScheduledExecutor<>     Engine::executor    {};
-f64                                                Engine::delta_time  { 0.0F };
-f64                                                Engine::last_frame  { 0.0F };
-f64                                                Engine::time        { 0.0F };
+decltype(Engine::window_handler) Engine::window_handler {};
+decltype(Engine::allocator)      Engine::allocator      {};
+decltype(Engine::camera)         Engine::camera         { DEFAULT_VIEW };
+decltype(Engine::renderer)       Engine::renderer       {};
+decltype(Engine::presenter)      Engine::presenter      { Engine::renderer, &Engine::allocator };
+decltype(Engine::render_pool)    Engine::render_pool    {};
+decltype(Engine::chunk_pool)     Engine::chunk_pool     {};
+decltype(Engine::executor)       Engine::executor       {};
+decltype(Engine::delta_time)     Engine::delta_time     { 0.0F };
+decltype(Engine::last_frame)     Engine::last_frame     { 0.0F };
+decltype(Engine::time)           Engine::time           { 0.0F };
 
 
 

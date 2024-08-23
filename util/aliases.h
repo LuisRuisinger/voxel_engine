@@ -14,7 +14,7 @@
 #define CHUNK_SEGMENTS  16
 #define MIN_HEIGHT      -128
 #define CHUNK_SIZE      32
-#define RENDER_RADIUS   12
+#define RENDER_RADIUS   16
 #define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
 
 using u8  = uint8_t;

@@ -19,7 +19,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1920.0F / 1080.0F, -2.0F, 32.0F * (RENDER_RADIUS * 2));
+        setFrustum(60.0F, 1920.0F / 1080.0F, 0.1F, 32.0F * (RENDER_RADIUS * 2));
         update();
     }
 
@@ -36,7 +36,7 @@ namespace core::camera::perspective {
         , _frustum{}
         , _mask{UINT8_MAX}
     {
-        setFrustum(45.0f, 1920.0F / 1080.0F, -2.0F, 32.0F * (RENDER_RADIUS * 2));
+        setFrustum(60.0f, 1920.0F / 1080.0F, 0.1F, 32.0F * (RENDER_RADIUS * 2));
         update();
     }
 
@@ -103,7 +103,7 @@ namespace core::camera::perspective {
     }
 
     auto Camera::setFrustumAspect(f32 ratio) -> void {
-        this->_frustum.setCamInternals(45.0f, ratio, -5.0f, 32.0F * (RENDER_RADIUS * 2));
+        this->_frustum.setCamInternals(60.0F, ratio, 0.1F, 32.0F * (RENDER_RADIUS * 2));
     }
 
     auto Camera::setFrustumDef(glm::vec3 pos, glm::vec3 target, glm::vec3 varUp) -> void {
@@ -121,6 +121,7 @@ namespace core::camera::perspective {
     auto Camera::inFrustum_type(glm::vec2 pos, u32 scale) const -> camera::culling::CollisionType {
         return this->_frustum.squere_visible_type(pos, scale);
     }
+
     auto Camera::inFrustum_type(glm::vec3 pos, u32 scale) const -> camera::culling::CollisionType {
         return this->_frustum.cube_visible_type(pos, scale);
     }

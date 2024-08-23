@@ -10,8 +10,7 @@ namespace core::level::presenter {
     Presenter::Presenter(
             rendering::Renderer &renderer,
             core::memory::arena_allocator::ArenaAllocator *allocator)
-            : util::observer::Observer {           },
-              meshes                   {           },
+            : meshes                   {           },
               platform                 { *this     },
               renderer                 { renderer  },
               allocator                { allocator },
@@ -21,7 +20,7 @@ namespace core::level::presenter {
     }
 
     auto Presenter::frame(
-            threading::Tasksystem<> &thread_pool,
+            threading::task_system::Tasksystem<> &thread_pool,
             camera::perspective::Camera &camera) -> void {
         auto t_start = std::chrono::high_resolution_clock::now();
         this->allocator.reset();
@@ -78,14 +77,13 @@ namespace core::level::presenter {
         rendering::interface::render();
     }
 
-    auto Presenter::tick(
-            threading::Tasksystem<> &thread_pool,
-            camera::perspective::Camera &camera) -> void  {
-        this->platform.tick(thread_pool, camera);
-    }
-
     auto Presenter::get_structure(u16 i) const -> const VoxelStructure::CubeStructure & {
         return this->meshes[i];
+    }
+
+    auto Presenter::tick(threading::task_system::Tasksystem<> &thread_pool,
+                         camera::perspective::Camera &camera) -> void {
+        this->platform.tick(thread_pool, camera);
     }
 
     auto Presenter::request_writeable_area(u64 len, u64 thread_id) -> const VERTEX * {

@@ -8,7 +8,6 @@
 #include "platform.h"
 #include "../util/aliases.h"
 #include "../rendering/renderer.h"
-#include "../util/observer.h"
 #include "../core/memory/linear_allocator_threadsafe.h"
 #include "../core/memory/arena_allocator.h"
 
@@ -21,14 +20,13 @@ namespace core::level::presenter {
         u64 size;
     };
 
-    class Presenter : public util::observer::Observer {
+    class Presenter {
     public:
         Presenter(rendering::Renderer &, core::memory::arena_allocator::ArenaAllocator *);
-        ~Presenter() override = default;
+        ~Presenter() =default;
 
-        auto frame(threading::Tasksystem<> &, camera::perspective::Camera &) -> void;
-        auto tick(threading::Tasksystem<> &, camera::perspective::Camera &) -> void override;
-        auto update(threading::Tasksystem<> &) -> void;
+        auto frame(threading::task_system::Tasksystem<> &, camera::perspective::Camera &) -> void;
+        auto tick(threading::task_system::Tasksystem<> &, camera::perspective::Camera &) -> void;
         auto add_voxel_vector(std::vector<VERTEX> &&vec) -> void;
         auto get_structure(u16 i) const -> const VoxelStructure::CubeStructure &;
 

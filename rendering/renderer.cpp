@@ -11,84 +11,18 @@
 
 namespace core::rendering {
 
-    const constexpr size_t max_copyable_elements           = MAX_VERTICES_BUFFER * sizeof(u64) / sizeof(VERTEX);
+    const constexpr size_t max_copyable_elements = MAX_VERTICES_BUFFER * sizeof(u64) / sizeof(VERTEX);
     const constexpr size_t max_displayable_elements_scalar = sizeof(VERTEX) / sizeof(u64) * 1.5;
 
-    Renderer::Renderer(std::shared_ptr<camera::perspective::Camera> camera)
-        : _camera{std::move(camera)}
-        , _vertices{0}
+    Renderer::Renderer()
+        : _vertices{0}
         , _indices{}
-        , _width{1920}
-        , _height{1080}
         , _projection{}
         , _buffers{}
-    {
-        initGLFW();
-        initImGui();
-        initShaders();
-        initPipeline();
+    {}
 
-        updateProjectionMatrix();
-    }
-
-    auto Renderer::initGLFW() -> void {
-        glfwInit();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-        try {
-            this->_window = glfwCreateWindow(
-                    static_cast<i32>(this->_width),
-                    static_cast<i32>(this->_height), "Farlands", nullptr, nullptr);
-
-            if (!this->_window)
-                throw std::runtime_error{"ERR::RENDERER::INIT::WINDOW"};
-
-            glfwMakeContextCurrent(this->_window);
-            glfwSetWindowUserPointer(this->_window, static_cast<void *>(this));
-            glfwSetFramebufferSizeCallback(this->_window, [](GLFWwindow *window, i32 width, i32 height) -> void {
-                auto self = static_cast<Renderer *>(glfwGetWindowUserPointer(window));
-
-                self->_width  = width;
-                self->_height = height;
-
-                glViewport(0, 0, static_cast<i32>(self->_width), static_cast<i32>(self->_height));
-
-                self->updateProjectionMatrix();
-                self->_camera->setFrustumAspect(static_cast<f32>(self->_width) / static_cast<f32>(self->_height));
-            });
-
-            // vsync
-            glfwSwapInterval(0);
-
-            // glad: load all OpenGL function pointers
-            if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
-                throw std::runtime_error{"ERR::RENDERER::INIT::GLAD"};
-
-            glfwSetInputMode(this->_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-            glfwSetCursorPosCallback(_window, [](GLFWwindow *window, f64 xpos, f64 ypos) -> void {
-                if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
-                    return;
-
-                auto self = static_cast<Renderer *>(glfwGetWindowUserPointer(window));
-                self->_camera->ProcessMouseMovement(static_cast<f32>(xpos), static_cast<f32>(ypos));
-            });
-        }
-        catch (std::exception &err) {
-            std::cerr << err.what() << std::endl;
-            glfwTerminate();
-
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    auto Renderer::initImGui() -> void {
-        interface::init(this->_window);
+    auto Renderer::initImGui(GLFWwindow *window) -> void {
+        interface::init(window);
     }
 
     auto Renderer::initShaders() -> void {
@@ -179,12 +113,12 @@ namespace core::rendering {
         this->_vertices = len;
     }
 
-    auto Renderer::prepare_frame() -> void {
+    auto Renderer::prepare_frame(camera::perspective::Camera &camera) -> void {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         this->_shader->use();
-        auto view = this->_camera->GetViewMatrix();
+        auto view = camera.GetViewMatrix();
 
         this->_shader->setMat4("view", view);
         this->_shader->setMat4("projection", this->_projection);
@@ -207,20 +141,12 @@ namespace core::rendering {
 
     auto Renderer::flush() -> void {}
 
-    auto Renderer::updateProjectionMatrix() -> void {
+    auto Renderer::updateProjectionMatrix(i32 width, i32 height) -> void {
         this->_projection = glm::perspective(
                 glm::radians(45.0f),
-                static_cast<f32>(this->_width) / static_cast<f32>(this->_height),
+                static_cast<f32>(width) / static_cast<f32>(height),
                 0.1f,
                 static_cast<f32>((RENDER_RADIUS * 2) * 32.0F));
-    }
-
-    auto Renderer::getCamera() const -> const camera::perspective::Camera * {
-        return this->_camera.get();
-    }
-
-    auto Renderer::getWindow() const -> const GLFWwindow * {
-        return this->_window;
     }
 
     auto Renderer::get_batch_size() const -> u64 {

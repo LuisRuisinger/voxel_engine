@@ -209,10 +209,10 @@ namespace core::level::chunk {
         if (!sum)
             return;
 
-        auto *buffer =
-                platform.get_presenter().request_writeable_area(
-                        sum,
-                        threading::worker_id);
+        auto *buffer = platform
+                .get_presenter()
+                .request_writeable_area(sum,
+                                        threading::task_system::worker_id);
 
         u64 actual_size = 0;
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
@@ -230,9 +230,10 @@ namespace core::level::chunk {
         }
 
         ASSERT_EQ(actual_size <= sum);
-        platform.get_presenter().add_size_writeable_area(
-                actual_size,
-                threading::worker_id);
+        platform
+            .get_presenter()
+            .add_size_writeable_area(actual_size,
+                                     threading::task_system::worker_id);
     }
 
     auto Chunk::recombine() -> void {

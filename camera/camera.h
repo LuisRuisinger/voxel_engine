@@ -11,11 +11,10 @@
 
 #include "../util/aliases.h"
 #include "culling.h"
-#include "../util/updateable.h"
 
 #define YAW         0.0F
 #define PITCH       0.0F
-#define SPEED       15.0F
+#define SPEED       32.0F
 #define SENSITIVITY 0.1F
 
 namespace core::camera {
@@ -55,8 +54,10 @@ namespace core::camera::perspective {
 
         [[nodiscard]] auto inFrustum(glm::vec3 position, uint32_t scale) const -> bool;
         [[nodiscard]] auto inFrustum(glm::vec2 position, uint32_t scale) const -> bool;
-        [[nodiscard]] auto inFrustum_type(glm::vec3 position, uint32_t scale) const -> camera::culling::CollisionType;
-        [[nodiscard]] auto inFrustum_type(glm::vec2 position, uint32_t scale) const -> camera::culling::CollisionType;
+        [[nodiscard]] auto inFrustum_type(glm::vec3 position,
+                                          uint32_t scale) const -> camera::culling::CollisionType;
+        [[nodiscard]] auto inFrustum_type(glm::vec2 position,
+                                          uint32_t scale) const -> camera::culling::CollisionType;
 
 
         [[nodiscard]] auto getCameraPosition() const -> glm::vec3;

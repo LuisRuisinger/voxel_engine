@@ -40,7 +40,8 @@ namespace core::memory::memory {
         ALLOC_MAX_BUFFER_SIZE_EXCEEDED,
         ALLOC_NO_LHPT_SUPPORT,
         ALLOC_UNKNOWN_ALLOCATOR,
-        INVALID_PAGE_SIZE
+        INVALID_PAGE_SIZE,
+        MEMORY_GUARD_ACTIVE
     };
 
     inline auto calculate_padding(const u8 *addr, u64 align) -> u64 {

@@ -208,7 +208,19 @@ namespace core::memory::linear_allocator {
         auto operator=(const BumpAllocator<OAllocator, OSize> &)
         -> BumpAllocator<OAllocator, OSize> & =delete;
 
-        ~BumpAllocator() =default;
+        ~BumpAllocator() {
+            u8 *page = this->memory;
+
+            while (page) {
+                const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+                const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
+
+                u8 *dealloc = page;
+                page = metadata->next;
+
+                this->allocator->deallocate(dealloc, Size);
+            }
+        }
 
         /**
          * @brief  Tries to allocate a segment of len * align.
@@ -243,11 +255,10 @@ namespace core::memory::linear_allocator {
                         reinterpret_cast<u64>(page) + Size)
                         break;
 
-                    if (!metadata->head.compare_exchange_weak(
-                            head,
-                            head + max_size,
-                            std::memory_order_release,
-                            std::memory_order_acquire)) {
+                    if (!metadata->head.compare_exchange_weak(head,
+                                                              head + max_size,
+                                                              std::memory_order_release,
+                                                              std::memory_order_acquire)) {
                         DEBUG_LOG("CAS failed");
                         continue;
                     }
@@ -337,12 +348,12 @@ namespace core::memory::linear_allocator {
 
             // some thread try to gain the flag to allocate at the same time
             // might fail due to spurious failure
-            if (!this->appending.compare_exchange_weak(
-                    is_allocating,
-                    true,
-                    std::memory_order_release,
-                    std::memory_order_acquire))
+            if (!this->appending.compare_exchange_weak(is_allocating,
+                                                       true,
+                                                       std::memory_order_release,
+                                                       std::memory_order_acquire)) {
                 return;
+            }
 
             u8 *ptr = nullptr;
             if constexpr (allocator_returns_result<Allocator, u64>::value) {

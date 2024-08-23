@@ -10,9 +10,6 @@
 #include "imgui_impl_opengl3.h"
 #include "interface.h"
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -45,38 +42,33 @@ namespace core::rendering {
 
     class Renderer {
     public:
-        explicit Renderer(std::shared_ptr<camera::perspective::Camera> camera);
+        explicit Renderer();
 
         ~Renderer() = default;
 
-        auto initGLFW() -> void;
-        auto initImGui() -> void;
+        auto initImGui(GLFWwindow *) -> void;
         auto initShaders() -> void;
         auto initPipeline() -> void;
 
         auto prepare_buffer(size_t) -> void *;
         auto updateBuffer(const VERTEX *, size_t) -> void;
         auto unmap_buffer(size_t) -> void;
-        auto updateProjectionMatrix() -> void;
+        auto updateProjectionMatrix(i32, i32) -> void;
         auto updateGlobalBase(glm::vec2) -> void;
         auto updateRenderDistance(u32) -> void;
 
-        auto prepare_frame() -> void;
+        auto prepare_frame(camera::perspective::Camera &camera) -> void;
         auto frame() -> void;
         auto flush() -> void;
 
-        auto getCamera() const -> const camera::perspective::Camera *;
-        auto getWindow() const -> const GLFWwindow *;
         auto get_batch_size() const -> u64;
 
     private:
 
         // general renderer data
-        u32                                           _width;
-        u32                                           _height;
-        GLFWwindow                                   *_window;
-        std::shared_ptr<camera::perspective::Camera>  _camera;
-
+        //u32                                           _width;
+        //u32                                           _height;
+        //GLFWwindow                                   *_window;
 
         // vertex shader data
         // the chunk positions are compressed into 2 * 6 bit

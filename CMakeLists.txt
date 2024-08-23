@@ -62,9 +62,7 @@ add_executable(
         rendering/renderer.cpp
         camera/culling.cpp
         globalstate.h
-        util/tickable.h
         util/moveable.h
-        util/updateable.h
         util/indices_generator.h
         level/chunk/chunk_segment.cpp
         level/chunk/chunk_segment.h
@@ -94,6 +92,8 @@ add_executable(
         level/model/tile/tile_atlas.h
         core/io/key_mapping.h
         core/memory/arena_allocator.cpp
+        threading/thread.h
+        core/io/window_handler.cpp
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

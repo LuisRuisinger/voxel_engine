@@ -9,7 +9,6 @@
 #include <queue>
 
 #include "../util/aliases.h"
-#include "../util/observer.h"
 #include "chunk/chunk.h"
 #include "../rendering/renderer.h"
 #include "../util/reflections.h"
@@ -22,16 +21,16 @@ namespace core::level {
         class Presenter;
     }
 
-    class Platform : public util::observer::Observer {
+    class Platform {
     public:
         Platform(presenter::Presenter &presenter);
-        ~Platform() override =default;
+        ~Platform() =default;
 
         auto tick(
-                threading::Tasksystem<> &,
-                camera::perspective::Camera &) -> void override;
+                threading::task_system::Tasksystem<> &,
+                camera::perspective::Camera &) -> void;
         auto frame(
-                threading::Tasksystem<> &,
+                threading::task_system::Tasksystem<> &,
                 camera::perspective::Camera &) -> void;
         auto get_world_root() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
@@ -41,7 +40,7 @@ namespace core::level {
                 typename ...Args,
                 typename Ret = std::invoke_result_t<Func, chunk::Chunk*, Args...>>
         requires util::reflections::has_member_v<chunk::Chunk, Func>
-        INLINE auto request_handle(threading::Tasksystem<> &,
+        INLINE auto request_handle(threading::task_system::Tasksystem<> &,
                                    Func func,
                                    Args &&...args) const -> Ret {
             using namespace util::reflections;
@@ -51,8 +50,8 @@ namespace core::level {
         auto get_visible_faces(camera::perspective::Camera &camera) -> size_t;
 
     private:
-        auto unload_chunks(threading::Tasksystem<> &) -> Platform &;
-        auto load_chunks(threading::Tasksystem<> &, glm::vec2) -> Platform &;
+        auto unload_chunks(threading::task_system::Tasksystem<> &) -> Platform &;
+        auto load_chunks(threading::task_system::Tasksystem<> &, glm::vec2) -> Platform &;
         auto swap_chunks(glm::vec2) -> Platform &;
         auto init_chunk_neighbours(i32,
                                    i32,

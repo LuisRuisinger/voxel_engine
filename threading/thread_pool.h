@@ -22,30 +22,12 @@
 #include "../util/aliases.h"
 #include "../util/log.h"
 #include "../util/assert.h"
+#include "thread.h"
 
-#define WRAPPED_EXEC(_f) \
-    {                    \
-        try {            \
-            (_f);        \
-        }                           \
-        catch(std::exception &err) \
-        {                       \
-            LOG(err.what()) ;        \
-        }       \
-    }
-
-namespace core::threading {
-    namespace functor {
-#ifdef __cpp_lib_move_only_function
-        using default_function_type = std::move_only_function<void()>;
-#else
-        using default_function_type = std::function<void()>;
-#endif
-    }
-
+namespace core::threading::task_system {
     inline thread_local u64 worker_id;
 
-    template<typename Function_type = functor::default_function_type>
+    template<typename Function_type = thread::functor::default_function_type>
     requires std::invocable<Function_type> &&
              std::is_same_v<void, std::invoke_result_t<Function_type>>
     class Tasksystem {
