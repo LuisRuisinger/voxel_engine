@@ -1,0 +1,115 @@
+//
+// Created by Luis Ruisinger on 24.08.24.
+//
+
+#ifndef OPENGL_3D_ENGINE_KEYMAP_H
+#define OPENGL_3D_ENGINE_KEYMAP_H
+
+#include "aliases.h"
+
+enum Mousemap : u32 {
+    MOUSE_BUTTON_LEFT   = 0,
+    MOUSE_BUTTON_RIGHT  = 1,
+    MOUSE_BUTTIN_MIDDLE = 2
+};
+
+enum Keymap : u32 {
+    KEY_0               =  0,
+    KEY_1               =  1,
+    KEY_2               =  2,
+    KEY_3               =  3,
+    KEY_4               =  4,
+    KEY_5               =  5,
+    KEY_6               =  6,
+    KEY_7               =  7,
+    KEY_8               =  8,
+    KEY_9               =  9,
+
+    KEY_A               = 10,
+    KEY_B               = 11,
+    KEY_C               = 12,
+    KEY_D               = 13,
+    KEY_E               = 14,
+    KEY_F               = 15,
+    KEY_G               = 16,
+    KEY_H               = 17,
+    KEY_I               = 18,
+    KEY_J               = 19,
+    KEY_K               = 20,
+    KEY_L               = 21,
+    KEY_M               = 22,
+    KEY_N               = 23,
+    KEY_O               = 24,
+    KEY_P               = 25,
+    KEY_Q               = 26,
+    KEY_R               = 27,
+    KEY_S               = 28,
+    KEY_T               = 29,
+    KEY_U               = 30,
+    KEY_V               = 31,
+    KEY_W               = 32,
+    KEY_X               = 33,
+    KEY_Y               = 34,
+    KEY_Z               = 35,
+
+    KEY_LEFT_BRACKET    = 36,
+    KEY_RIGHT_BRACKET   = 37,
+    KEY_BACKSLASH       = 38,
+    KEY_GRAVE_ACCENT    = 39,
+    KEY_EQUAL           = 40,
+    KEY_SLASH           = 41,
+    KEY_SPACE           = 42,
+    KEY_APOSTROPHE      = 43,
+    KEY_COMMA           = 44,
+    KEY_MINUS           = 45,
+    KEY_PLUS            = 46,
+    KEY_PERIOD          = 47,
+
+    KEY_ESCAPE          = 48,
+    KEY_ENTER           = 49,
+    KEY_TAB             = 50,
+    KEY_BACKSPACE       = 51,
+    KEY_INSERT          = 52,
+    KEY_DELETE          = 53,
+    KEY_RIGHT           = 54,
+    KEY_LEFT            = 55,
+    KEY_DOWN            = 56,
+    KEY_UP              = 57,
+    KEY_PAGE_UP         = 58,
+    KEY_PAGE_DOWN       = 59,
+    KEY_HOME            = 60,
+    KEY_END             = 61,
+    KEY_CAPS_LOCK       = 62,
+    KEY_SCROLL_LOCK     = 63,
+    KEY_NUM_LOCK        = 64,
+    KEY_PRINT_SCREEN    = 65,
+    KEY_PAUSE           = 66,
+
+    KEY_F1              = 67,
+    KEY_F2              = 68,
+    KEY_F3              = 69,
+    KEY_F4              = 70,
+    KEY_F5              = 71,
+    KEY_F6              = 72,
+    KEY_F7              = 73,
+    KEY_F8              = 74,
+    KEY_F9              = 75,
+    KEY_F10             = 76,
+    KEY_F11             = 77,
+    KEY_F12             = 78,
+    KEY_F13             = 79,
+    KEY_F14             = 80,
+    KEY_F15             = 81,
+    KEY_F16             = 82,
+    KEY_F17             = 83,
+    KEY_F18             = 84,
+    KEY_F19             = 85,
+    KEY_F20             = 86,
+    KEY_F21             = 87,
+    KEY_F22             = 88,
+    KEY_F23             = 89,
+    KEY_F24             = 90,
+    KEY_F25             = 91
+};
+
+#endif //OPENGL_3D_ENGINE_KEYMAP_H

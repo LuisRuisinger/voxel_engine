@@ -37,6 +37,7 @@ add_library(imgui
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/imgui_impl_opengl3.cpp
         ${IMGUI_DIR}/imgui_impl_glfw.cpp
+        core/opengl/opengl_verify.h
 )
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -93,7 +94,9 @@ add_executable(
         core/io/key_mapping.h
         core/memory/arena_allocator.cpp
         threading/thread.h
-        core/io/window_handler.cpp
+        core/opengl/opengl_window.cpp
+        core/opengl/opengl_key_map.cpp
+        util/keymap.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

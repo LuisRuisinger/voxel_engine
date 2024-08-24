@@ -7,18 +7,24 @@
 
 #include <iostream>
 
-#include "rendering/shader.h"
 #include "camera/camera.h"
+
 #include "util/aliases.h"
 #include "util/stb_image.h"
-#include "level/Model/mesh.h"
+
 #include "rendering/renderer.h"
+#include "rendering/shader.h"
+
+#include "level/Model/mesh.h"
 #include "level/Octree/octree.h"
 #include "level/presenter.h"
+
 #include "threading/thread_pool.h"
 #include "threading/scheduled_executor.h"
 #include "core/io/key_mapping.h"
-#include "core/io/window_handler.h"
+
+#include "core/opengl/opengl_window.h"
+#include "core/opengl/opengl_key_map.h"
 
 #define DEFAULT_VIEW             \
     glm::vec3(0.0f, 2.5f, 0.0f), \
@@ -30,24 +36,24 @@ class Engine {
 public:
     static auto init() -> void {
         DEBUG_LOG("Engine init");
-        auto window = Engine::window_handler.init().unwrap();
+        auto window = Engine::window_handler.init();
 
         DEBUG_LOG("Init framebuffer size callbacks");
-        Engine::window_handler.add_framebuffer_size_callback(0, std::move([&]() -> void {
-            Engine::camera.setFrustumAspect(
-                    static_cast<f32>(window_handler.width / window_handler.height));
-        }));
+        Engine::window_handler.add_framebuffer_size_callback(
+                0, std::move([&](std::pair<i32, i32> &ref) -> void {
+                    Engine::camera.setFrustumAspect(static_cast<f32>(ref.first / ref.second));
+                }));
 
-        Engine::window_handler.add_framebuffer_size_callback(1, std::move([&]() -> void {
-            Engine::renderer.update_projection_matrix(
-                    window_handler.width, window_handler.height);
-        }));
+        Engine::window_handler.add_framebuffer_size_callback(
+                1, std::move([&](std::pair<i32, i32> &ref) -> void {
+                    Engine::renderer.update_projection_matrix(ref.first, ref.second);
+                }));
 
         DEBUG_LOG("Init cursor position callbacks");
-        Engine::window_handler.add_cursor_position_callback(0, std::move([&]() -> void {
-            Engine::camera.ProcessMouseMovement(
-                    window_handler.xpos, window_handler.ypos);
-        }));
+        Engine::window_handler.add_cursor_position_callback(
+                0, std::move([&](std::pair<f32, f32> &ref) -> void {
+                    Engine::camera.ProcessMouseMovement(ref.first, ref.second);
+                }));
 
         DEBUG_LOG("Init scheduled executor callbacks")
         Engine::executor.enqueue_detach(std::move([&]() -> void {
@@ -59,13 +65,12 @@ public:
         Engine::renderer.init_ImGui(window);
         Engine::renderer.init_shaders();
         Engine::renderer.init_pipeline();
-        Engine::renderer.update_projection_matrix(
-                Engine::window_handler.width, Engine::window_handler.height);
+        Engine::renderer.update_projection_matrix(DEFAULT_WIDTH, DEFAULT_HEIGHT);
         DEBUG_LOG("Engine init finished");
     }
 
     static auto run() -> void {
-        auto window = Engine::window_handler.get_window().unwrap();
+        auto window = Engine::window_handler.get_window();
 
         while (!glfwWindowShouldClose(window)) {
             Engine::time = glfwGetTime();
@@ -89,8 +94,9 @@ public:
 
 private:
 
-    // GLFW
-    static core::io::window_handler::WindowHandler window_handler;
+    // opengl
+    static core::opengl::opengl_window::OpenGLWindow window_handler;
+    static core::opengl::opengl_key_map::OpenGLKeyMap key_map;
 
     // allocator
     static core::memory::arena_allocator::ArenaAllocator allocator;
@@ -100,7 +106,6 @@ private:
     static core::rendering::Renderer renderer;
     static core::level::Platform platform;
     static core::level::presenter::Presenter presenter;
-    // static GLFWwindow *window;
 
     // threading
     static core::threading::task_system::Tasksystem<> render_pool;
