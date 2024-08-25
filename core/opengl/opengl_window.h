@@ -9,23 +9,14 @@
 #include "GLFW/glfw3.h"
 
 #include "../../util/aliases.h"
-#include "../../threading/thread.h"
 #include "../../util/log.h"
 #include "../../util/result.h"
-
-#define DEFAULT_WIDTH  1920
-#define DEFAULT_HEIGHT 1080
 
 namespace core::opengl::opengl_window {
 
     enum Vsync : u8 {
         ENABLED  = 1,
         DISABLED = 0
-    };
-
-
-    class KeyHandler {
-        auto function(i32 a, i32 b, i32 c, i32 d) -> void {}
     };
 
     class OpenGLWindow {

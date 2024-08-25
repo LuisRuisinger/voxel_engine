@@ -37,7 +37,6 @@ add_library(imgui
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/imgui_impl_opengl3.cpp
         ${IMGUI_DIR}/imgui_impl_glfw.cpp
-        core/opengl/opengl_verify.h
 )
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -50,30 +49,29 @@ set(ASSIMP_BUILD_STATIC_LIB ON)
 add_executable(
         opengl_3d_engine
         main.cpp
-        rendering/shader.cpp
+        core/rendering/shader.cpp
         util/stb_image.cpp
-        camera/camera.cpp
-        level/model/mesh.cpp
-        level/octree/octree.cpp
-        level/octree/octree.h
-        level/platform.cpp
-        level/chunk/chunk.cpp
-        level/model/model.cpp
-        level/model/Types/voxel.cpp
-        rendering/renderer.cpp
-        camera/culling.cpp
+        util/camera.cpp
+        core/level/model/mesh.cpp
+        core/level/chunk_data_structure/octree.cpp
+        core/level/chunk_data_structure/octree.h
+        core/level/platform.cpp
+        core/level/chunk/chunk.cpp
+        core/level/model/voxel.cpp
+        core/rendering/renderer.cpp
+        util/culling.cpp
         globalstate.h
         util/moveable.h
         util/indices_generator.h
-        level/chunk/chunk_segment.cpp
-        level/chunk/chunk_segment.h
-        threading/thread_pool.h
-        threading/thread_safe_queue.h
-        level/octree/node.cpp
-        level/octree/node_inline.h
-        rendering/interface.cpp
-        level/presenter.cpp
-        level/presenter.h
+        core/level/chunk/chunk_segment.cpp
+        core/level/chunk/chunk_segment.h
+        core/threading/thread_pool.h
+        core/threading/thread_safe_queue.h
+        core/level/chunk_data_structure/node.cpp
+        core/level/chunk_data_structure/node_inline.h
+        core/rendering/interface.cpp
+        core/level/presenter.cpp
+        core/level/presenter.h
         util/log.cpp
         util/log.h
         util/assert.h
@@ -84,22 +82,15 @@ add_executable(
         core/memory/linear_allocator_threadsafe.h
         core/memory/memory.h
         core/memory/arena_allocator.h
-        level/model/tile/meshes/tile.cpp
-        level/model/tile/meshes/tile.h
-        level/model/tile/explicit/dirt.cpp
-        level/model/tile/explicit/cobblestone.cpp
-        level/model/tile/explicit/stone.cpp
-        level/model/tile/tile_atlas.cpp
-        level/model/tile/tile_atlas.h
-        core/io/key_mapping.h
         core/memory/arena_allocator.cpp
-        threading/thread.h
+        core/threading/thread.h
         core/opengl/opengl_window.cpp
         core/opengl/opengl_key_map.cpp
         util/keymap.h
         util/player.cpp
         util/player.h
         util/interactable.h
+        core/opengl/opengl_verify.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

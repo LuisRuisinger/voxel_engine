@@ -15,7 +15,7 @@ namespace util::interactable {
     class Interactable {
     public:
         Interactable(OpenGLKeyMap &key_map)
-            : key_map { key_map } {}
+                : key_map { key_map } {}
 
         template <Action action, Keymap key>
         auto on_input() -> void {

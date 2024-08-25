@@ -40,6 +40,23 @@ namespace util::player {
                 this)->template on_input<Action::ON_REPEAT, Keymap::KEY_C>();
     }
 
+    Player::Player(OpenGLKeyMap &key_map)
+            : interactable::Interactable<Player> { key_map },
+              camera_hook { std::make_shared<Camera>() } {
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_W>();
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_S>();
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_A>();
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_D>();
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_SPACE>();
+        static_cast<interactable::Interactable<Player> *>(
+                this)->template on_input<Action::ON_REPEAT, Keymap::KEY_C>();
+    }
+
     auto Player::update_delta_time(f64 dt) -> void {
         this->delta_time = dt;
     }
@@ -50,38 +67,38 @@ namespace util::player {
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_W>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::FORWARD, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::FORWARD, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_S>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::BACKWARD, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::BACKWARD, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_A>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::LEFT, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::LEFT, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_D>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::RIGHT, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::RIGHT, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_SPACE>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::UP, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::UP, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_C>() -> void {
-        camera_hook->ProcessKeyboard(core::camera::DOWN, this->delta_time);
-        DEBUG_LOG(this->camera_hook->getCameraPosition());
+        camera_hook->move_camera(util::camera::DOWN, this->delta_time);
+        DEBUG_LOG(this->camera_hook->get_position());
     }
 }
 

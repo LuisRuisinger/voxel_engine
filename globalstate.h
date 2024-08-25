@@ -5,27 +5,17 @@
 #ifndef OPENGL_3D_ENGINE_GLOBALSTATE_H
 #define OPENGL_3D_ENGINE_GLOBALSTATE_H
 
-#include <iostream>
+#include "core/rendering/renderer.h"
 
-#include "camera/camera.h"
+#include "core/level/presenter.h"
 
-#include "util/aliases.h"
-#include "util/stb_image.h"
-
-#include "rendering/renderer.h"
-#include "rendering/shader.h"
-
-#include "level/Model/mesh.h"
-#include "level/Octree/octree.h"
-#include "level/presenter.h"
-
-#include "threading/thread_pool.h"
-#include "threading/scheduled_executor.h"
-#include "core/io/key_mapping.h"
+#include "core/threading/thread_pool.h"
+#include "core/threading/scheduled_executor.h"
 
 #include "core/opengl/opengl_window.h"
 #include "core/opengl/opengl_key_map.h"
 
+#include "util/stb_image.h"
 #include "util/player.h"
 
 class Engine {
@@ -38,7 +28,8 @@ public:
         Engine::window_handler.add_framebuffer_size_callback(
                 0, std::move([&](std::pair<i32, i32> &ref) -> void {
                     auto &camera = Engine::player.get_camera();
-                    camera.setFrustumAspect(static_cast<f32>(ref.first / ref.second));
+                    camera.set_frustum_aspect(
+                            static_cast<f32>(ref.first) / static_cast<f32>(ref.second));
                 }));
 
         Engine::window_handler.add_framebuffer_size_callback(
@@ -50,7 +41,7 @@ public:
         Engine::window_handler.add_cursor_position_callback(
                 0, std::move([&](std::pair<f32, f32> &ref) -> void {
                     auto &camera = Engine::player.get_camera();
-                    camera.ProcessMouseMovement(ref.first, ref.second);
+                    camera.rotate_camera(ref.first, ref.second);
                 }));
 
         DEBUG_LOG("Init key callbacks");
@@ -128,8 +119,7 @@ private:
     static core::memory::arena_allocator::ArenaAllocator allocator;
 
     // engine
-    static core::rendering::Renderer renderer;
-    static core::level::Platform platform;
+    static core::rendering::renderer::Renderer renderer;
     static core::level::presenter::Presenter presenter;
 
     // threading
@@ -146,18 +136,18 @@ private:
     static f64 time;
 };
 
-decltype(Engine::window_handler) Engine::window_handler {                                              };
-decltype(Engine::key_map)        Engine::key_map        {                                              };
-decltype(Engine::allocator)      Engine::allocator      {                                              };
-decltype(Engine::renderer)       Engine::renderer       {                                              };
-decltype(Engine::presenter)      Engine::presenter      { Engine::renderer, &Engine::allocator         };
-decltype(Engine::render_pool)    Engine::render_pool    {                                              };
-decltype(Engine::chunk_pool)     Engine::chunk_pool     {                                              };
-decltype(Engine::executor)       Engine::executor       {                                              };
-decltype(Engine::delta_time)     Engine::delta_time     { 0.0F                                         };
-decltype(Engine::last_frame)     Engine::last_frame     { 0.0F                                         };
-decltype(Engine::time)           Engine::time           { 0.0F                                         };
-decltype(Engine::player)         Engine::player         { key_map, core::camera::perspective::Camera() };
+decltype(Engine::window_handler) Engine::window_handler {                                      };
+decltype(Engine::key_map)        Engine::key_map        {                                      };
+decltype(Engine::allocator)      Engine::allocator      {                                      };
+decltype(Engine::renderer)       Engine::renderer       {                                      };
+decltype(Engine::presenter)      Engine::presenter      { Engine::renderer, &Engine::allocator };
+decltype(Engine::render_pool)    Engine::render_pool    {                                      };
+decltype(Engine::chunk_pool)     Engine::chunk_pool     {                                      };
+decltype(Engine::executor)       Engine::executor       {                                      };
+decltype(Engine::delta_time)     Engine::delta_time     { 0.0F                                 };
+decltype(Engine::last_frame)     Engine::last_frame     { 0.0F                                 };
+decltype(Engine::time)           Engine::time           { 0.0F                                 };
+decltype(Engine::player)         Engine::player         { key_map                              };
 
 
 

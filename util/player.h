@@ -6,16 +6,17 @@
 #define OPENGL_3D_ENGINE_PLAYER_H
 
 #include "interactable.h"
-#include "../camera/camera.h"
+#include "camera.h"
 
 namespace util::player {
     using namespace core::opengl::opengl_key_map;
-    using namespace core::camera::perspective;
+    using namespace util::camera;
 
     class Player : public interactable::Interactable<Player> {
     public:
         Player(OpenGLKeyMap &key_map, std::shared_ptr<Camera> camera);
         Player(OpenGLKeyMap &key_map, Camera camera);
+        Player(OpenGLKeyMap &key_map);
 
 
         template <Action action, Keymap key>
