@@ -35,7 +35,6 @@ namespace core::threading {
          */
 
         auto try_push(T &&t) -> bool {
-            DEBUG_LOG(sizeof(t));
             {
                 std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
                 if (!lock)

@@ -37,6 +37,7 @@ namespace core::camera::perspective {
     public:
         Camera(glm::vec3 initPosition, glm::vec3 initUp, float initYaw, float initPitch);
         Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch);
+        Camera();
         Camera(Camera &&other) noexcept = default;
         Camera(Camera &other) = delete;
 

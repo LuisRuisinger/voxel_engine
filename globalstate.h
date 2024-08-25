@@ -26,11 +26,7 @@
 #include "core/opengl/opengl_window.h"
 #include "core/opengl/opengl_key_map.h"
 
-#define DEFAULT_VIEW             \
-    glm::vec3(0.0f, 2.5f, 0.0f), \
-    glm::vec3(0.0f, 1.0f, 0.0f), \
-    YAW,                         \
-    PITCH
+#include "util/player.h"
 
 class Engine {
 public:
@@ -41,7 +37,8 @@ public:
         DEBUG_LOG("Init framebuffer size callbacks");
         Engine::window_handler.add_framebuffer_size_callback(
                 0, std::move([&](std::pair<i32, i32> &ref) -> void {
-                    Engine::camera.setFrustumAspect(static_cast<f32>(ref.first / ref.second));
+                    auto &camera = Engine::player.get_camera();
+                    camera.setFrustumAspect(static_cast<f32>(ref.first / ref.second));
                 }));
 
         Engine::window_handler.add_framebuffer_size_callback(
@@ -52,13 +49,42 @@ public:
         DEBUG_LOG("Init cursor position callbacks");
         Engine::window_handler.add_cursor_position_callback(
                 0, std::move([&](std::pair<f32, f32> &ref) -> void {
-                    Engine::camera.ProcessMouseMovement(ref.first, ref.second);
+                    auto &camera = Engine::player.get_camera();
+                    camera.ProcessMouseMovement(ref.first, ref.second);
                 }));
+
+        DEBUG_LOG("Init key callbacks");
+        Engine::window_handler.add_key_callback(
+                0, [&](std::pair<i32, i32> &ref) -> void {
+                    Engine::key_map.handle_event(ref);
+                });
+
+        DEBUG_LOG("Init extra key_map calls");
+        Engine::key_map.add_callback(
+                core::opengl::opengl_key_map::Action::ON_PRESSED,
+                Keymap::LEFT_ALT,
+                [&]() -> void {
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                });
+
+        Engine::key_map.add_callback(
+                core::opengl::opengl_key_map::Action::ON_RELEASE,
+                Keymap::LEFT_ALT,
+                [&]() -> void {
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                });
+
+        Engine::key_map.add_callback(
+                core::opengl::opengl_key_map::Action::ON_RELEASE,
+                Keymap::KEY_ESCAPE,
+                [&]() -> void {
+                    glfwSetWindowShouldClose(window, true);
+                });
 
         DEBUG_LOG("Init scheduled executor callbacks")
         Engine::executor.enqueue_detach(std::move([&]() -> void {
             Engine::presenter.tick(
-                    Engine::chunk_pool, Engine::camera);
+                    Engine::chunk_pool, Engine::player.get_camera());
         }));
 
         DEBUG_LOG("Init renderer");
@@ -76,12 +102,12 @@ public:
             Engine::time = glfwGetTime();
             Engine::delta_time = Engine::time - Engine::last_frame;
             Engine::last_frame = time;
+            Engine::player.update_delta_time(Engine::delta_time);
 
-            core::io::key_mapping::parse_input(
-                    window, &Engine::camera, Engine::delta_time);
+            Engine::key_map.run_repeat();
 
-            Engine::renderer.prepare_frame(Engine::camera);
-            Engine::presenter.frame(Engine::render_pool, Engine::camera);
+            Engine::renderer.prepare_frame(Engine::player.get_camera());
+            Engine::presenter.frame(Engine::render_pool, Engine::player.get_camera());
 
             glfwSwapBuffers(window);
             glfwPollEvents();
@@ -102,7 +128,6 @@ private:
     static core::memory::arena_allocator::ArenaAllocator allocator;
 
     // engine
-    static core::camera::perspective::Camera camera;
     static core::rendering::Renderer renderer;
     static core::level::Platform platform;
     static core::level::presenter::Presenter presenter;
@@ -112,23 +137,27 @@ private:
     static core::threading::task_system::Tasksystem<> chunk_pool;
     static core::threading::executor::ScheduledExecutor<> executor;
 
+    // player
+    static util::player::Player player;
+
     // frames
     static f64 delta_time;
     static f64 last_frame;
     static f64 time;
 };
 
-decltype(Engine::window_handler) Engine::window_handler {                                      };
-decltype(Engine::allocator)      Engine::allocator      {                                      };
-decltype(Engine::camera)         Engine::camera         { DEFAULT_VIEW                         };
-decltype(Engine::renderer)       Engine::renderer       {                                      };
-decltype(Engine::presenter)      Engine::presenter      { Engine::renderer, &Engine::allocator };
-decltype(Engine::render_pool)    Engine::render_pool    {                                      };
-decltype(Engine::chunk_pool)     Engine::chunk_pool     {                                      };
-decltype(Engine::executor)       Engine::executor       {                                      };
-decltype(Engine::delta_time)     Engine::delta_time     { 0.0F                                 };
-decltype(Engine::last_frame)     Engine::last_frame     { 0.0F                                 };
-decltype(Engine::time)           Engine::time           { 0.0F                                 };
+decltype(Engine::window_handler) Engine::window_handler {                                              };
+decltype(Engine::key_map)        Engine::key_map        {                                              };
+decltype(Engine::allocator)      Engine::allocator      {                                              };
+decltype(Engine::renderer)       Engine::renderer       {                                              };
+decltype(Engine::presenter)      Engine::presenter      { Engine::renderer, &Engine::allocator         };
+decltype(Engine::render_pool)    Engine::render_pool    {                                              };
+decltype(Engine::chunk_pool)     Engine::chunk_pool     {                                              };
+decltype(Engine::executor)       Engine::executor       {                                              };
+decltype(Engine::delta_time)     Engine::delta_time     { 0.0F                                         };
+decltype(Engine::last_frame)     Engine::last_frame     { 0.0F                                         };
+decltype(Engine::time)           Engine::time           { 0.0F                                         };
+decltype(Engine::player)         Engine::player         { key_map, core::camera::perspective::Camera() };
 
 
 

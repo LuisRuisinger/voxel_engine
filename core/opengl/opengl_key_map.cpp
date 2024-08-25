@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include "opengl_key_map.h"
+#include "../../util/log.h"
 
 namespace core::opengl::opengl_key_map {
     OpenGLKeyMap::OpenGLKeyMap() {
@@ -103,6 +104,12 @@ namespace core::opengl::opengl_key_map {
         keys[GLFW_KEY_F23]             = Keymap::KEY_F23;
         keys[GLFW_KEY_F24]             = Keymap::KEY_F24;
         keys[GLFW_KEY_F25]             = Keymap::KEY_F25;
+        keys[GLFW_KEY_LEFT_SHIFT]      = Keymap::LEFT_SHIFT;
+        keys[GLFW_KEY_LEFT_ALT]        = Keymap::LEFT_ALT;
+        keys[GLFW_KEY_LEFT_CONTROL]    = Keymap::LEFT_CONTROL;
+        keys[GLFW_KEY_RIGHT_SHIFT]     = Keymap::RIGHT_SHIFT;
+        keys[GLFW_KEY_RIGHT_ALT]       = Keymap::RIGHT_ALT;
+        keys[GLFW_KEY_RIGHT_CONTROL]   = Keymap::RIGHT_CONTROL;
     }
 
 
@@ -122,20 +129,34 @@ namespace core::opengl::opengl_key_map {
         Keymap key = keys[ref.second];
         switch (ref.first) {
             case ON_PRESSED: {
-                if (this->on_pressed.contains(key))
-                    this->on_pressed[key](key);
+                if (this->on_pressed.contains(key)) {
+                    if (this->on_repeat.contains(key)) {
+                        this->repeat_functions[key] = this->on_pressed[key];
+                    }
+                    else {
+                        this->on_pressed[key]();
+                    }
+                }
                 break;
             }
             case ON_RELEASE: {
-                if (this->on_release.contains(key))
-                    this->on_release[key](key);
+                if (this->repeat_functions.contains(key)) {
+                    this->repeat_functions.erase(key);
+                }
+
+                if (this->on_release.contains(key)) {
+                    this->on_release[key]();
+                }
                 break;
             }
-            case ON_REPEAT: {
-                if (this->on_repeat.contains(key))
-                    this->on_repeat[key](key);
-                break;
-            }
+
+            // currently no concept for using this
+            case ON_REPEAT: {}
         }
+    }
+
+    auto OpenGLKeyMap::run_repeat() -> void {
+        for (auto &[_, callback] : this->repeat_functions)
+            callback();
     }
 }

@@ -109,7 +109,13 @@ enum Keymap : u32 {
     KEY_F22             = 88,
     KEY_F23             = 89,
     KEY_F24             = 90,
-    KEY_F25             = 91
+    KEY_F25             = 91,
+    LEFT_SHIFT          = 92,
+    LEFT_CONTROL        = 93,
+    LEFT_ALT            = 94,
+    RIGHT_SHIFT         = 95,
+    RIGHT_CONTROL       = 96,
+    RIGHT_ALT           = 97
 };
 
 #endif //OPENGL_3D_ENGINE_KEYMAP_H

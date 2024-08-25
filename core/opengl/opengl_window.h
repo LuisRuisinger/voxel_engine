@@ -40,33 +40,21 @@ namespace core::opengl::opengl_window {
         requires std::invocable<F, SizeToken &> &&
                  std::is_same_v<void, std::invoke_result_t<F &&, SizeToken &>>
         auto add_framebuffer_size_callback(u64 id, F &&fun) -> void {
-            auto task = [fun = std::forward<F>(fun)](SizeToken &size) mutable -> decltype(auto) {
-                WRAPPED_EXEC(std::invoke(fun, size));
-            };
-
-            this->framebuffer_size_callbacks[id] = std::move(task);
+            this->framebuffer_size_callbacks[id] = std::move(fun);
         }
 
         template<typename F>
         requires std::invocable<F, PosToken &> &&
                  std::is_same_v<void, std::invoke_result_t<F &&, PosToken &>>
         auto add_cursor_position_callback(u64 id, F &&fun) -> void {
-            auto task = [fun = std::forward<F>(fun)](PosToken &size) mutable -> decltype(auto) {
-                WRAPPED_EXEC(std::invoke(fun, size));
-            };
-
-            this->cursor_position_callbacks[id] = std::move(task);
+            this->cursor_position_callbacks[id] = std::move(fun);
         }
 
         template<typename F>
         requires std::invocable<F, KeyToken &> &&
                  std::is_same_v<void, std::invoke_result_t<F &&, KeyToken &>>
         auto add_key_callback(u64 id, F &&fun) -> void {
-            auto task = [fun = std::forward<F>(fun)](KeyToken &size) mutable -> decltype(auto) {
-                WRAPPED_EXEC(std::invoke(fun, size));
-            };
-
-            this->key_callbacks[id] = std::move(task);
+            this->key_callbacks[id] = std::move(fun);
         }
 
         auto init() -> GLFWwindow *;

@@ -65,7 +65,7 @@ namespace core::opengl::opengl_window {
                                i32 action,
                                i32 mods) -> void {
             auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(window));
-            auto key_token = std::pair { key, action };
+            auto key_token = std::pair { action, key };
 
             for (const auto &[_, callback] : self->key_callbacks)
                 callback(key_token);

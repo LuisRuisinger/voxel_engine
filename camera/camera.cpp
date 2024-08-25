@@ -6,7 +6,11 @@
 #include "../level/platform.h"
 
 namespace core::camera::perspective {
-    Camera::Camera(glm::vec3 initPosition, glm::vec3 initUp, f32 initYaw, f32 initPitch)
+    Camera::Camera(
+            glm::vec3 initPosition,
+            glm::vec3 initUp ,
+            f32 initYaw,
+            f32 initPitch)
         : _position{initPosition}
         , _front{}
         , _up{}
@@ -37,6 +41,23 @@ namespace core::camera::perspective {
         , _mask{UINT8_MAX}
     {
         setFrustum(60.0f, 1920.0F / 1080.0F, 0.1F, 32.0F * (RENDER_RADIUS * 2));
+        update();
+    }
+
+    Camera::Camera()
+            : _position{glm::vec3(0.0f, 2.5f, 0.0f)}
+            , _front{}
+            , _up{}
+            , _right{}
+            , _worldUp{glm::vec3(0.0f, 1.0f, 0.0f)}
+            , _yaw{YAW}
+            , _pitch{PITCH}
+            , _movementSpeed{SPEED}
+            , _mouseSensitivity{SENSITIVITY}
+            , _frustum{}
+            , _mask{UINT8_MAX}
+    {
+        setFrustum(60.0F, 1920.0F / 1080.0F, 0.1F, 32.0F * (RENDER_RADIUS * 2));
         update();
     }
 

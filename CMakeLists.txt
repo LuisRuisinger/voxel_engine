@@ -97,6 +97,9 @@ add_executable(
         core/opengl/opengl_window.cpp
         core/opengl/opengl_key_map.cpp
         util/keymap.h
+        util/player.cpp
+        util/player.h
+        util/interactable.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)
