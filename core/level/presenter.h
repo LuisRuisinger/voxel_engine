@@ -8,7 +8,7 @@
 #include "platform.h"
 #include "../../util/aliases.h"
 #include "../rendering/renderer.h"
-#include "../memory/linear_allocator_threadsafe.h"
+#include "../memory/linear_allocator.h"
 #include "../memory/arena_allocator.h"
 #include "model/voxel.h"
 #include "model/mesh.h"
@@ -27,8 +27,8 @@ namespace core::level::presenter {
         Presenter(rendering::renderer::Renderer &, core::memory::arena_allocator::ArenaAllocator *);
         ~Presenter() =default;
 
-        auto frame(threading::task_system::Tasksystem<> &, util::camera::Camera &) -> void;
-        auto tick(threading::task_system::Tasksystem<> &, util::camera::Camera &) -> void;
+        auto frame(threading::thread_pool::Tasksystem<> &, util::camera::Camera &) -> void;
+        auto tick(threading::thread_pool::Tasksystem<> &, util::camera::Camera &) -> void;
         auto add_voxel_vector(std::vector<VERTEX> &&vec) -> void;
         auto get_structure(u16 i) const -> const model::voxel::CubeStructure &;
 
@@ -42,7 +42,7 @@ namespace core::level::presenter {
         std::vector<std::vector<Buffer<VERTEX>>> storage;
         std::mutex mutex;
         std::array<model::voxel::CubeStructure, 512> meshes;
-        memory::linear_allocator::BumpAllocator<memory::arena_allocator::ArenaAllocator> allocator;
+        memory::linear_allocator::LinearAllocator<memory::arena_allocator::ArenaAllocator> allocator;
     };
 }
 

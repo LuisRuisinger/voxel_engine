@@ -11,23 +11,6 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#define CHUNK_SEGMENTS  16
-#define MIN_HEIGHT      -128
-#define CHUNK_SIZE      32
-#define RENDER_RADIUS   16
-#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
-#define SQRT_2          1.4142135623730951F
-#define DEFAULT_WIDTH   1920
-#define DEFAULT_HEIGHT  1080
-
-#define LEFT_BIT   (static_cast<u64>(0x1)  << 55)
-#define RIGHT_BIT  (static_cast<u64>(0x1)  << 54)
-#define TOP_BIT    (static_cast<u64>(0x1)  << 53)
-#define BOTTOM_BIT (static_cast<u64>(0x1)  << 52)
-#define FRONT_BIT  (static_cast<u64>(0x1)  << 51)
-#define BACK_BIT   (static_cast<u64>(0x1)  << 50)
-#define SET_FACES  (static_cast<u64>(0x3F) << 50)
-
 using u8  = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -38,6 +21,23 @@ using i32 = int32_t;
 using i64 = int64_t;
 using f32 = float_t;
 using f64 = double_t;
+
+#define CHUNK_SEGMENTS  16
+#define MIN_HEIGHT      -128
+#define CHUNK_SIZE      32
+#define RENDER_RADIUS   16
+#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
+#define SQRT_2          1.4142135623730951F
+#define DEFAULT_WIDTH   1920
+#define DEFAULT_HEIGHT  1080
+
+#define LEFT_BIT        (static_cast<u64>(0x1)  << 55)
+#define RIGHT_BIT       (static_cast<u64>(0x1)  << 54)
+#define TOP_BIT         (static_cast<u64>(0x1)  << 53)
+#define BOTTOM_BIT      (static_cast<u64>(0x1)  << 52)
+#define FRONT_BIT       (static_cast<u64>(0x1)  << 51)
+#define BACK_BIT        (static_cast<u64>(0x1)  << 50)
+#define SET_FACES       (static_cast<u64>(0x3F) << 50)
 
 #define Enum(_name, ...)                                                     \
     struct _name {                                                           \

@@ -20,7 +20,7 @@ namespace core::level::presenter {
     }
 
     auto Presenter::frame(
-            threading::task_system::Tasksystem<> &thread_pool,
+            threading::thread_pool::Tasksystem<> &thread_pool,
             util::camera::Camera &camera) -> void {
         auto t_start = std::chrono::high_resolution_clock::now();
         this->allocator.reset();
@@ -81,7 +81,7 @@ namespace core::level::presenter {
         return this->meshes[i];
     }
 
-    auto Presenter::tick(threading::task_system::Tasksystem<> &thread_pool,
+    auto Presenter::tick(threading::thread_pool::Tasksystem<> &thread_pool,
                          util::camera::Camera &camera) -> void {
         this->platform.tick(thread_pool, camera);
     }

@@ -31,7 +31,7 @@ namespace core::level::platform {
      * @param thread_pool Pool to offload tasks.
      * @param camera Current active camera.
      */
-    auto Platform::tick(threading::task_system::Tasksystem<> &thread_pool,
+    auto Platform::tick(threading::thread_pool::Tasksystem<> &thread_pool,
                         util::camera::Camera &camera) -> void {
         const auto &cameraPos = camera.get_position();
         const auto new_root = glm::vec2{
@@ -59,7 +59,7 @@ namespace core::level::platform {
      * @brief Unload chunks whose shared count is 1, meaning they are no in use in this cycle.
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
-    auto Platform::unload_chunks(threading::task_system::Tasksystem<> &thread_pool) -> Platform & {
+    auto Platform::unload_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> Platform & {
         static auto destroy = [](std::shared_ptr<chunk::Chunk> ptr) -> void {
             ASSERT_EQ(ptr.get());
         };
@@ -120,7 +120,7 @@ namespace core::level::platform {
      * @param thread_pool Threadpool to parallel generate new chunks.
      * @param new_root    The center of the new region.
      */
-    auto Platform::load_chunks(threading::task_system::Tasksystem<> &thread_pool,
+    auto Platform::load_chunks(threading::thread_pool::Tasksystem<> &thread_pool,
                                glm::vec2 new_root) -> Platform & {
         static auto generate = [](chunk::Chunk *ptr, Platform *platform) -> void {
             ASSERT_EQ(ptr);
@@ -206,7 +206,7 @@ namespace core::level::platform {
      * @param thread_pool Parallel traversal of single chunks.
      * @param camera      Active camera for this frame.
      */
-    auto Platform::frame(threading::task_system::Tasksystem<> &thread_pool,
+    auto Platform::frame(threading::thread_pool::Tasksystem<> &thread_pool,
                          util::camera::Camera &camera) -> void {
         static auto update_render_fun = [](u16 idx,
                                            chunk::Chunk *ptr,

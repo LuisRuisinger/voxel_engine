@@ -24,7 +24,7 @@
 #include "../../util/assert.h"
 #include "thread.h"
 
-namespace core::threading::task_system {
+namespace core::threading::thread_pool {
     inline thread_local u64 worker_id;
 
     template<typename Function_type = thread::functor::default_function_type>

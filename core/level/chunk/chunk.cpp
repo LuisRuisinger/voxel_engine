@@ -213,7 +213,7 @@ namespace core::level::chunk {
         auto *buffer = platform
                 .get_presenter()
                 .request_writeable_area(sum,
-                                        threading::task_system::worker_id);
+                                        threading::thread_pool::worker_id);
 
         u64 actual_size = 0;
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
@@ -234,7 +234,7 @@ namespace core::level::chunk {
         platform
             .get_presenter()
             .add_size_writeable_area(actual_size,
-                                     threading::task_system::worker_id);
+                                     threading::thread_pool::worker_id);
     }
 
     auto Chunk::recombine() -> void {

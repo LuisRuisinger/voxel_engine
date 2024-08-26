@@ -28,13 +28,13 @@ namespace util::camera {
     }
 
     Camera::Camera()
-            : position             { 0.0f, 2.5f, 0.0f }
-            , world_up             { 0.0f, 1.0f, 0.0f }
-            , yaw                  { YAW              }
-            , pitch                { PITCH            }
-            , movement_speed       { SPEED            }
-            , mouse_sensitifity    { SENSITIVITY      }
-            , aa_visible_face_mask { UINT8_MAX        } {
+            : position             { 0.0f, 2.5f, 0.0f },
+              world_up             { 0.0f, 1.0f, 0.0f },
+              yaw                  { YAW              },
+              pitch                { PITCH            },
+              movement_speed       { SPEED            },
+              mouse_sensitifity    { SENSITIVITY      },
+              aa_visible_face_mask { UINT8_MAX        } {
         set_frustum(
                 DEFAULT_FOV,
                 static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),

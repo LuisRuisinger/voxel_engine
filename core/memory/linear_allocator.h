@@ -2,8 +2,8 @@
 // Created by Luis Ruisinger on 01.08.24.
 //
 
-#ifndef OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_THREADSAFE_H
-#define OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_THREADSAFE_H
+#ifndef OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_H
+#define OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_H
 
 #include "memory.h"
 #include "../../util/result.h"
@@ -101,7 +101,7 @@ namespace core::memory::linear_allocator {
     template <
             typename Allocator = std::allocator<u8>,
             unsigned Size = BUFFER_SIZE>
-    class BumpAllocator {
+    class LinearAllocator {
 
         // checks if the allocation API returns a Result type
         template <typename T, typename ...Args>
@@ -129,7 +129,7 @@ namespace core::memory::linear_allocator {
          * @param capacity Underlying buffer size in bytes.
          * @post  Allocated managed buffer of size capacity bytes.
          */
-        explicit BumpAllocator(Allocator *allocator)
+        explicit LinearAllocator(Allocator *allocator)
                 : allocator { allocator },
                   appending { false     }
         {
@@ -158,7 +158,8 @@ namespace core::memory::linear_allocator {
             this->memory = ptr;
 
             // init metadata for the first page
-            const u64 metadata_pad = memory::calculate_padding(ptr, sizeof(Metadata));
+            const u64 metadata_pad =
+                    reinterpret_cast<u64>(memory::ptr_offset(ptr, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata->next = nullptr;
@@ -174,7 +175,7 @@ namespace core::memory::linear_allocator {
         }
 
         template <typename OAllocator, unsigned OSize>
-        explicit BumpAllocator(BumpAllocator<OAllocator, OSize> &&other) noexcept {
+        explicit LinearAllocator(LinearAllocator<OAllocator, OSize> &&other) noexcept {
             ACQUIRE_GUARD(this->appending);
             ACQUIRE_GUARD(other.appending);
 
@@ -187,8 +188,8 @@ namespace core::memory::linear_allocator {
         }
 
         template <typename OAllocator, unsigned OSize>
-        auto operator=(BumpAllocator<OAllocator, OSize> &&other) noexcept
-                -> BumpAllocator<OAllocator, OSize> & {
+        auto operator=(LinearAllocator<OAllocator, OSize> &&other) noexcept
+                -> LinearAllocator<OAllocator, OSize> & {
             ACQUIRE_GUARD(this->appending);
             ACQUIRE_GUARD(other.appending);
 
@@ -202,17 +203,17 @@ namespace core::memory::linear_allocator {
         }
 
         template <typename OAllocator, unsigned OSize>
-        explicit BumpAllocator(const BumpAllocator<OAllocator, OSize> &) =delete;
+        explicit LinearAllocator(const LinearAllocator<OAllocator, OSize> &) =delete;
 
         template <typename OAllocator, unsigned OSize>
-        auto operator=(const BumpAllocator<OAllocator, OSize> &)
-        -> BumpAllocator<OAllocator, OSize> & =delete;
+        auto operator=(const LinearAllocator<OAllocator, OSize> &)
+        -> LinearAllocator<OAllocator, OSize> & =delete;
 
-        ~BumpAllocator() {
+        ~LinearAllocator() {
             u8 *page = this->memory;
 
             while (page) {
-                const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 u8 *dealloc = page;
@@ -237,7 +238,7 @@ namespace core::memory::linear_allocator {
             u8 *page = this->memory;
 
             for (;;) {
-                const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
                 ASSERT_NEQ(
                         reinterpret_cast<u64>(metadata) % sizeof(Metadata),
@@ -246,7 +247,8 @@ namespace core::memory::linear_allocator {
                 for (;;) {
                     u8 *head = metadata->head.load(std::memory_order_relaxed);
                     const u64 buffer_padding =
-                            memory::calculate_padding(head, sizeof(T));
+                            reinterpret_cast<u64>(memory::ptr_offset(head, sizeof(T)));
+                    //const u64 buffer_padding = memory::calculate_padding(head, sizeof(T));
                     const u64 max_size = buffer_padding + len * sizeof(T);
 
                     // check if the remaining size of the page satisfies
@@ -255,10 +257,11 @@ namespace core::memory::linear_allocator {
                         reinterpret_cast<u64>(page) + Size)
                         break;
 
-                    if (!metadata->head.compare_exchange_weak(head,
-                                                              head + max_size,
-                                                              std::memory_order_release,
-                                                              std::memory_order_acquire)) {
+                    if (!metadata->head.compare_exchange_weak(
+                            head,
+                            head + max_size,
+                            std::memory_order_release,
+                            std::memory_order_acquire)) {
                         DEBUG_LOG("CAS failed");
                         continue;
                     }
@@ -300,7 +303,7 @@ namespace core::memory::linear_allocator {
 
             // traverse as long as we hit the first unused page
             while (page) {
-                const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 // page is unused
@@ -326,7 +329,8 @@ namespace core::memory::linear_allocator {
             // deallocate every page after first hit
             ASSERT_EQ(page != this->memory);
             while (page) {
-                const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+                const u64 pad =
+                        reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 u8 *dealloc = page;
@@ -336,7 +340,8 @@ namespace core::memory::linear_allocator {
             }
 
             // the last valid page loses reference to its following pages
-            const u64 pad = memory::calculate_padding(last_valid_page, sizeof(Metadata));
+            const u64 pad =
+                    reinterpret_cast<u64>(memory::ptr_offset(last_valid_page, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(last_valid_page + pad);
             metadata->next = nullptr;
         }
@@ -372,12 +377,13 @@ namespace core::memory::linear_allocator {
             }
 
             // appending the new page
-            const u64 pad = memory::calculate_padding(page, sizeof(Metadata));
+            const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(page + pad);
             metadata->next = ptr;
 
             // init metadata for the new page
-            const u64 metadata_pad = memory::calculate_padding(ptr, sizeof(Metadata));
+            const u64 metadata_pad =
+                    reinterpret_cast<u64>(memory::ptr_offset(ptr, sizeof(Metadata)));
             auto *metadata_ptr = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata_ptr->next = nullptr;
@@ -406,9 +412,9 @@ namespace core::memory::linear_allocator {
         u8 *memory;
 
         /** @brief Indicating if a thread is currently requesting a new page */
-        std::atomic<bool> appending;
+        alignas(CACHE_LINE_SIZE) std::atomic<bool> appending;
     };
 }
 
 
-#endif //OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_THREADSAFE_H
+#endif //OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_H

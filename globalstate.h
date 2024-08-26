@@ -123,8 +123,8 @@ private:
     static core::level::presenter::Presenter presenter;
 
     // threading
-    static core::threading::task_system::Tasksystem<> render_pool;
-    static core::threading::task_system::Tasksystem<> chunk_pool;
+    static core::threading::thread_pool::Tasksystem<> render_pool;
+    static core::threading::thread_pool::Tasksystem<> chunk_pool;
     static core::threading::executor::ScheduledExecutor<> executor;
 
     // player

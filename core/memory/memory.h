@@ -11,18 +11,19 @@
 #include <ranges>
 #include <atomic>
 
-#include "../util/aliases.h"
+#include "../../util/aliases.h"
 #include "../util/assert.h"
 
-#define KByte(_v)  ((_v) * 1000)
-#define MByte(_v)  ((_v) * 1000 * 1000)
-#define GByte(_v)  ((_v) * 1000 * 1000 * 1000)
+#define KByte(_v)       ((_v) * 1000)
+#define MByte(_v)       ((_v) * 1000 * 1000)
+#define GByte(_v)       ((_v) * 1000 * 1000 * 1000)
 
-#define KiByte(_v) ((_v) * 1024)
-#define MiByte(_v) ((_v) * 1024 * 1024)
-#define GiByte(_v) ((_v) * 1024 * 1024)
+#define KiByte(_v)      ((_v) * 1024)
+#define MiByte(_v)      ((_v) * 1024 * 1024)
+#define GiByte(_v)      ((_v) * 1024 * 1024)
 
-#define HUGE_PAGE  (MiByte(2))
+#define HUGE_PAGE       (MiByte(2))
+#define CACHE_LINE_SIZE 64
 
 namespace core::memory::memory {
     template <typename T>
@@ -44,17 +45,11 @@ namespace core::memory::memory {
         MEMORY_GUARD_ACTIVE
     };
 
-    inline auto calculate_padding(const u8 *addr, u64 align) -> u64 {
-        u64 addr_missalignment = reinterpret_cast<u64>(addr) % align;
-        u64 addr_padding = addr_missalignment
-                ? (align - addr_missalignment)
-                : 0;
-
-        ASSERT_NEQ(
-                reinterpret_cast<u64>(addr + addr_padding) % align,
-                "address is not aligned");
-        return addr_padding;
+    inline auto ptr_offset(void *ptr, size_t align) noexcept -> void * {
+        return reinterpret_cast<void *>((-reinterpret_cast<intptr_t>(ptr)) & (align - 1));
     }
+
+
 }
 
 #endif //OPENGL_3D_ENGINE_MEMORY_H

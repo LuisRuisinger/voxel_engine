@@ -79,7 +79,7 @@ add_executable(
         util/perlin_noise.hpp
         util/tagged_ptr.h
         util/binary_conversion.h
-        core/memory/linear_allocator_threadsafe.h
+        core/memory/linear_allocator.h
         core/memory/memory.h
         core/memory/arena_allocator.h
         core/memory/arena_allocator.cpp

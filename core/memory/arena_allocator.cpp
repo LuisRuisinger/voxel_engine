@@ -70,7 +70,7 @@ namespace core::memory::arena_allocator {
 
         // linear search for page
         while (page && page->ptr != ptr)
-            page = page->next.load(std::memory_order_relaxed);
+            page = page->next.load(std::memory_order_acquire);
 
         // the page must exist
         ASSERT_EQ(page);

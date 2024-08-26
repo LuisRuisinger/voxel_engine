@@ -30,10 +30,10 @@ namespace core::level::platform {
         ~Platform() =default;
 
         auto tick(
-                threading::task_system::Tasksystem<> &,
+                threading::thread_pool::Tasksystem<> &,
                 util::camera::Camera &) -> void;
         auto frame(
-                threading::task_system::Tasksystem<> &,
+                threading::thread_pool::Tasksystem<> &,
                 util::camera::Camera &) -> void;
         auto get_world_root() const -> glm::vec2;
         auto get_presenter() const -> presenter::Presenter &;
@@ -43,7 +43,7 @@ namespace core::level::platform {
                 typename ...Args,
                 typename Ret = std::invoke_result_t<Func, chunk::Chunk*, Args...>>
         requires util::reflections::has_member_v<chunk::Chunk, Func>
-        INLINE auto request_handle(threading::task_system::Tasksystem<> &,
+        INLINE auto request_handle(threading::thread_pool::Tasksystem<> &,
                                    Func func,
                                    Args &&...args) const -> Ret {
             using namespace util::reflections;
@@ -53,8 +53,8 @@ namespace core::level::platform {
         auto get_visible_faces(util::camera::Camera &camera) -> size_t;
 
     private:
-        auto unload_chunks(threading::task_system::Tasksystem<> &) -> Platform &;
-        auto load_chunks(threading::task_system::Tasksystem<> &, glm::vec2) -> Platform &;
+        auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> Platform &;
+        auto load_chunks(threading::thread_pool::Tasksystem<> &, glm::vec2) -> Platform &;
         auto swap_chunks(glm::vec2) -> Platform &;
         auto init_chunk_neighbours(i32,
                                    i32,
