@@ -30,6 +30,7 @@ using f64 = double_t;
 #define SQRT_2          1.4142135623730951F
 #define DEFAULT_WIDTH   1920
 #define DEFAULT_HEIGHT  1080
+#define CACHE_LINE_SIZE 64
 
 #define LEFT_BIT        (static_cast<u64>(0x1)  << 55)
 #define RIGHT_BIT       (static_cast<u64>(0x1)  << 54)

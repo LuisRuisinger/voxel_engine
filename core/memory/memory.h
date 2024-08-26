@@ -14,16 +14,15 @@
 #include "../../util/aliases.h"
 #include "../util/assert.h"
 
-#define KByte(_v)       ((_v) * 1000)
-#define MByte(_v)       ((_v) * 1000 * 1000)
-#define GByte(_v)       ((_v) * 1000 * 1000 * 1000)
+#define KByte(_v)  ((_v) * 1000)
+#define MByte(_v)  ((_v) * 1000 * 1000)
+#define GByte(_v)  ((_v) * 1000 * 1000 * 1000)
 
-#define KiByte(_v)      ((_v) * 1024)
-#define MiByte(_v)      ((_v) * 1024 * 1024)
-#define GiByte(_v)      ((_v) * 1024 * 1024)
+#define KiByte(_v) ((_v) * 1024)
+#define MiByte(_v) ((_v) * 1024 * 1024)
+#define GiByte(_v) ((_v) * 1024 * 1024)
 
-#define HUGE_PAGE       (MiByte(2))
-#define CACHE_LINE_SIZE 64
+#define HUGE_PAGE  (MiByte(2))
 
 namespace core::memory::memory {
     template <typename T>
