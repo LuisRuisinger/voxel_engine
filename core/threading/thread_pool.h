@@ -74,8 +74,8 @@ namespace core::threading::thread_pool {
             for (size_t n = 0; n < this->thread_instance_count; ++n) {
                 if (this->task_queue[(i + n) % this->thread_instance_count].try_push(
                         std::forward<F>(f))) {
-                    this->enqueued_tasks_count.fetch_add(1, std::memory_order_release);
-                    this->active_tasks_count.fetch_add(1, std::memory_order_release);
+                    this->enqueued_tasks_count.fetch_add(1, std::memory_order_relaxed);
+                    this->active_tasks_count.fetch_add(1, std::memory_order_relaxed);
                     this->tasks_available.notify_one();
 
                     return true;
@@ -171,8 +171,10 @@ namespace core::threading::thread_pool {
          *                If set to 0 no timeout will be applied.
          */
         auto wait_for_tasks() -> void {
-            while (!no_tasks())
-                std::this_thread::yield();
+            std::unique_lock lock { this->mutex };
+            this->tasks_finished.wait(lock, [this] {
+                return no_tasks();
+            });
         }
 
         /**
@@ -180,7 +182,7 @@ namespace core::threading::thread_pool {
          *         Non-blocking.
          * @return Boolean value to indicate if batch is finished.
          */
-        auto no_tasks() -> bool {
+        inline auto no_tasks() -> bool {
             return this->enqueued_tasks_count.load(std::memory_order_acquire) == 0 &&
                    this->active_tasks_count.load(std::memory_order_acquire) == 0;
         }
@@ -204,7 +206,7 @@ namespace core::threading::thread_pool {
             Function_type task;
             bool dequeue;
 
-            while (this->worker_runflag) {
+            while (this->worker_runflag.load(std::memory_order_relaxed)) {
                 {
                     std::unique_lock<std::mutex> lock { this->mutex };
                     this->tasks_available.wait(lock, [this] {
@@ -213,28 +215,27 @@ namespace core::threading::thread_pool {
                     });
                 }
 
-                dequeue = false;
-                while (!dequeue && this->worker_runflag.load(std::memory_order_acquire)) {
+                for (;;) {
 
                     // searches for the first lockable queue containing a task
                     // if no task has been found the loop wraps around
                     // and tries again for the queue identified with the thread index
                     for (size_t n = 0; n < this->thread_instance_count + 1; ++n) {
-                        if (this->enqueued_tasks_count.load(std::memory_order_acquire) == 0)
-                            break;
-
-                        if (this->task_queue[(i + n) % this->thread_instance_count].try_pop(task)) {
-                            dequeue = true;
-                            this->enqueued_tasks_count.fetch_sub(1, std::memory_order_release);
+                        if (this->task_queue[(i + n) %
+                            this->thread_instance_count].try_pop(task)) {
+                            this->enqueued_tasks_count.fetch_sub(1, std::memory_order_relaxed);
                             task();
 
-                            this->active_tasks_count.fetch_sub(1, std::memory_order_release);
-                            break;
+                            this->active_tasks_count.fetch_sub(1, std::memory_order_relaxed);
                         }
                     }
 
-                    if (this->enqueued_tasks_count.load(std::memory_order_acquire) == 0)
+                    if (!this->enqueued_tasks_count.load(std::memory_order_acquire)) {
+                        if (!this->active_tasks_count.load(std::memory_order_acquire))
+                            this->tasks_finished.notify_all();
+
                         break;
+                    }
                 }
             }
         }

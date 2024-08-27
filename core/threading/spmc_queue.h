@@ -15,7 +15,7 @@
 
 namespace core::threading::spmc_queue {
 
-    template <typename T, unsigned Capacity = 128>
+    template <typename T, unsigned Capacity = 512>
     class SPMCQueue {
     public:
         SPMCQueue()
