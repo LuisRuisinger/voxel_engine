@@ -3,74 +3,79 @@
 //
 
 #include "shader.h"
+#include "../../util/log.h"
 
 namespace core::rendering::shader {
-    Shader::Shader(const char *vertexPath, const char *fragmentPath) {
-        std::ifstream vShaderFile;
-        std::ifstream fShaderFile;
+    auto Shader::init(
+            const char *vertex_path, 
+            const char *fragment_path) ->  Result<void, Error> {
+        std::ifstream vertex_shader_ifstream;
+        std::ifstream fragment_shader_ifstream;
 
-        std::filesystem::path basePath = std::filesystem::path(__FILE__).parent_path();
+        std::filesystem::path base_path = std::filesystem::path(__FILE__).parent_path();
+        std::filesystem::path full_vertex_path = base_path / "shaders" / vertex_path;
+        std::filesystem::path full_fragment_path = base_path / "shaders" / fragment_path;
 
-        std::filesystem::path fullVertexPath   = basePath / "shaders" / vertexPath;
-        std::filesystem::path fullFragmentPath = basePath / "shaders" / fragmentPath;
-
-        vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        vertex_shader_ifstream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        fragment_shader_ifstream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
         try {
-            vShaderFile.open(fullVertexPath);
-            fShaderFile.open(fullFragmentPath);
+            vertex_shader_ifstream.open(full_vertex_path);
+            fragment_shader_ifstream.open(full_fragment_path);
 
-            std::stringstream vShaderStream, fShaderStream;
+            std::stringstream vertex_shader_sstream, fragment_shader_sstream;
 
-            vShaderStream << vShaderFile.rdbuf();
-            fShaderStream << fShaderFile.rdbuf();
+            vertex_shader_sstream << vertex_shader_ifstream.rdbuf();
+            fragment_shader_sstream << fragment_shader_ifstream.rdbuf();
 
-            vShaderFile.close();
-            fShaderFile.close();
+            vertex_shader_ifstream.close();
+            fragment_shader_ifstream.close();
 
-            std::string vertexCode   = vShaderStream.str();
-            std::string fragmentCode = fShaderStream.str();
+            std::string vertexCode = vertex_shader_sstream.str();
+            std::string fragmentCode = fragment_shader_sstream.str();
 
-            const char *vShaderCode = vertexCode.c_str();
-            const char *fShaderCode = fragmentCode.c_str();
+            const char *vertex_shader_code = vertexCode.c_str();
+            const char *fragment_shader_code = fragmentCode.c_str();
 
             i32  success;
             char infoLog[512];
 
             // vertex Shader
             u32 vertex = glCreateShader(GL_VERTEX_SHADER);
-            glShaderSource(vertex, 1, &vShaderCode, nullptr);
+            glShaderSource(vertex, 1, &vertex_shader_code, nullptr);
             glCompileShader(vertex);
 
             glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
             if(!success) {
                 glGetShaderInfoLog(vertex, 512, nullptr, (char *) infoLog);
-                std::cerr << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << (char *) infoLog << std::endl;
+                LOG(util::log::LOG_LEVEL_ERROR, reinterpret_cast<char *>(infoLog));
+                return Err(Error::VERTEX_SHADER_COMPILATION_FAILED);
             }
 
             // fragment Shader
             u32 fragment = glCreateShader(GL_FRAGMENT_SHADER);
-            glShaderSource(fragment, 1, &fShaderCode, nullptr);
+            glShaderSource(fragment, 1, &fragment_shader_code, nullptr);
             glCompileShader(fragment);
 
             glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
             if(!success) {
                 glGetShaderInfoLog(fragment, 512, nullptr, (char *) infoLog);
-                std::cerr << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << (char *) infoLog << std::endl;
+                LOG(util::log::LOG_LEVEL_ERROR, reinterpret_cast<char *>(infoLog));
+                return Err(Error::FRAGMENT_SHADER_COMPILATION_FAILED);
             }
 
             // shader Program
-            this->_ID = glCreateProgram();
-            glAttachShader(this->_ID, vertex);
-            glAttachShader(this->_ID, fragment);
-            glLinkProgram(this->_ID);
+            this->id = glCreateProgram();
+            glAttachShader(this->id, vertex);
+            glAttachShader(this->id, fragment);
+            glLinkProgram(this->id);
 
             // print linking errors if any
-            glGetProgramiv(this->_ID, GL_LINK_STATUS, &success);
+            glGetProgramiv(this->id, GL_LINK_STATUS, &success);
             if(!success) {
-                glGetProgramInfoLog(this->_ID, 512, nullptr, (char *) infoLog);
-                std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << (char *) infoLog << std::endl;
+                glGetProgramInfoLog(this->id, 512, nullptr, (char *) infoLog);
+                LOG(util::log::LOG_LEVEL_ERROR, reinterpret_cast<char *>(infoLog));
+                return Err(Error::SHADER_LINKING_FAILED);
             }
 
             // delete the shaders as they're linked into our program now and no longer necessary
@@ -78,44 +83,42 @@ namespace core::rendering::shader {
             glDeleteShader(fragment);
         }
         catch(std::ifstream::failure &err) {
-            std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
+            return Err(Error::FILE_STREAM_ERROR);
         }
+
+        return Ok();
     }
 
-    auto Shader::use() -> void {
-        glUseProgram(this->_ID);
+    auto Shader::use() const -> void {
+        glUseProgram(this->id);
     }
 
     auto Shader::registerUniformLocation(std::string name) const -> void {
-        auto location = glGetUniformLocation(this->_ID, name.c_str());
-        this->uniformCache[name] = location;
+        auto location = glGetUniformLocation(this->id, name.c_str());
+        this->uniform_cache[name] = location;
     }
 
-    auto Shader::setBool(std::string name, bool value) const -> void {
-        glUniform1i(uniformCache[name], value);
+    auto Shader::operator[](std::string name) const -> Impl & {
+        return this->uniform_values[name];
     }
 
-    auto Shader::setInt(std::string name, i32 value) const -> void {
-        glUniform1i(uniformCache[name], value);
-    }
-
-    auto Shader::setFloat(std::string name, f32 value) const -> void {
-        glUniform1f(uniformCache[name], value);
-    }
-
-    auto Shader::setVec2(std::string name, glm::vec2 vec) const -> void {
-        glUniform2f(uniformCache[name], vec.x, vec.y);
-    }
-
-    auto Shader::setVec3(std::string name, glm::vec3 vec) const -> void {
-        glUniform3f(uniformCache[name], vec.x, vec.y, vec.z);
-    }
-
-    auto Shader::setMat4(std::string name, glm::mat4 &mat) -> void {
-        glUniformMatrix4fv(uniformCache[name], 1, GL_FALSE, glm::value_ptr(mat));
-    }
-
-    auto Shader::setUint(std::string name, u32 value) const -> void {
-        glUniform1ui(uniformCache[name], value);
+    auto Shader::upload_uniforms() const -> void {
+        for (auto &[k, v] : this->uniform_values)
+            std::visit(overload {
+                [&](bool &arg) {
+                    glUniform1i(this->uniform_cache[k], arg); },
+                [&](i32 &arg) {
+                    glUniform1i(this->uniform_cache[k], arg); },
+                [&](u32 &arg) {
+                    glUniform1ui(this->uniform_cache[k], arg); },
+                [&](f32 &arg) {
+                    glUniform1f(this->uniform_cache[k], arg); },
+                [&](glm::vec2 &arg) {
+                    glUniform2f(this->uniform_cache[k], arg.x, arg.y); },
+                [&](glm::vec3 &arg) {
+                    glUniform3f(this->uniform_cache[k], arg.x, arg.y, arg.z); },
+                [&](glm::mat4 &arg) {
+                    glUniformMatrix4fv(uniform_cache[k], 1, GL_FALSE, glm::value_ptr(arg)); }
+                }, v);
     }
 }

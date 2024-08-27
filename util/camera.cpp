@@ -19,12 +19,7 @@ namespace util::camera {
               movement_speed       { SPEED       },
               mouse_sensitifity    { SENSITIVITY },
               aa_visible_face_mask { UINT8_MAX   } {
-        set_frustum(
-                DEFAULT_FOV,
-                static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),
-                0.1F,
-                CHUNK_SIZE * (RENDER_RADIUS * 2));
-        update();
+        init();
     }
 
     Camera::Camera()
@@ -35,12 +30,17 @@ namespace util::camera {
               movement_speed       { SPEED            },
               mouse_sensitifity    { SENSITIVITY      },
               aa_visible_face_mask { UINT8_MAX        } {
+        init();
+    }
+
+    auto Camera::init() -> void {
         set_frustum(
                 DEFAULT_FOV,
                 static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),
                 0.1F,
                 CHUNK_SIZE * (RENDER_RADIUS * 2));
         update();
+        set_projection_matrix(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
 
     void Camera::move_camera(Camera_Movement direction, float delta_time) {
@@ -86,6 +86,10 @@ namespace util::camera {
         this->front = glm::normalize(this->front);
         this->right = glm::normalize(glm::cross(this->front, this->world_up));
         this->up = glm::normalize(glm::cross(this->right, this->front));
+        this->view_matrix = glm::lookAt(
+                this->position,
+                this->position + this->front,
+                this->up);
 
         set_frustum_definition(this->position, this->front + this->position, this->up);
 
@@ -138,7 +142,20 @@ namespace util::camera {
         return this->aa_visible_face_mask;
     }
 
-    auto Camera::get_view_matrix() const -> glm::mat4 {
-        return glm::lookAt(this->position, this->position + this->front, this->up);
+    auto Camera::get_view_matrix() const -> const glm::mat4 & {
+        return this->view_matrix;
+    }
+
+    auto Camera::set_projection_matrix(i32 width, i32 height) -> void {
+        this->projection_matrix =
+                glm::perspective(
+                        glm::radians(45.0f),
+                        static_cast<f32>(width) / static_cast<f32>(height),
+                        0.1f,
+                        static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE));
+    }
+
+    auto Camera::get_projection_matrix() -> const glm::mat4 & {
+        return this->projection_matrix;
     }
 }

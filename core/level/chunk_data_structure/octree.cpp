@@ -18,12 +18,12 @@ namespace core::level::octree {
     auto Octree::cull(
             const glm::vec3 &position,
             const util::camera::Camera &camera,
-            platform::Platform &platform,
+            state::State &state,
             const VERTEX *voxelVec,
             u64 &actual_size) const
             -> void {
         node::Args args = {
-                position, camera, platform, voxelVec, actual_size
+                position, camera, state, voxelVec, actual_size
         };
         this->_root->cull(args, util::culling::INTERSECT);
     }

@@ -15,28 +15,20 @@
 
 #include "../../util/aliases.h"
 #include "../../util/reflections.h"
+#include "../state.h"
 
 #define MAX_RENDER_VOLUME (static_cast<u32>(RENDER_RADIUS * RENDER_RADIUS * 2 * 2))
-
-namespace core::level::presenter {
-    class Presenter;
-}
 
 namespace core::level::platform {
 
     class Platform {
     public:
-        Platform(presenter::Presenter &presenter);
+        Platform() =default;
         ~Platform() =default;
 
-        auto tick(
-                threading::thread_pool::Tasksystem<> &,
-                util::camera::Camera &) -> void;
-        auto frame(
-                threading::thread_pool::Tasksystem<> &,
-                util::camera::Camera &) -> void;
+        auto tick(state::State &) -> void;
+        auto frame(state::State &state) -> void;
         auto get_world_root() const -> glm::vec2;
-        auto get_presenter() const -> presenter::Presenter &;
 
         template <
                 typename Func,
@@ -68,7 +60,6 @@ namespace core::level::platform {
         std::vector<std::pair<u32, chunk::Chunk *>> active_chunks_vec;
 
         glm::vec2                                   current_root   = {0.0F, 0.0F};
-        presenter::Presenter                       &presenter;
         std::mutex                                  mutex;
         std::atomic_bool                            queue_ready    = false;
         std::atomic_bool                            platform_ready = false;

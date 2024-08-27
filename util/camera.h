@@ -43,6 +43,8 @@ namespace util::camera {
         auto operator=(const Camera &) -> Camera & =delete;
         auto operator=(Camera &&) noexcept -> Camera & =default;
 
+        auto init() -> void;
+
         auto move_camera(Camera_Movement, f32) -> void;
         auto rotate_camera(f32, f32) -> void;
 
@@ -55,12 +57,14 @@ namespace util::camera {
         auto frustum_collision(glm::vec3, u32 ) const -> culling::CollisionType;
         auto frustum_collision(glm::vec2, u32) const -> culling::CollisionType;
 
-
         auto get_position() const -> glm::vec3;
         auto get_front() const ->  glm::vec3;
         auto get_mask() const -> u8;
-        auto get_view_matrix() const -> glm::mat4;
+        auto get_view_matrix() const -> const glm::mat4 &;
         auto update() -> void;
+
+        auto set_projection_matrix(i32, i32) -> void;
+        auto get_projection_matrix() -> const glm::mat4 &;
 
     private:
 
@@ -70,6 +74,10 @@ namespace util::camera {
         glm::vec3 up;
         glm::vec3 right;
         glm::vec3 world_up;
+
+        // matrices
+        glm::mat4 view_matrix;
+        glm::mat4 projection_matrix;
 
         // angles and 2d plane position
         f32 yaw;

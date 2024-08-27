@@ -112,8 +112,6 @@ namespace core::opengl::opengl_key_map {
         keys[GLFW_KEY_RIGHT_CONTROL]   = Keymap::RIGHT_CONTROL;
     }
 
-
-
     auto OpenGLKeyMap::remove_callback(Action action, Keymap key) -> void {
         switch (action) {
             case ON_PRESSED: this->on_pressed.erase(key); break;

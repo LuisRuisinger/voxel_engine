@@ -31,6 +31,7 @@ using f64 = double_t;
 #define DEFAULT_WIDTH   1920
 #define DEFAULT_HEIGHT  1080
 #define CACHE_LINE_SIZE 64
+#define MAX_VERTICES_BUFFER (static_cast<u32>(131072 * 2.5))
 
 #define LEFT_BIT        (static_cast<u64>(0x1)  << 55)
 #define RIGHT_BIT       (static_cast<u64>(0x1)  << 54)

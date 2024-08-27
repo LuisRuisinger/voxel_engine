@@ -169,6 +169,7 @@ namespace core::level::node_inline {
     inline static
     auto insertNode(u64 packed_voxel, u32 data, node::Node *current) -> node::Node * {
         for(;;) {
+            ASSERT_EQ(current);
             if ((1 << (data & MASK_3)) == BASE_SIZE) {
 
                 // setting all faces to visible

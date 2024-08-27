@@ -16,43 +16,42 @@
 #include "../../util/aliases.h"
 #include "shader.h"
 #include "../../util/camera.h"
-
-#define MAX_VERTICES_BUFFER (static_cast<u32>(131072 * 2.5))
+#include "../state.h"
+#include "../../util/renderable.h"
 
 namespace core::rendering::renderer {
-    Enum(Buffer, VAO, VBO, EBO);
+    using namespace util::renderable;
+
+    enum RenderType : u32 {
+        CHUNK_RENDERER,
+        MODEL_RENDERER,
+        WATER_RENDERER,
+        UI_RENDERER,
+        DIAGNOSTICS_RENDERER
+    };
 
     class Renderer {
     public:
-        Renderer();
-        ~Renderer() = default;
+        Renderer() =default;
+        ~Renderer() =default;
 
         // renderer init
         auto init_ImGui(GLFWwindow *) -> void;
-        auto init_shaders() -> void;
         auto init_pipeline() -> void;
 
-        // per frame pipeline
-        auto prepare_frame(util::camera::Camera &camera) -> void;
-        auto update_buffer(const VERTEX *, size_t) -> void;
-        auto frame() -> void;
+        // per sub_renderer operations
+        auto prepare_frame(state::State &) -> void;
+        auto frame(state::State &state) -> void;
 
-        // uniforms
-        auto update_projection_matrix(i32, i32) -> void;
-        auto update_current_global_base(glm::vec2) -> void;
-        auto update_render_distance(u32) -> void;
-
-        // getter
-        auto get_batch_size() const -> u64;
+        auto add_sub_renderer(RenderType, Renderable<BaseInterface> *) -> void;
+        auto get_sub_renderer(RenderType) -> Renderable<BaseInterface> &;
+        auto remove_sub_renderer(RenderType) -> void;
 
     private:
-        std::unique_ptr<shader::Shader> shader;
-        glm::mat4 projection_matrix;
+        std::unordered_map<
+                RenderType,
+                Renderable<BaseInterface> *> sub_renderer;
 
-        std::atomic<size_t> vertex_buffer_size;
-        std::vector<u32> indices;
-
-        GLuint gpu_buffers[Buffer::count];
     };
 }
 

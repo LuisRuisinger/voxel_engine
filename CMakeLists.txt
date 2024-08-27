@@ -70,8 +70,6 @@ add_executable(
         core/level/chunk_data_structure/node.cpp
         core/level/chunk_data_structure/node_inline.h
         core/rendering/interface.cpp
-        core/level/presenter.cpp
-        core/level/presenter.h
         util/log.cpp
         util/log.h
         util/assert.h
@@ -91,6 +89,8 @@ add_executable(
         util/player.h
         util/interactable.h
         core/opengl/opengl_verify.h
+        core/level/chunk/chunk_renderer.cpp
+        core/level/chunk/chunk_renderer.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

@@ -16,17 +16,18 @@
 
 #include "../../../util/aliases.h"
 #include "glad/glad.h"
-#include "../../rendering/renderer.h"
+#include "../../../util/culling.h"
+#include "../../../util/camera.h"
 
-namespace core::level::platform {
-    class Platform;
+namespace core::state {
+    class State;
 }
 
 namespace core::level::node {
     struct Args {
         const glm::vec3 &_point;
         const util::camera::Camera &_camera;
-        platform::Platform &_platform;
+        state::State &state;
         const VERTEX *_voxelVec;
         u64 &actual_size;
     };

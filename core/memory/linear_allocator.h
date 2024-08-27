@@ -240,9 +240,9 @@ namespace core::memory::linear_allocator {
             for (;;) {
                 const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
-                ASSERT_NEQ(
-                        reinterpret_cast<u64>(metadata) % sizeof(Metadata),
-                        "missaligned page metadata");
+                ASSERT_EQ(
+                        reinterpret_cast<u64>(metadata) % sizeof(Metadata) == 0,
+                        std::to_string(reinterpret_cast<u64>(metadata) % sizeof(Metadata)));
 
                 for (;;) {
                     u8 *head = metadata->head.load(std::memory_order_relaxed);

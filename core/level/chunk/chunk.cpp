@@ -4,9 +4,9 @@
 #include <random>
 
 #include "chunk.h"
-#include "../presenter.h"
 #include "../../../util/assert.h"
 #include "../chunk_data_structure/voxel_data_layout.h"
+#include "chunk_renderer.h"
 
 namespace core::level::chunk {
     auto Chunk::Faces::operator[](u64 mask) -> u64 & {
@@ -25,6 +25,11 @@ namespace core::level::chunk {
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments.emplace_back(i);
+
+#ifdef DEBUG
+        for (const auto &ref : this->chunk_segments)
+            ASSERT_EQ(ref.root.get());
+#endif
     }
 
     auto Chunk::generate(platform::Platform *platform) -> void {
@@ -188,13 +193,11 @@ namespace core::level::chunk {
                 (x << 10) | (y << 5) | z);
     }
 
-    auto Chunk::cull(
-            const util::camera::Camera &camera,
-            platform::Platform &platform) const -> void {
+    auto Chunk::cull(state::State &state) const -> void {
         auto global_root = glm::vec3 {
-                platform.get_world_root().x,
+                state.platform.get_world_root().x,
                 0,
-                platform.get_world_root().y
+                state.platform.get_world_root().y
         };
 
         auto offset = static_cast<f32>(CHUNK_SIZE) * glm::vec3 {
@@ -210,31 +213,32 @@ namespace core::level::chunk {
         if (!sum)
             return;
 
-        auto *buffer = platform
-                .get_presenter()
-                .request_writeable_area(sum,
-                                        threading::thread_pool::worker_id);
+        auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
+                        .request_writeable_area(sum, threading::thread_pool::worker_id);
 
         u64 actual_size = 0;
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
-            if (this->chunk_segments[i].initialized)
+            if (this->chunk_segments[i].initialized) {
+                const auto pos = global_root + offset + glm::vec3 {
+                    0.0F,
+                    i * static_cast<f32>(CHUNK_SIZE),
+                    0.0F
+                };
+
                 this->chunk_segments[i].root->cull(
-                        global_root + offset + glm::vec3 {
-                            0.0F,
-                            i * static_cast<f32>(CHUNK_SIZE),
-                            0.0F
-                        },
-                        camera,
-                        platform,
+                        pos,
+                        state.player.get_camera(),
+                        state,
                         buffer,
                         actual_size);
+            }
         }
 
         ASSERT_EQ(actual_size <= sum);
-        platform
-            .get_presenter()
-            .add_size_writeable_area(actual_size,
-                                     threading::thread_pool::worker_id);
+        reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
+                        .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
     }
 
     auto Chunk::recombine() -> void {
@@ -258,13 +262,12 @@ namespace core::level::chunk {
     }
 
     auto Chunk::update_and_render(u16 nchunk_idx,
-                                  const util::camera::Camera &camera,
-                                  platform::Platform &platform) -> void {
+                                  state::State &state) -> void {
         this->chunk_idx = nchunk_idx & 0xFFF;
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments[i].root->update_chunk_mask((this->chunk_idx << 4) | i);
 
-        cull(camera, platform);
+        cull(state);
     }
 
     auto Chunk::index() const -> u16 {

@@ -241,8 +241,8 @@ namespace core::threading::thread_pool {
 
         const u32                                   thread_instance_count;
         std::vector<std::thread>                    thread_instances;
-        // std::vector<ThreadsafeQueue<Function_type>> task_queue;
-        std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
+        std::vector<ThreadsafeQueue<Function_type>> task_queue;
+        // std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
 
         std::atomic_size_t enqueued_tasks_count = 0;
         std::atomic_size_t active_tasks_count = 0;

@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include "node_inline.h"
-#include "../presenter.h"
+#include "../chunk/chunk_renderer.h"
 
 namespace core::level::node {
 
@@ -136,7 +136,10 @@ namespace core::level::node {
         }
         else {
             ASSERT_EQ(faces);
-            const auto &ref = args._platform.get_presenter().get_structure(0).mesh();
+            const auto &ref =
+                    reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                            args.state.renderer.get_sub_renderer(
+                                    rendering::renderer::CHUNK_RENDERER))[0].mesh();
 
             #ifdef __AVX2__
             __m256i voxelVec = _mm256_set1_epi64x(this->packed_data & vertex_clear_mask);

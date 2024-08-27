@@ -45,7 +45,16 @@ namespace core::memory::memory {
     };
 
     inline auto ptr_offset(void *ptr, size_t align) noexcept -> void * {
-        return reinterpret_cast<void *>((-reinterpret_cast<intptr_t>(ptr)) & (align - 1));
+        // return reinterpret_cast<void *>((-reinterpret_cast<intptr_t>(ptr)) & (align - 1));
+        u64 addr_missalignment = reinterpret_cast<u64>(ptr) % align;
+        u64 addr_padding = addr_missalignment
+                           ? (align - addr_missalignment)
+                           : 0;
+
+        ASSERT_NEQ(
+                reinterpret_cast<u64>(static_cast<u8 *>(ptr) + addr_padding) % align,
+                "address is not aligned");
+        return reinterpret_cast<void *>(addr_padding);
     }
 
 

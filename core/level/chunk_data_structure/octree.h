@@ -31,7 +31,7 @@ namespace core::level::octree {
         auto cull(
                 const glm::vec3 &,
                 const util::camera::Camera &,
-                platform::Platform &,
+                state::State &,
                 const VERTEX *,
                 u64 &) const
                 -> void;

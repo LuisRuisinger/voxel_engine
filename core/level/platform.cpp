@@ -22,18 +22,17 @@
     (DISTANCE_2D((_p1), (_p2)) >= CHUNK_SIZE * 2)
 
 namespace core::level::platform {
-    Platform::Platform(presenter::Presenter &_presenter)
-        : presenter { _presenter }
-    {}
 
     /**
      * @brief Update platform if needed. Load new chunks if threshold is hit.
      * @param thread_pool Pool to offload tasks.
      * @param camera Current active camera.
      */
-    auto Platform::tick(threading::thread_pool::Tasksystem<> &thread_pool,
-                        util::camera::Camera &camera) -> void {
-        const auto &cameraPos = camera.get_position();
+    auto Platform::tick(state::State &state) -> void {
+        const auto &cameraPos = state.player
+                .get_camera()
+                .get_position();
+
         const auto new_root = glm::vec2{
             static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / CHUNK_SIZE)) * CHUNK_SIZE),
             static_cast<i32>(std::lround(static_cast<i32>(cameraPos.z / CHUNK_SIZE)) * CHUNK_SIZE)
@@ -49,9 +48,9 @@ namespace core::level::platform {
             (LOAD_THRESHOLD(this->current_root, new_root) || !this->platform_ready)) {
 
             DEBUG_LOG(new_root);
-            load_chunks(thread_pool, new_root)
+            load_chunks(state.chunk_tick_pool, new_root)
                 .swap_chunks(new_root)
-                .unload_chunks(thread_pool);
+                .unload_chunks(state.chunk_tick_pool);
         }
     }
 
@@ -206,19 +205,16 @@ namespace core::level::platform {
      * @param thread_pool Parallel traversal of single chunks.
      * @param camera      Active camera for this frame.
      */
-    auto Platform::frame(threading::thread_pool::Tasksystem<> &thread_pool,
-                         util::camera::Camera &camera) -> void {
+    auto Platform::frame(state::State &state) -> void {
         static auto update_render_fun = [](u16 idx,
                                            chunk::Chunk *ptr,
-                                           util::camera::Camera &camera,
-                                           Platform &platform) -> void {
-            ptr->update_and_render(idx, camera, platform);
+                                           state::State &state) -> void {
+            ptr->update_and_render(idx, state);
         };
 
         static auto render_fun = [](chunk::Chunk *ptr,
-                                    util::camera::Camera &camera,
-                                    Platform &platform) -> void {
-            ptr->cull(camera, platform);
+                                    state::State &state) -> void {
+            ptr->cull(state);
         };
 
         // check if new chunks need to be added to the active pool
@@ -229,11 +225,11 @@ namespace core::level::platform {
         if (this->queue_ready) {
             for (const auto& [k, v] : this->active_chunks_vec) {
                 if (v) {
-                    thread_pool.enqueue_detach(update_render_fun,
-                                               k,
-                                               v,
-                                               std::ref(camera),
-                                               std::ref(*this));
+                    state.render_pool.enqueue_detach(
+                            update_render_fun,
+                            k,
+                            v,
+                            state);
                 }
             }
 
@@ -242,24 +238,19 @@ namespace core::level::platform {
         else [[likely]] {
             for (const auto& [_, v] : this->active_chunks_vec) {
                 if (v) {
-                    thread_pool.enqueue_detach(render_fun,
-                                               v,
-                                               std::ref(camera),
-                                               std::ref(*this));
+                    state.render_pool.enqueue_detach(
+                            render_fun,
+                            v,
+                            state);
                 }
             }
         }
 
-        thread_pool.wait_for_tasks();
+        state.render_pool.wait_for_tasks();
     }
 
     /** @brief Get current root position of the platform. */
     auto Platform::get_world_root() const -> glm::vec2 {
         return this->current_root;
-    }
-
-    /** @brief Get handle to presenter handling the platform. */
-    auto Platform::get_presenter() const -> presenter::Presenter & {
-        return this->presenter;
     }
 }

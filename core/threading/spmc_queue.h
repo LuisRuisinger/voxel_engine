@@ -39,7 +39,7 @@ namespace core::threading::spmc_queue {
         auto operator=(SPMCQueue<_T, _Capacity> &&) -> SPMCQueue<_T, _Capacity> & =delete;
 
         auto try_push(T &&t) -> bool {
-            u32 lst = this->last.load(std::memory_order_acquire);
+            u32 lst = this->last.load(std::memory_order_relaxed);
             u32 nxt = inc(last);
 
             if (nxt == first.load(std::memory_order_acquire))

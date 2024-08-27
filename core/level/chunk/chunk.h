@@ -31,8 +31,8 @@
 #define CHUNK_SEGMENT_Y_DIFF(_p) \
     ((static_cast<i32>((_p).y) + abs(MIN_HEIGHT)) / CHUNK_SIZE)
 
-namespace core::level::platform {
-    class Platform;
+namespace core::state {
+    struct State;
 }
 
 namespace core::level::chunk {
@@ -58,8 +58,8 @@ namespace core::level::chunk {
         auto generate(platform::Platform *) -> void;
         auto insert(glm::vec3, u8, platform::Platform *platform, bool recombine = true) -> void;
         auto remove(glm::vec3) -> void;
-        auto cull(const util::camera::Camera &, platform::Platform &) const -> void;
-        auto update_and_render(u16, const util::camera::Camera &, platform::Platform &) -> void;
+        auto cull(state::State &) const -> void;
+        auto update_and_render(u16, state::State &) -> void;
 
         auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
         auto updateOcclusion(node::Node *, node::Node *, u64, u64) -> void;
