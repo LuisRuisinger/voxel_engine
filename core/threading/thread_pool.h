@@ -183,8 +183,8 @@ namespace core::threading::thread_pool {
          * @return Boolean value to indicate if batch is finished.
          */
         inline auto no_tasks() -> bool {
-            return this->enqueued_tasks_count.load(std::memory_order_acquire) == 0 &&
-                   this->active_tasks_count.load(std::memory_order_acquire) == 0;
+            return this->enqueued_tasks_count.load(std::memory_order_acquire) < 1 &&
+                   this->active_tasks_count.load(std::memory_order_acquire) < 1;
         }
 
         Tasksystem(Tasksystem &&) noexcept =default;
@@ -224,14 +224,19 @@ namespace core::threading::thread_pool {
                         if (this->task_queue[(i + n) %
                             this->thread_instance_count].try_pop(task)) {
                             this->enqueued_tasks_count.fetch_sub(1, std::memory_order_relaxed);
-                            task();
+
+                            // through the relaxed subtraction of the enqueued count it could
+                            // be possible a thread tries to extract a non-valid element
+                            // of the SPMC queue
+                            if (task)
+                                task();
 
                             this->active_tasks_count.fetch_sub(1, std::memory_order_relaxed);
                         }
                     }
 
-                    if (!this->enqueued_tasks_count.load(std::memory_order_acquire)) {
-                        if (!this->active_tasks_count.load(std::memory_order_acquire))
+                    if (this->enqueued_tasks_count.load(std::memory_order_acquire) < 1) {
+                        if (!this->active_tasks_count.load(std::memory_order_acquire) < 1)
                             this->tasks_finished.notify_all();
 
                         break;
@@ -242,8 +247,8 @@ namespace core::threading::thread_pool {
 
         const u32                                   thread_instance_count;
         std::vector<std::thread>                    thread_instances;
-        std::vector<ThreadsafeQueue<Function_type>> task_queue;
-        // std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
+        // std::vector<ThreadsafeQueue<Function_type>> task_queue;
+        std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
 
         std::atomic_size_t enqueued_tasks_count = 0;
         std::atomic_size_t active_tasks_count = 0;

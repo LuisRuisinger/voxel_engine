@@ -39,29 +39,29 @@ namespace core::threading::spmc_queue {
         auto operator=(SPMCQueue<_T, _Capacity> &&) -> SPMCQueue<_T, _Capacity> & =delete;
 
         auto try_push(T &&t) -> bool {
-            u32 lst = this->last.load(std::memory_order_relaxed);
-            u32 nxt = inc(last);
+            u32 _last = this->last.load(std::memory_order_relaxed);
+            u32 _next = inc(last);
 
-            if (nxt == first.load(std::memory_order_acquire))
+            if (_next == first.load(std::memory_order_acquire))
                 return false;
 
-            last.store(nxt, std::memory_order_release);
-            this->buffer.get()[lst] = std::move(t);
+            last.store(_next, std::memory_order_release);
+            this->buffer.get()[_last] = std::forward<T>(t);
             return true;
         }
 
         auto try_pop(T &t) -> bool {
             for (;;) {
-                u32 fst = first.load(std::memory_order_relaxed);
-                if (fst == last.load(std::memory_order_acquire))
+                u32 _first = first.load(std::memory_order_relaxed);
+                if (_first == last.load(std::memory_order_acquire))
                     return false;
 
                 if (first.compare_exchange_weak(
-                        fst,
-                        inc(fst),
+                        _first,
+                        inc(_first),
                         std::memory_order_release,
                         std::memory_order_acquire)) {
-                    t = std::move(this->buffer.get()[fst]);
+                    t = std::move(this->buffer.get()[_first]);
                     return true;
                 }
             }
