@@ -57,6 +57,18 @@ namespace util::player {
                 this)->template on_input<Action::ON_REPEAT, Keymap::KEY_C>();
     }
 
+    auto Player::tick(core::state::State &state) -> void {
+        this->intersection = aabb_ray_intersection::Ray(
+                this->camera_hook->get_position(),
+                this->camera_hook->get_front()).intersect(state.platform);
+
+        if (this->intersection) {
+            const auto &ref = this->intersection.value();
+            LOG(ref.first + ref.second);
+            LOG(glm::ivec3(ref.first + ref.second));
+        }
+    }
+
     auto Player::update_delta_time(f64 dt) -> void {
         this->delta_time = dt;
     }

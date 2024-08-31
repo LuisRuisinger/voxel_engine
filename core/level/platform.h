@@ -43,6 +43,7 @@ namespace core::level::platform {
         }
 
         auto get_visible_faces(util::camera::Camera &camera) -> size_t;
+        auto get_nearest_chunks(const glm::vec3 &) -> std::optional<std::array<chunk::Chunk *, 4>>;
 
     private:
         auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> Platform &;

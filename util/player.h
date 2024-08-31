@@ -7,6 +7,8 @@
 
 #include "interactable.h"
 #include "camera.h"
+#include "aabb_ray_intersection.h"
+#include "../core/state.h"
 
 namespace util::player {
     using namespace core::opengl::opengl_key_map;
@@ -22,12 +24,14 @@ namespace util::player {
         template <Action action, Keymap key>
         auto on_input() -> void;
         auto get_camera() -> Camera &;
+        auto tick(core::state::State &state) -> void;
 
         auto update_delta_time(f64) -> void;
 
     private:
         std::shared_ptr<Camera> camera_hook;
         f64 delta_time;
+        aabb_ray_intersection::Intersection intersection;
     };
 }
 

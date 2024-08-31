@@ -91,6 +91,9 @@ add_executable(
         core/opengl/opengl_verify.h
         core/level/chunk/chunk_renderer.cpp
         core/level/chunk/chunk_renderer.h
+        util/aabb_ray_intersection.cpp
+        util/aabb_ray_intersection.h
+        util/aabb.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

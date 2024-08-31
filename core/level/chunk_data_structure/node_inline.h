@@ -45,12 +45,6 @@ namespace core::level::node_inline {
     /** @brief Extract everything of packed_data except the highest 14 bit (segment, faces) */
     static constexpr const u64 save_and = 0x03FFFFFFFFFFFF;
 
-    /** @brief Each chunk_data_structure child consists of an extractable mask to store packed inside an u8 */
-    static constexpr const u8 index_to_segment[8] = {
-            0b10000000U, 0b00001000U, 0b00010000U, 0b00000001U,
-            0b01000000U, 0b00000100U, 0b00100000U, 0b00000010U
-    };
-
     /** @brief Scalars used as sign prefix to construct an offset from the current position */
     static constexpr const i8 index_to_prefix[8][3] = {
             {-1, -1, -1}, {-1, -1, 1}, {-1, 1, -1}, {-1, 1,  1},
@@ -145,7 +139,7 @@ namespace core::level::node_inline {
 
             // if the segment is not in use the voxel doesn't exist
             const auto index = selectChild(packed_voxel, current->packed_data >> SHIFT_HIGH);
-            if (!((current->packed_data >> 56) & index_to_segment[index]))
+            if (!((current->packed_data >> 56) & (1 << index)))
                 return nullptr;
 
             current = &(current->nodes->operator[](index));
@@ -183,7 +177,7 @@ namespace core::level::node_inline {
             }
             else {
                 u8 index    = selectChild(packed_voxel >> SHIFT_HIGH, data);
-                u8 segment  = index_to_segment[index];
+                u8 segment  = 1 << index;
                 u8 segments = current->packed_data >> 56;
 
                 // if the node does not contain any children

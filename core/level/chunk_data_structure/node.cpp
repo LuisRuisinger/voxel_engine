@@ -36,7 +36,7 @@ namespace core::level::node {
             return static_cast<u8>((this->packed_data >> 50) & MASK_6);
 
         for (u8 i = 0; i < 8; ++i)
-            if (segments & node_inline::index_to_segment[i])
+            if (segments & (1 << i))
                 faces |= this->nodes->operator[](i).updateFaceMask(mask);
 
         this->packed_data |= static_cast<u64>(faces) << 50;
@@ -53,7 +53,7 @@ namespace core::level::node {
 
         u8 segments = this->packed_data >> 56;
         for (u8 i = 0; i < 8; ++i)
-            if (segments & node_inline::index_to_segment[i])
+            if (segments & (1 << i))
                 this->nodes->operator[](i).update_chunk_mask(mask);
     }
 
@@ -72,7 +72,7 @@ namespace core::level::node {
         // and we reduce the amount of memory to store the platform
         if (!(segments & (segments - 1))) {
             for (u8 i = 0; i < 8; ++i)
-                if (segments & node_inline::index_to_segment[i]) {
+                if (segments & (1 << i)) {
                     this->packed_data = this->nodes->operator[](i).packed_data;
                     this->nodes = std::move(this->nodes->operator[](i).nodes);
                 }
@@ -80,7 +80,7 @@ namespace core::level::node {
 
         // recombine children
         for (u8 i = 0; i < 8; ++i)
-            if (segments & node_inline::index_to_segment[i])
+            if (segments & (1 << i))
                 this->nodes->operator[](i).recombine();
 
         // checks if all children equal each other
@@ -114,8 +114,8 @@ namespace core::level::node {
             return;
 
         // frustum check
-        if ((type == util::culling::INTERSECT) &&
-            (this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) {
+        if (((this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) &&
+            (type == util::culling::INTERSECT)) {
             const auto scale = 1 << ((this->packed_data >> SHIFT_HIGH) & MASK_3);
             const auto position = glm::vec3 {
                     (this->packed_data >> 45) & MASK_5,
@@ -131,7 +131,7 @@ namespace core::level::node {
         auto segments = this->packed_data >> 56;
         if (segments) {
             for (u8 i = 0; i < 8; ++i)
-                if (segments & node_inline::index_to_segment[i])
+                if (segments & (1 << i))
                     this->nodes->operator[](i).cull(args, type);
         }
         else {
@@ -185,7 +185,7 @@ namespace core::level::node {
         auto segments = this->packed_data >> 56;
         if (segments) {
             for (auto i = 0; i < 8; ++i)
-                if (segments & node_inline::index_to_segment[i])
+                if (segments & (1 << i))
                     sum += this->nodes->operator[](i).count_mask(mask);
         }
         else {
@@ -195,5 +195,33 @@ namespace core::level::node {
         }
 
         return sum;
+    }
+
+    auto Node::find_node(
+            const glm::vec3 &chunk_pos,
+            std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {
+        if (!(this->packed_data >> 50 & MASK_6))
+            return std::numeric_limits<f32>::max();
+
+        const auto scale = 1 << ((this->packed_data >> SHIFT_HIGH) & MASK_3);
+        const auto position = chunk_pos + glm::vec3 {
+                (this->packed_data >> 45) & MASK_5,
+                (this->packed_data >> 40) & MASK_5,
+                (this->packed_data >> 35) & MASK_5
+        };
+
+        auto ray_scale = fun(position, scale);
+        auto segments = this->packed_data >> 56;
+
+        if (segments) {
+            ray_scale = std::numeric_limits<f32>::max();
+            for (auto i = 0; i < 8; ++i)
+                if (segments & (1 << i)) {
+                    auto ret = this->nodes->operator[](i).find_node(chunk_pos, fun);
+                    ray_scale = ret < ray_scale ? ret : ray_scale;
+                }
+        }
+
+        return ray_scale;
     }
 }

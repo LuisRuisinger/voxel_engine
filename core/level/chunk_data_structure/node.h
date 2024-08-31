@@ -47,6 +47,9 @@ namespace core::level::node {
         auto recombine() -> void;
         auto update_chunk_mask(u16) -> void;
         auto count_mask(u64) -> size_t;
+        auto find_node(
+                const glm::vec3 &,
+                std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
 
         std::unique_ptr<std::array<Node, 8>> nodes {};
         u64 packed_data { 0 };

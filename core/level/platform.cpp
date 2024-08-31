@@ -7,6 +7,7 @@
 #include "platform.h"
 #include "../rendering/interface.h"
 #include "../../util/assert.h"
+#include "../../util/player.h"
 
 #define INDEX(_x, _z) \
     ((((_x) + RENDER_RADIUS)) + (((_z) + RENDER_RADIUS) * (2 * RENDER_RADIUS)))
@@ -44,6 +45,8 @@ namespace core::level::platform {
                   "global platform roots must be multiple of 32");
 
         // threshold to render new chunks is double the chunk size
+        // TODO: change back when implemented pending update event
+        /*
         if (!this->queue_ready &&
             (LOAD_THRESHOLD(this->current_root, new_root) || !this->platform_ready)) {
 
@@ -51,6 +54,14 @@ namespace core::level::platform {
             load_chunks(state.chunk_tick_pool, new_root)
                 .swap_chunks(new_root)
                 .unload_chunks(state.chunk_tick_pool);
+        }
+        */
+
+        if (!this->platform_ready) {
+            DEBUG_LOG(new_root);
+            load_chunks(state.chunk_tick_pool, new_root)
+                    .swap_chunks(new_root)
+                    .unload_chunks(state.chunk_tick_pool);
         }
     }
 
@@ -206,21 +217,20 @@ namespace core::level::platform {
      * @param camera      Active camera for this frame.
      */
     auto Platform::frame(state::State &state) -> void {
-        static auto update_render_fun = [](u16 idx,
-                                           chunk::Chunk *ptr,
-                                           state::State &state) -> void {
+        static auto update_render_fun = [](
+                u16 idx,
+                chunk::Chunk *ptr,
+                state::State &state) -> void {
             ptr->update_and_render(idx, state);
         };
 
-        static auto render_fun = [](chunk::Chunk *ptr,
-                                    state::State &state) -> void {
+        static auto render_fun = [](chunk::Chunk *ptr, state::State &state) -> void {
             ptr->cull(state);
         };
 
         // check if new chunks need to be added to the active pool
         // try lock to ensure no amount of frame freeze happens
         std::unique_lock lock { this->mutex };
-
 
         if (this->queue_ready) {
             for (const auto& [k, v] : this->active_chunks_vec) {
@@ -252,5 +262,31 @@ namespace core::level::platform {
     /** @brief Get current root position of the platform. */
     auto Platform::get_world_root() const -> glm::vec2 {
         return this->current_root;
+    }
+
+    auto Platform::get_nearest_chunks(const glm::vec3 &pos)
+        -> std::optional<std::array<chunk::Chunk *, 4>> {
+        if (!this->platform_ready)
+            return std::nullopt;
+
+        auto root = glm::vec2 {
+                static_cast<i32>(pos.x / CHUNK_SIZE) - 1,
+                static_cast<i32>(pos.z / CHUNK_SIZE) - 1
+        };
+
+        if (std::abs(static_cast<i32>(pos.x)) % CHUNK_SIZE > CHUNK_SIZE / 2)
+            root.x += pos.x > 0 ? 1 : -1;
+
+        if (std::abs(static_cast<i32>(pos.z)) % CHUNK_SIZE > CHUNK_SIZE / 2)
+            root.y += pos.z > 0 ? 1 : -1;
+
+        auto arr = std::array {
+                this->active_chunks[INDEX(root.x,     root.y)],
+                this->active_chunks[INDEX(root.x + 1, root.y)],
+                this->active_chunks[INDEX(root.x,     root.y + 1)],
+                this->active_chunks[INDEX(root.x + 1, root.y + 1)]
+        };
+
+        return std::make_optional(std::move(arr));
     }
 }

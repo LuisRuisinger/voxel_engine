@@ -171,10 +171,15 @@ namespace core::threading::thread_pool {
          *                If set to 0 no timeout will be applied.
          */
         auto wait_for_tasks() -> void {
+            /*
             std::unique_lock lock { this->mutex };
             this->tasks_finished.wait(lock, [this] {
                 return no_tasks();
             });
+             */
+
+            while (!no_tasks())
+                std::this_thread::yield();
         }
 
         /**
@@ -236,7 +241,7 @@ namespace core::threading::thread_pool {
                     }
 
                     if (this->enqueued_tasks_count.load(std::memory_order_acquire) < 1) {
-                        if (!this->active_tasks_count.load(std::memory_order_acquire) < 1)
+                        if (this->active_tasks_count.load(std::memory_order_acquire) < 1)
                             this->tasks_finished.notify_all();
 
                         break;

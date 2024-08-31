@@ -132,28 +132,6 @@ namespace util::renderable {
                         this->indices.data(),
                         GL_STATIC_DRAW);
 
-                // VAO generation
-                glGenVertexArrays(1, &this->VAO);
-                glBindVertexArray(this->VAO);
-
-                // buffer generation
-                glGenBuffers(1, &this->VBO);
-                glGenBuffers(1, &this->EBO);
-
-                glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-                glBufferData(
-                        GL_ARRAY_BUFFER,
-                        MAX_VERTICES_BUFFER * sizeof(u64),
-                        nullptr,
-                        GL_DYNAMIC_DRAW);
-
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-                glBufferData(
-                        GL_ELEMENT_ARRAY_BUFFER,
-                        this->indices.size() * sizeof(u32),
-                        this->indices.data(),
-                        GL_STATIC_DRAW);
-
                 return *this;
             }
 
@@ -188,7 +166,7 @@ namespace util::renderable {
             }
 
             auto end() -> void {
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
+                glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
             }
 
             inline auto size() -> size_t {
@@ -220,7 +198,6 @@ namespace util::renderable {
                     nullptr,
                     GL_DYNAMIC_DRAW);
 
-            glBindBuffer(GL_ARRAY_BUFFER, this->layout.VBO);
             this->buffer_handle =
                     static_cast<u8 *>(
                             glMapBufferRange(

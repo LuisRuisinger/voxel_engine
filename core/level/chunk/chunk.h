@@ -62,6 +62,8 @@ namespace core::level::chunk {
         auto update_and_render(u16, state::State &) -> void;
 
         auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
+        auto find(std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
+
         auto updateOcclusion(node::Node *, node::Node *, u64, u64) -> void;
         auto visible(const util::camera::Camera &, const platform::Platform &) const -> bool;
         auto index() const -> u16;

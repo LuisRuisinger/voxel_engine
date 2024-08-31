@@ -32,6 +32,12 @@ namespace core::level::octree {
         return node_inline::findNode(packedVoxel, _root.get());
     }
 
+    auto Octree::find(
+            const glm::vec3 &chunk_pos,
+            std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {
+        return this->_root->find_node(chunk_pos, fun);
+    }
+
     auto Octree::updateFaceMask(u16 mask) -> u8 {
         return this->_root->updateFaceMask(mask);
     }

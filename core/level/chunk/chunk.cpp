@@ -4,9 +4,12 @@
 #include <random>
 
 #include "chunk.h"
-#include "../../../util/assert.h"
-#include "../chunk_data_structure/voxel_data_layout.h"
 #include "chunk_renderer.h"
+
+#include "../chunk_data_structure/voxel_data_layout.h"
+
+#include "../../../util/assert.h"
+#include "../../../util/player.h"
 
 namespace core::level::chunk {
     auto Chunk::Faces::operator[](u64 mask) -> u64 & {
@@ -36,13 +39,17 @@ namespace core::level::chunk {
         for (u8 x = 0; x < CHUNK_SIZE; ++x)
             for (u8 z = 0; z < CHUNK_SIZE; ++z)
                 if (x == CHUNK_SIZE - 1 && x == z) {
-                    for (u8 y = 0; y < CHUNK_SIZE; ++y)
+                    for (u8 y = 0; y < CHUNK_SIZE; ++y) {
                         insert(glm::vec3{ x, y, z }, 0, platform, false);
+                    }
                 }
                 else {
-                    for (u8 y = 0; y < 8 + x / 4; ++y)
+                    for (u8 y = 0; y < 8 + x / 4; ++y) {
                         insert(glm::vec3{ x, y, z }, 0, platform, false);
+                    }
                 }
+
+
 
         for (size_t i = 0; i < chunk_segments.size(); ++i)
             this->faces |= this->chunk_segments[i].root->updateFaceMask(
@@ -180,6 +187,28 @@ namespace core::level::chunk {
 
         // in case this neighbor does not exist
         return nullptr;
+    }
+
+    auto Chunk::find(std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {
+        const auto pos = static_cast<f32>(CHUNK_SIZE) * glm::vec3 {
+                static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                -4,
+                static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+        };
+
+        auto ray_scale = std::numeric_limits<f32>::max();
+        for (auto i = 0; i < this->chunk_segments.size(); ++i) {
+            const auto chunk_pos = pos + glm::vec3 {
+                    0.0F,
+                    i * static_cast<f32>(CHUNK_SIZE),
+                    0.0F
+            };
+
+            auto ret = this->chunk_segments[i].root->find(chunk_pos, fun);
+            ray_scale = ret < ray_scale ? ret : ray_scale;
+        }
+
+        return ray_scale;
     }
 
     auto Chunk::remove(glm::vec3 position) -> void {

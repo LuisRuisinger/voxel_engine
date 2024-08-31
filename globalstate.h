@@ -78,6 +78,7 @@ public:
 
         DEBUG_LOG("Init scheduled executor callbacks")
         Engine::executor.enqueue_detach(std::move([&]() -> void {
+            Engine::state.player.tick(state);
             Engine::state.platform.tick(state);
         }));
 

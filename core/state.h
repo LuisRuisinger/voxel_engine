@@ -9,7 +9,6 @@
 #include "memory/linear_allocator.h"
 #include "memory/arena_allocator.h"
 
-#include "../util/player.h"
 #include "threading/thread_pool.h"
 
 namespace core::rendering::renderer {
@@ -22,6 +21,10 @@ namespace core::level::chunk::chunk_renderer {
 
 namespace core::level::platform {
     class Platform;
+}
+
+namespace util::player {
+    class Player;
 }
 
 namespace core::state {

@@ -3,6 +3,7 @@
 //
 
 #include "chunk_renderer.h"
+#include "../../util/player.h"
 
 namespace core::level::chunk::chunk_renderer {
     ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator)

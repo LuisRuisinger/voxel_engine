@@ -39,12 +39,15 @@ void main()  {
 
     vec3 position = (vec3(xObjectSpace, yObjectSpace, zObjectSpace) * 0.25F * scale) +
                     vec3(xChunkSpace, yChunkSpace, zChunkSpace) +
-                    vec3(-0.5) * (scale) +
-
-                    // error correction
-                    vec3(-0.5) * float(bool(scale > 1)) +
                     fromIndex(int(chunkIdx), segmentdx) - vec3(0.0F, 128.0F, 0.0F) +
                     vec3(worldbase.x, 0.0F, worldbase.y);
+
+    if (scale == 1) {
+        position += vec3(0.5);
+    }
+    else {
+        position -= vec3(0.5) * (scale - 1);
+    }
 
     vec2 tex = vec2(u, v) * 0.5F;
 
