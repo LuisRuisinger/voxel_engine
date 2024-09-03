@@ -37,6 +37,24 @@ add_library(imgui
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/imgui_impl_opengl3.cpp
         ${IMGUI_DIR}/imgui_impl_glfw.cpp
+        core/level/chunk/generation/generation.cpp
+        core/level/chunk/generation/generation.h
+        core/level/chunk/generation/biome.h
+        core/level/chunk/generation/biome.cpp
+        core/level/tiles/tile.cpp
+        core/level/tiles/tile.h
+        core/level/tiles/impl/grass.cpp
+        core/level/tiles/impl/grass.h
+        core/level/tiles/impl/cobblestone.cpp
+        core/level/tiles/impl/cobblestone.h
+        core/level/tiles/impl/stone.cpp
+        core/level/tiles/impl/stone.h
+        core/level/tiles/impl/dirt.cpp
+        core/level/tiles/impl/dirt.h
+        core/level/tiles/tile_manager.cpp
+        core/level/tiles/tile_manager.h
+        core/level/tiles/impl/stone_brick.cpp
+        core/level/tiles/impl/stone_brick.h
 )
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -94,6 +112,10 @@ add_executable(
         util/aabb_ray_intersection.cpp
         util/aabb_ray_intersection.h
         util/aabb.h
+        util/traits.h
+        util/time.cpp
+        util/time.h
+        util/collidable.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)

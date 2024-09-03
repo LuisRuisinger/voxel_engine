@@ -9,12 +9,15 @@
 #include "camera.h"
 #include "aabb_ray_intersection.h"
 #include "../core/state.h"
+#include "traits.h"
 
 namespace util::player {
     using namespace core::opengl::opengl_key_map;
     using namespace util::camera;
 
-    class Player : public interactable::Interactable<Player> {
+    class Player :
+            public interactable::Interactable<Player>,
+            public traits::Tickable<Player> {
     public:
         Player(OpenGLKeyMap &key_map, std::shared_ptr<Camera> camera);
         Player(OpenGLKeyMap &key_map, Camera camera);

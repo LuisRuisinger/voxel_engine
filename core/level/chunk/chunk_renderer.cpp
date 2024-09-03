@@ -26,6 +26,7 @@ namespace core::level::chunk::chunk_renderer {
         this->shader.registerUniformLocation("projection");
         this->shader.registerUniformLocation("worldbase");
         this->shader.registerUniformLocation("render_radius");
+        this->shader.registerUniformLocation("texture_array");
 
         // thin wrapper over VAO layouts
         this->layout
@@ -69,8 +70,12 @@ namespace core::level::chunk::chunk_renderer {
         this->shader["view"] = view;
         this->shader["projection"] = projection;
         this->shader["worldbase"] = state.platform.get_world_root();
-        this->shader["render_radius"] = RENDER_RADIUS;
+        this->shader["render_radius"] = static_cast<u32>(RENDER_RADIUS);
+        this->shader["texture_array"] = static_cast<i32>(0);
         this->shader.upload_uniforms();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, this->texture);
 
         auto vertex_sum = 0;
         auto draw_calls = 0;
@@ -167,5 +172,9 @@ namespace core::level::chunk::chunk_renderer {
 
     auto ChunkRenderer::operator[](size_t i) -> model::voxel::CubeStructure & {
         return this->meshes[i];
+    }
+
+    auto ChunkRenderer::add_texture(u32 texture) -> void {
+        this->texture = texture;
     }
 }

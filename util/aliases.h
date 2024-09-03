@@ -22,24 +22,24 @@ using i64 = int64_t;
 using f32 = float_t;
 using f64 = double_t;
 
-#define CHUNK_SEGMENTS  16
-#define MIN_HEIGHT      -128
-#define CHUNK_SIZE      32
-#define RENDER_RADIUS   16
-#define RENDER_DISTANCE (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
-#define SQRT_2          1.4142135623730951F
-#define DEFAULT_WIDTH   1920
-#define DEFAULT_HEIGHT  1080
-#define CACHE_LINE_SIZE 64
+#define CHUNK_SEGMENTS      16
+#define MIN_HEIGHT          -128
+#define HEIGHT_01           528
+#define CHUNK_SIZE          32
+#define RENDER_RADIUS       12
+#define RENDER_DISTANCE     (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
+#define SQRT_2              1.4142135623730951F
+#define DEFAULT_WIDTH       1920
+#define DEFAULT_HEIGHT      1080
+#define CACHE_LINE_SIZE     64
 #define MAX_VERTICES_BUFFER (static_cast<u32>(131072 * 2.5))
-
-#define LEFT_BIT        (static_cast<u64>(0x1)  << 55)
-#define RIGHT_BIT       (static_cast<u64>(0x1)  << 54)
-#define TOP_BIT         (static_cast<u64>(0x1)  << 53)
-#define BOTTOM_BIT      (static_cast<u64>(0x1)  << 52)
-#define FRONT_BIT       (static_cast<u64>(0x1)  << 51)
-#define BACK_BIT        (static_cast<u64>(0x1)  << 50)
-#define SET_FACES       (static_cast<u64>(0x3F) << 50)
+#define LEFT_BIT            (static_cast<u64>(0x1)  << 55)
+#define RIGHT_BIT           (static_cast<u64>(0x1)  << 54)
+#define TOP_BIT             (static_cast<u64>(0x1)  << 53)
+#define BOTTOM_BIT          (static_cast<u64>(0x1)  << 52)
+#define FRONT_BIT           (static_cast<u64>(0x1)  << 51)
+#define BACK_BIT            (static_cast<u64>(0x1)  << 50)
+#define SET_FACES           (static_cast<u64>(0x3F) << 50)
 
 #define Enum(_name, ...)                                                     \
     struct _name {                                                           \

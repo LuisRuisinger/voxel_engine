@@ -21,11 +21,11 @@ namespace core::opengl::opengl_verify {
 }
 
 #ifdef DEBUG
-    #define OPENGL_VERIFY(_x) do {                           \
-        (_x);                                                \
-        DEBUG_LOG(#_x);                                      \
-        while ((GLenum error = glGetError()) != GL_NO_ERROR) \
-            DEBUG_LOG(error);                                \
+    #define OPENGL_VERIFY(_x) do {                         \
+        (_x);                                              \
+        DEBUG_LOG(#_x);                                    \
+        while (GLenum error = glGetError() != GL_NO_ERROR) \
+            DEBUG_LOG(error);                              \
     } while (0)
 #else
     #define OPENGL_VERIFY(_x) (_x)

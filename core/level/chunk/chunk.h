@@ -55,7 +55,7 @@ namespace core::level::chunk {
         Chunk(Chunk &&) =default;
         auto operator=(Chunk &&) -> Chunk & =default;
 
-        auto generate(platform::Platform *) -> void;
+        auto generate(glm::vec2) -> void;
         auto insert(glm::vec3, u8, platform::Platform *platform, bool recombine = true) -> void;
         auto remove(glm::vec3) -> void;
         auto cull(state::State &) const -> void;

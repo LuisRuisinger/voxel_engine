@@ -11,6 +11,8 @@
 #include "../../../util/assert.h"
 #include "../../../util/player.h"
 
+#include "generation/generation.h"
+
 namespace core::level::chunk {
     auto Chunk::Faces::operator[](u64 mask) -> u64 & {
         switch (mask) {
@@ -28,29 +30,24 @@ namespace core::level::chunk {
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments.emplace_back(i);
-
-#ifdef DEBUG
-        for (const auto &ref : this->chunk_segments)
-            ASSERT_EQ(ref.root.get());
-#endif
     }
 
-    auto Chunk::generate(platform::Platform *platform) -> void {
-        for (u8 x = 0; x < CHUNK_SIZE; ++x)
-            for (u8 z = 0; z < CHUNK_SIZE; ++z)
-                if (x == CHUNK_SIZE - 1 && x == z) {
-                    for (u8 y = 0; y < CHUNK_SIZE; ++y) {
-                        insert(glm::vec3{ x, y, z }, 0, platform, false);
-                    }
-                }
-                else {
-                    for (u8 y = 0; y < 8 + x / 4; ++y) {
-                        insert(glm::vec3{ x, y, z }, 0, platform, false);
-                    }
-                }
+    static auto ridgenoise(siv::BasicPerlinNoise<f32> gen, i32 x, i32 z) -> f32 {
+        return 2.0F * (0.5F - std::abs(0.5F - gen.noise2D_01(x, z)));
+    }
 
+    auto Chunk::generate(glm::vec2 root) -> void {
 
+        // generate steps
+        auto offset =
+                root +
+                static_cast<f32>(CHUNK_SIZE) *
+                glm::vec2 {
+                        static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                        static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+                };
 
+        generation::generation::Generator::generate(*this, offset);
         for (size_t i = 0; i < chunk_segments.size(); ++i)
             this->faces |= this->chunk_segments[i].root->updateFaceMask(
                     (this->chunk_idx << 4) | i);

@@ -16,18 +16,22 @@
 #include "../../util/aliases.h"
 #include "../../util/reflections.h"
 #include "../state.h"
+#include "../../util/traits.h"
 
 #define MAX_RENDER_VOLUME (static_cast<u32>(RENDER_RADIUS * RENDER_RADIUS * 2 * 2))
 
 namespace core::level::platform {
+    using namespace util;
 
-    class Platform {
+class Platform :
+        public traits::Tickable<Platform>,
+        public traits::Updateable<Platform> {
     public:
         Platform() =default;
         ~Platform() =default;
 
         auto tick(state::State &) -> void;
-        auto frame(state::State &state) -> void;
+        auto update(state::State &state) -> void;
         auto get_world_root() const -> glm::vec2;
 
         template <
@@ -49,10 +53,11 @@ namespace core::level::platform {
         auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> Platform &;
         auto load_chunks(threading::thread_pool::Tasksystem<> &, glm::vec2) -> Platform &;
         auto swap_chunks(glm::vec2) -> Platform &;
-        auto init_chunk_neighbours(i32,
-                                   i32,
-                                   chunk::Position,
-                                   chunk::Position) -> void;
+        auto init_chunk_neighbours(
+                i32,
+                i32,
+                chunk::Position,
+                chunk::Position) -> void;
 
         std::unordered_map<chunk::Chunk *, std::shared_ptr<chunk::Chunk>> chunks;
         std::unordered_map<u32, chunk::Chunk *> active_chunks;

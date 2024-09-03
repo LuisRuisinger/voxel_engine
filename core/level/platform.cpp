@@ -45,8 +45,6 @@ namespace core::level::platform {
                   "global platform roots must be multiple of 32");
 
         // threshold to render new chunks is double the chunk size
-        // TODO: change back when implemented pending update event
-        /*
         if (!this->queue_ready &&
             (LOAD_THRESHOLD(this->current_root, new_root) || !this->platform_ready)) {
 
@@ -54,14 +52,6 @@ namespace core::level::platform {
             load_chunks(state.chunk_tick_pool, new_root)
                 .swap_chunks(new_root)
                 .unload_chunks(state.chunk_tick_pool);
-        }
-        */
-
-        if (!this->platform_ready) {
-            DEBUG_LOG(new_root);
-            load_chunks(state.chunk_tick_pool, new_root)
-                    .swap_chunks(new_root)
-                    .unload_chunks(state.chunk_tick_pool);
         }
     }
 
@@ -132,9 +122,9 @@ namespace core::level::platform {
      */
     auto Platform::load_chunks(threading::thread_pool::Tasksystem<> &thread_pool,
                                glm::vec2 new_root) -> Platform & {
-        static auto generate = [](chunk::Chunk *ptr, Platform *platform) -> void {
+        static auto generate = [](chunk::Chunk *ptr, glm::vec2 root) -> void {
             ASSERT_EQ(ptr);
-            ptr->generate(platform);
+            ptr->generate(root);
         };
 
         static auto compress = [](chunk::Chunk *ptr) -> void {
@@ -169,7 +159,7 @@ namespace core::level::platform {
                         INIT_NEIGHBOR(x, z);
 
                         // generate new chunk
-                        thread_pool.enqueue_detach(generate, chunk, this);
+                        thread_pool.enqueue_detach(generate, chunk, new_root);
                         generated.push_back(INDEX(x, z));
                     }
 
@@ -216,7 +206,7 @@ namespace core::level::platform {
      * @param thread_pool Parallel traversal of single chunks.
      * @param camera      Active camera for this frame.
      */
-    auto Platform::frame(state::State &state) -> void {
+    auto Platform::update(state::State &state) -> void {
         static auto update_render_fun = [](
                 u16 idx,
                 chunk::Chunk *ptr,
@@ -268,6 +258,8 @@ namespace core::level::platform {
         -> std::optional<std::array<chunk::Chunk *, 4>> {
         if (!this->platform_ready)
             return std::nullopt;
+
+        std::unique_lock lock { this->mutex };
 
         auto root = glm::vec2 {
                 static_cast<i32>(pos.x / CHUNK_SIZE) - 1,

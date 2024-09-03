@@ -3,6 +3,7 @@
 //
 
 #include "voxel.h"
+#include "../../../util/log.h"
 
 #define POS_CONV(_p) \
     (static_cast<u64>(((_p) + 0.5F) * 4.0F) & 0x7)
@@ -18,50 +19,50 @@ namespace core::level::model::voxel {
 
                 // Face 0: Back
                 {
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}},   // bottom right
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},  // bottom left
-                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}},   // top left
-                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}}     // top right
+                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}, 2},   // bottom right
+                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}, 2},  // bottom left
+                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}, 2},   // top left
+                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}, 2}     // top right
                 },
 
                 // Face 1: Front
                 {
-                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}},  // bottom left
-                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}},   // bottom right
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}},    // top right
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}}    // top left
+                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}, 1},  // bottom left
+                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}, 1},   // bottom right
+                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 1},    // top right
+                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 1}    // top left
                 },
 
                 // Face 2: Bottom
                 {
-                    {{0.5f,  -0.5f, 0.5f},  {0.0f, 0.0f}},    // bottom right
-                    {{-0.5f, -0.5f, 0.5f},  {1.0f, 0.0f}},   // bottom left
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}},  // top left
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f}},     // top right
+                    {{0.5f,  -0.5f, 0.5f},  {0.0f, 0.0f}, 3},    // bottom right
+                    {{-0.5f, -0.5f, 0.5f},  {1.0f, 0.0f}, 3},   // bottom left
+                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}, 3},  // top left
+                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f}, 3},     // top right
                 },
 
                 // Face 3: Top
                 {
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}},     // bottom left
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}},     // bottom right
-                    {{0.5f,  0.5f,  -0.5f}, {1.0f, 0.0f}},    // top right
-                    {{-0.5f, 0.5f,  -0.5f}, {0.0f, 0.0f}},   // top left
+                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 0},     // bottom left
+                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 0},     // bottom right
+                    {{0.5f,  0.5f,  -0.5f}, {1.0f, 0.0f}, 0},    // top right
+                    {{-0.5f, 0.5f,  -0.5f}, {0.0f, 0.0f}, 0},   // top left
                 },
 
                 // Face 4: Right
                 {
-                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}},   // top front
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}},     // top back
-                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}},    // bottom back
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}},   // bottom front
+                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}, 2},   // top front
+                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 2},     // top back
+                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}, 2},    // bottom back
+                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}, 2},   // bottom front
                 },
 
                 // Face 5: Left
                 {
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}},     // top front
-                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}},   // top back
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}},  // bottom back
-                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}},  // bottom front
+                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 2},     // top front
+                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}, 2},   // top back
+                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}, 2},  // bottom back
+                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}, 2},  // bottom front
                 }
         };
 
@@ -72,8 +73,7 @@ namespace core::level::model::voxel {
     auto CubeStructure::setFace(std::vector<Mesh::Vertex> &face, u8 idx) -> void {
         std::vector<u64> compressedFace(face.size());
 
-        for (size_t i = 0; i < face.size(); ++i)
-
+        for (size_t i = 0; i < face.size(); ++i) {
             // constructing compressed faces from n vertices
             compressedFace[i] = (POS_CONV(face[i].position.x) << 61) |
                                 (POS_CONV(face[i].position.y) << 58) |
@@ -81,7 +81,10 @@ namespace core::level::model::voxel {
 
                                 // compressing uv coordinates
                                 (UV_CONV(face[i].texCoords.x) << 53) |
-                                (UV_CONV(face[i].texCoords.y) << 51);
+                                (UV_CONV(face[i].texCoords.y) << 51) |
+
+                                (face[i].texture_offset << 11);
+        }
 
         _compressedFaces[idx] = std::move(compressedFace);
     }

@@ -64,8 +64,6 @@ namespace util::player {
 
         if (this->intersection) {
             const auto &ref = this->intersection.value();
-            LOG(ref.first + ref.second);
-            LOG(glm::ivec3(ref.first + ref.second));
         }
     }
 

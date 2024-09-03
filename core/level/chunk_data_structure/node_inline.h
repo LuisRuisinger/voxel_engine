@@ -214,6 +214,13 @@ namespace core::level::node_inline {
         }
     }
 
+    template <typename T, typename ...Args>
+    requires std::is_integral_v<T> &&
+             std::conjunction_v<std::is_same<T, Args> ...>
+    INLINE static constexpr auto equal(T t, Args ...args) -> bool {
+        return (((t & 0xFF) == (args & 0xFF)) && ...);
+    }
+
     /**
      * @brief  Checks if all subareas of the current volume can be combined to the current volume.
      * @tparam Args Type of node indices. Should be std::integral.
@@ -239,10 +246,7 @@ namespace core::level::node_inline {
             return false;
 
         // all children must contain the same voxel
-        if (!((node->nodes->operator[](args).packed_data & 0xFF) == ...))
-            return false;
-
-        return true;
+        return equal(node->nodes->operator[](args).packed_data...);
     }
 
     /**

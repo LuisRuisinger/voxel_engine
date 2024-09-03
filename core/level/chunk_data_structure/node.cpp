@@ -75,6 +75,9 @@ namespace core::level::node {
                 if (segments & (1 << i)) {
                     this->packed_data = this->nodes->operator[](i).packed_data;
                     this->nodes = std::move(this->nodes->operator[](i).nodes);
+
+                    segments = this->packed_data >> 56;
+                    break;
                 }
         }
 

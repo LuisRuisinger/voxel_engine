@@ -5,6 +5,8 @@
 #include "opengl_window.h"
 #include "opengl_verify.h"
 
+#include <filesystem>
+
 #define WINDOW "Window"
 
 namespace core::opengl::opengl_window {
@@ -19,7 +21,6 @@ namespace core::opengl::opengl_window {
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-
         this->window = glfwCreateWindow(
                 DEFAULT_WIDTH, DEFAULT_HEIGHT, WINDOW, nullptr, nullptr);
 
@@ -59,17 +60,27 @@ namespace core::opengl::opengl_window {
 
         glfwSetCursorPosCallback(this->window, std::move(cursor_position_callback));
 
-        auto key_callback = [](GLFWwindow *window,
-                               i32 key,
-                               i32 code,
-                               i32 action,
-                               i32 mods) -> void {
+        auto key_callback = [](
+                GLFWwindow *window,
+                i32 key,
+                i32 code,
+                i32 action,
+                i32 mods) -> void {
             auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(window));
             auto key_token = std::pair { action, key };
 
             for (const auto &[_, callback] : self->key_callbacks)
                 callback(key_token);
         };
+
+#ifdef DEBUG
+        GLint max_layers;
+        glGetIntegerv (GL_MAX_ARRAY_TEXTURE_LAYERS, &max_layers);
+        DEBUG_LOG("max layers", max_layers);
+
+        std::filesystem::path projectRoot = std::filesystem::current_path();
+        DEBUG_LOG(projectRoot);
+#endif
 
         glfwSetKeyCallback(this->window, std::move(key_callback));
         return this->window;

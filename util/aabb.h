@@ -60,7 +60,7 @@ namespace util::aabb {
             return translate(v);
         }
 
-        auto intersection(const glm::vec3 &o, const glm::vec3 &d) -> f32 {
+        auto intersection(const glm::vec3 &o, const glm::vec3 &d) const -> f32 {
             glm::vec3 tmin_vec = (this->min - o) / d;
             glm::vec3 tmax_vec = (this->max - o) / d;
 
@@ -72,18 +72,21 @@ namespace util::aabb {
 
             // if tmax < 0, ray (line) is intersecting AABB
             // but whole AABB is behind the camera
-            if (t_exit < 0.0F) {
+            if (t_exit < 0.0F)
                 return std::numeric_limits<f32>::max();
-            }
 
             // if tmin > tmax, ray doesn't intersect AABB
-            if (t_enter > t_exit) {
+            if (t_enter > t_exit)
                 return std::numeric_limits<f32>::max();
-            }
 
             return t_enter < 0.0F ? t_exit : t_enter;
         }
 
+        auto intersection(const AABB &other) const -> bool {
+            return (this->min.x <= other.max.x && this->max.x >= this->min.x) &&
+                   (this->min.y <= other.max.y && this->max.y >= this->min.y) &&
+                   (this->min.z <= other.max.z && this->max.z >= this->min.z);
+        }
     };
 }
 
