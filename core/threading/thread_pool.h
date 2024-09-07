@@ -44,11 +44,12 @@ namespace core::threading::thread_pool {
                 : thread_instance_count{thread_count},
                   task_queue{thread_count}
         {
-            for (size_t i = 0; i < this->thread_instance_count; ++i)
+            for (size_t i = 0; i < this->thread_instance_count; ++i) {
                 this->thread_instances.emplace_back(
                         [&, idx = i] {
                             run(idx);
                         });
+            }
         }
 
         /** @brief Thread pool destructor, joining all threads. */
@@ -56,8 +57,11 @@ namespace core::threading::thread_pool {
             this->worker_runflag = false;
             this->tasks_available.notify_all();
 
-            for (auto &t : this->thread_instances)
-                if (t.joinable()) t.join();
+            for (auto &t : this->thread_instances) {
+                if (t.joinable()) {
+                    t.join();
+                }
+            }
         }
 
         /**
@@ -98,7 +102,7 @@ namespace core::threading::thread_pool {
         auto enqueue_detach(F &&fun, Args &&...args) -> void {
             auto task = [
                     fun = std::forward<F>(fun),
-                    ...args = std::forward<Args>(args)]() mutable -> decltype(auto) {
+                    ...args = std::forward<Args>(args)]() mutable -> void {
                     WRAPPED_EXEC(std::invoke(fun, args...));
             };
 

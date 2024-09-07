@@ -7,6 +7,7 @@
 
 #include "node_inline.h"
 #include "../chunk/chunk_renderer.h"
+#include "../core/level/model/voxel.h"
 
 namespace core::level::node {
 
@@ -17,17 +18,15 @@ namespace core::level::node {
     /** @brief Mask to transform a vertex point to a face. */
     static constexpr const u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
-    Node::Node()
-            : nodes       { nullptr },
-              packed_data { 0       }
-    {}
+    /** @brief Object containing a compressed representation of the sides of a voxel. */
+    static const model::voxel::CubeStructure cube_structure = {};
 
     /**
      * @brief  Updates the mask inside the packed voxel data and recursivly builds a face mask.
      * @param  mask Packed chunk data containing chunk offset and chunksegment offset.
      * @return Face mask for the current cubic area.
      */
-    auto Node::updateFaceMask(u16 mask) -> u8 {
+    auto Node::update_face_mask(u16 mask) -> u8 {
         u8 faces = 0;
         u8 segments = this->packed_data >> 56;
 
@@ -37,7 +36,7 @@ namespace core::level::node {
 
         for (u8 i = 0; i < 8; ++i)
             if (segments & (1 << i))
-                faces |= this->nodes->operator[](i).updateFaceMask(mask);
+                faces |= this->nodes->operator[](i).update_face_mask(mask);
 
         this->packed_data |= static_cast<u64>(faces) << 50;
         return faces;
@@ -90,11 +89,11 @@ namespace core::level::node {
         if (!node_inline::check_combinable(this, 0, 1, 2, 3, 4, 5, 6, 7))
             return;
 
-        // deleting highest 14 bit and lowest 8 bit
+        // deleting highest 14 bit and lowest 9 bit
         // deletes segments indicating no sub areas follow
         // deletes dirty faces the recalculate them in an higher order volume
         // deletes dirty voxel_ID to assign one of the subareas
-        this->packed_data &= (UINT64_MAX >> 14) & (UINT64_MAX << 8);
+        this->packed_data &= (UINT64_MAX >> 14) & (UINT64_MAX << 9);
         this->packed_data |= node_inline::combine_faces(this, 0, 1, 2, 3, 4, 5, 6, 7);
         this->packed_data |= this->nodes->operator[](0).packed_data & 0xFF;
 
@@ -109,10 +108,7 @@ namespace core::level::node {
      *             if we need to test against the frustum.
      */
     auto Node::cull(Args &args, util::culling::CollisionType type) const -> void {
-        const u64 faces =
-                this->packed_data &
-                (static_cast<u64>(args._camera.get_mask()) << 50);
-
+        const u64 faces = (this->packed_data >> 50) & static_cast<u64>(args._camera.get_mask());
         if (!faces)
             return;
 
@@ -127,22 +123,21 @@ namespace core::level::node {
             };
 
             if ((type = args._camera.frustum_collision(args._point + position, scale)) ==
-                util::culling::CollisionType::OUTSIDE)
+                util::culling::CollisionType::OUTSIDE) {
                 return;
+            }
         }
 
         auto segments = this->packed_data >> 56;
         if (segments) {
-            for (u8 i = 0; i < 8; ++i)
-                if (segments & (1 << i))
+            for (u8 i = 0; i < 8; ++i) {
+                if (segments & (1 << i)) {
                     this->nodes->operator[](i).cull(args, type);
+                }
+            }
         }
         else {
             ASSERT_EQ(faces);
-            const auto &ref =
-                    reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
-                            args.state.renderer.get_sub_renderer(
-                                    rendering::renderer::CHUNK_RENDERER))[0].mesh();
 
             #ifdef __AVX2__
             __m256i voxelVec = _mm256_set1_epi64x(this->packed_data & vertex_clear_mask);
@@ -150,15 +145,8 @@ namespace core::level::node {
             for (size_t i = 0; i < 6; ++i) {
 
                 // we often only see 1 face
-                if ((faces >> 50) & (1 << i)) [[unlikely]] {
-                    __m256i vertexVec = _mm256_loadu_si256(
-                            reinterpret_cast<__m256i const *>(ref[i].data()));
-                    vertexVec = _mm256_or_si256(vertexVec, voxelVec);
-
-                    ASSERT_NEQ(
-                            reinterpret_cast<u64>(&args._voxelVec[args.actual_size]) %
-                            sizeof(VERTEX));
-
+                if (faces & (1 << i)) [[unlikely]] {
+                    __m256i vertexVec = _mm256_or_si256(cube_structure.mesh()[i], voxelVec);
                     _mm256_store_si256(
                             const_cast<__m256i *>(&args._voxelVec[args.actual_size]),
                             vertexVec);
@@ -172,7 +160,7 @@ namespace core::level::node {
 
             for (size_t i = 0; i < 6; ++i) {
                 if (faces & (1 << i)) [[unlikely]] {
-                    auto &face = ref[i];
+                    auto &face = cube_structure.mesh()[i];
 
                     for (auto vertex : face)
                         args._voxelVec.emplace_back(vertex | packedVoxel);
@@ -182,6 +170,11 @@ namespace core::level::node {
         }
     }
 
+    /**
+     * @brief  Masks the leafs and increments a counter if mask contains bitmask.
+     * @param  mask The bitmask to test leaves against.
+     * @return Counter how many leaves contain the bitmask.
+     */
     auto Node::count_mask(u64 mask) -> size_t {
         size_t sum = 0;
 
@@ -200,6 +193,16 @@ namespace core::level::node {
         return sum;
     }
 
+    /**
+     * @brief  Searches for a node using a ray-AABB intersection function
+     *         taking in the position of a node and the scale of the node's AABB.
+     * @param  chunk_pos The position of the chunk containing this tree relative to the
+     *                   current world root.
+     * @param  fun       Arbitrary function taking in the position and scale of the
+     *                   current Node. Returns a float scalar indicating how an orientation
+     *                   would need to be scaled to hit the AABB of the node.
+     * @return The shortest found scalar.
+     */
     auto Node::find_node(
             const glm::vec3 &chunk_pos,
             std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {

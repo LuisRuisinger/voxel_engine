@@ -214,7 +214,9 @@ namespace core::level::platform {
             ptr->update_and_render(idx, state);
         };
 
-        static auto render_fun = [](chunk::Chunk *ptr, state::State &state) -> void {
+        static auto render_fun = [](
+                chunk::Chunk *ptr,
+                state::State &state) -> void {
             ptr->cull(state);
         };
 

@@ -25,7 +25,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/assimp)
 
 include_directories(${CMAKE_SOURCE_DIR}/assimp/include)
 include_directories(${CMAKE_SOURCE_DIR}/lib/glfw-3.3.9/include)
-include_directories(${CMAKE_SOURCE_DIR}/lib/glad-2/include)
+include_directories(${CMAKE_SOURCE_DIR}/lib/glad-3/include)
 include_directories(${CMAKE_SOURCE_DIR}/lib/imgui)
 include_directories(${CMAKE_SOURCE_DIR}/lib)
 
@@ -116,9 +116,13 @@ add_executable(
         util/time.cpp
         util/time.h
         util/collidable.h
+        core/rendering/framebuffer.cpp
+        core/rendering/framebuffer.h
+        util/sun.cpp
+        util/sun.h
 )
 
-target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-2/src/glad.c)
+target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)
 target_link_libraries(opengl_3d_engine imgui glfw assimp)
 
 if (APPLE)

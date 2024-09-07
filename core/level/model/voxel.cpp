@@ -12,9 +12,7 @@
     (static_cast<u64>((_p) * 2.0F) & 0x3)
 
 namespace core::level::model::voxel {
-    CubeStructure::CubeStructure()
-        : _compressedFaces{}
-    {
+    CubeStructure::CubeStructure() {
         std::vector<std::vector<Mesh::Vertex>> mesh = {
 
                 // Face 0: Back
@@ -67,29 +65,35 @@ namespace core::level::model::voxel {
         };
 
         for (size_t i = 0; i < mesh.size(); ++i)
-            setFace(mesh[i], i);
+            compress_face(mesh[i], i);
     }
 
-    auto CubeStructure::setFace(std::vector<Mesh::Vertex> &face, u8 idx) -> void {
-        std::vector<u64> compressedFace(face.size());
+    auto CubeStructure::compress_face(std::vector<Mesh::Vertex> &face, u8 face_idx) -> void {
+        std::vector<u64> faces(face.size());
 
         for (size_t i = 0; i < face.size(); ++i) {
-            // constructing compressed faces from n vertices
-            compressedFace[i] = (POS_CONV(face[i].position.x) << 61) |
-                                (POS_CONV(face[i].position.y) << 58) |
-                                (POS_CONV(face[i].position.z) << 55) |
+            faces[i] = (POS_CONV(face[i].position.x) << 61) |
+                       (POS_CONV(face[i].position.y) << 58) |
+                       (POS_CONV(face[i].position.z) << 55) |
 
-                                // compressing uv coordinates
-                                (UV_CONV(face[i].texCoords.x) << 53) |
-                                (UV_CONV(face[i].texCoords.y) << 51) |
+                       // compressing uv coordinates
+                       (UV_CONV(face[i].texCoords.x) << 53) |
+                       (UV_CONV(face[i].texCoords.y) << 51) |
 
-                                (face[i].texture_offset << 11);
+                       // compressing texture offset
+                       (face[i].texture_offset << 11);
         }
 
-        _compressedFaces[idx] = std::move(compressedFace);
+#ifdef __AVX2__
+        __m256i combined = _mm256_loadu_si256(
+                reinterpret_cast<__m256i const *>(faces.data()));
+        _mm256_storeu_si256(&this->compressed_faces[face_idx], combined);
+#else
+        this->compressed_faces[face_idx] = std::move(faces);
+#endif
     }
 
-    auto CubeStructure::mesh() const  -> const std::array<std::vector<u64>, 6> & {
-        return _compressedFaces;
+    auto CubeStructure::mesh() const  -> const Compressed & {
+        return this->compressed_faces;
     }
 }

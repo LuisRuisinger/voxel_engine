@@ -8,23 +8,27 @@
 #include <vector>
 
 #include "mesh.h"
-#include "../../../util/aliases.h"
+#include "../util/aliases.h"
 
 namespace core::level::model::voxel {
     class Voxel {
-        virtual auto mesh() const -> const std::array<std::vector<u64>, 6> & =0;
+    public:
+#ifdef __AVX2__
+        using Compressed = std::array<__m256i, 6>;
+#else
+        using Compressed = std::array<std::vector<u64>, 6>;
+#endif
+        constexpr virtual auto mesh() const -> const Compressed & =0;
     };
 
     class CubeStructure : public Voxel {
     public:
         CubeStructure();
-        ~CubeStructure() =default;
-
-        auto mesh() const -> const std::array<std::vector<u64>, 6> &;
-        auto setFace(std::vector<Mesh::Vertex> &face, u8 idx) -> void;
+        auto mesh() const -> const Compressed &;
+        auto compress_face(std::vector<Mesh::Vertex> &, u8) -> void;
 
     private:
-        std::array<std::vector<u64>, 6> _compressedFaces;
+        Compressed compressed_faces;
     };
 }
 

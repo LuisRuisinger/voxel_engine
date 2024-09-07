@@ -149,10 +149,10 @@ namespace util::camera {
     auto Camera::set_projection_matrix(i32 width, i32 height) -> void {
         this->projection_matrix =
                 glm::perspective(
-                        glm::radians(45.0f),
+                        glm::radians(60.0F),
                         static_cast<f32>(width) / static_cast<f32>(height),
-                        0.1f,
-                        static_cast<f32>((RENDER_RADIUS * 2) * CHUNK_SIZE));
+                        0.1F,
+                        (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 
     auto Camera::get_projection_matrix() -> const glm::mat4 & {

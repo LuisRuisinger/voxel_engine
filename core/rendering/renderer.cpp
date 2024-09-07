@@ -6,7 +6,8 @@
 #include <iostream>
 
 #include "renderer.h"
-#include "../../util/indices_generator.h"
+
+#include "../util/indices_generator.h"
 
 namespace core::rendering::renderer {
     auto Renderer::init_ImGui(GLFWwindow *window) -> void {
@@ -14,31 +15,18 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::init_pipeline() -> void {
-
-        glEnable(GL_DEPTH_TEST);
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-
         for (auto &[_, v] : this->sub_renderer)
             v->_crtp_init_shader();
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         for (auto &[_, v] : this->sub_renderer)
             v->_crtp_prepare_frame(state);
 
     }
 
     auto Renderer::frame(state::State &state) -> void {
-        for (auto &[_, v] : this->sub_renderer)
-            v->_crtp_frame(state);
-
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
         interface::render();
     }
 

@@ -12,7 +12,6 @@
 #include "../platform.h"
 
 #include "../core/level/tiles/tile_manager.h"
-#include "../core/level/model/voxel.h"
 
 
 namespace core::level::chunk::chunk_renderer {
@@ -37,17 +36,11 @@ namespace core::level::chunk::chunk_renderer {
         // write traversed voxels
         auto request_writeable_area(u64, u64) -> const VERTEX *;
         auto add_size_writeable_area(u64, u64) -> void;
-        auto operator[](size_t) -> model::voxel::CubeStructure &;
-
-        // TODO: move to renderable, let inherting classes add_textures
-        // TODO: add tile manager and remove the cubestructure array
-        auto add_texture(u32) -> void;
 
     private:
         std::vector<std::vector<Buffer<VERTEX>>> storage;
-        std::array<model::voxel::CubeStructure, 512> meshes;
+        tiles::tile_manager::TileManager tile_manager;
         linear_allocator::LinearAllocator<arena_allocator::ArenaAllocator> allocator;
-        u32 texture;
     };
 }
 

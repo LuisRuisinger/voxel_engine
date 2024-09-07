@@ -58,7 +58,7 @@ namespace core::level::node_inline {
      * @return A u8 mask for the chosen child of the current node.
      */
     inline static
-    auto selectChild(u32 packed_voxel, u32 packed_data_high) -> u8 {
+    auto select_child(u32 packed_voxel, u32 packed_data_high) -> u8 {
         return (((packed_voxel & x_and) >= (packed_data_high & x_and)) << 2) |
                (((packed_voxel & y_and) >= (packed_data_high & y_and)) << 1) |
                 ((packed_voxel & z_and) >= (packed_data_high & z_and));
@@ -71,7 +71,7 @@ namespace core::level::node_inline {
      * @return A u32 mask equal to the packed data's high 32 bit of a node
      */
     inline static
-    auto buildBbox(u8 childMask, u32 packedData) -> u32 {
+    auto build_AABB(u8 childMask, u32 packedData) -> u32 {
         auto [pX, pY, pZ] = index_to_prefix[childMask];
 
         // calculating 2^(n + 1) / 2^2 = 2^n / 2 = 2^(n - 1)
@@ -108,7 +108,7 @@ namespace core::level::node_inline {
      * @return A std::optional containing either the voxel or none
      */
     inline static
-    auto findNode(u32 packed_voxel, node::Node *current) -> node::Node * {
+    auto find_node(u32 packed_voxel, node::Node *current) -> node::Node * {
         for(;;) {
             if (!(current->packed_data >> 56)) {
 
@@ -138,7 +138,7 @@ namespace core::level::node_inline {
             }
 
             // if the segment is not in use the voxel doesn't exist
-            const auto index = selectChild(packed_voxel, current->packed_data >> SHIFT_HIGH);
+            const auto index = select_child(packed_voxel, current->packed_data >> SHIFT_HIGH);
             if (!((current->packed_data >> 56) & (1 << index)))
                 return nullptr;
 
@@ -161,7 +161,7 @@ namespace core::level::node_inline {
      * @return The address of inserted Voxel
      */
     inline static
-    auto insertNode(u64 packed_voxel, u32 data, node::Node *current) -> node::Node * {
+    auto insert_node(u64 packed_voxel, u32 data, node::Node *current) -> node::Node * {
         for(;;) {
             ASSERT_EQ(current);
             if ((1 << (data & MASK_3)) == BASE_SIZE) {
@@ -176,7 +176,7 @@ namespace core::level::node_inline {
                 return current;
             }
             else {
-                u8 index    = selectChild(packed_voxel >> SHIFT_HIGH, data);
+                u8 index    = select_child(packed_voxel >> SHIFT_HIGH, data);
                 u8 segment  = 1 << index;
                 u8 segments = current->packed_data >> 56;
 
@@ -208,7 +208,7 @@ namespace core::level::node_inline {
                             (static_cast<u64>(MASK_6) << 50);
 
                 ASSERT_EQ(current->nodes.get());
-                data = buildBbox(index, data);
+                data = build_AABB(index, data);
                 current = &(current->nodes->operator[](index));
             }
         }
@@ -218,7 +218,7 @@ namespace core::level::node_inline {
     requires std::is_integral_v<T> &&
              std::conjunction_v<std::is_same<T, Args> ...>
     INLINE static constexpr auto equal(T t, Args ...args) -> bool {
-        return (((t & 0xFF) == (args & 0xFF)) && ...);
+        return (((t & 0x1FF) == (args & 0x1FF)) && ...);
     }
 
     /**

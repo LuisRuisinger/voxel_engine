@@ -5,8 +5,8 @@
 #ifndef OPENGL_3D_ENGINE_OPENGL_WINDOW_H
 #define OPENGL_3D_ENGINE_OPENGL_WINDOW_H
 
-#include "glad/glad.h"
-#include "GLFW/glfw3.h"
+#include <glad-3/include/glad/glad.h>
+#include <GLFW/glfw3.h>
 
 #include "../../util/aliases.h"
 #include "../../util/log.h"

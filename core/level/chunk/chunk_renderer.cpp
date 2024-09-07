@@ -7,14 +7,18 @@
 
 namespace core::level::chunk::chunk_renderer {
     ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator)
-            : meshes                   {           },
-              allocator                { allocator },
-              storage(std::thread::hardware_concurrency()) {
-        // TODO: later init voxel meshes here
-        this->meshes[0] = model::voxel::CubeStructure{};
-    }
+            : allocator { allocator },
+              storage(std::thread::hardware_concurrency())
+    {}
 
     auto ChunkRenderer::init_shader() -> void {
+        glEnable(GL_DEPTH_TEST);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+
         auto res = this->shader.init("vertex_shader.glsl", "fragment_shader.glsl");
         if (res.isErr()) {
             LOG(res.unwrapErr());
@@ -34,6 +38,9 @@ namespace core::level::chunk::chunk_renderer {
                 .add(1, util::renderable::Type::U_INT, nullptr)
                 .add(1, util::renderable::Type::U_INT, sizeof(u32))
                 .end();
+
+        // setting up the tile management
+        setup(tile_manager);
     }
 
     auto ChunkRenderer::prepare_frame(state::State &state) -> void {
@@ -59,6 +66,11 @@ namespace core::level::chunk::chunk_renderer {
     }
 
     auto ChunkRenderer::frame(state::State &state) -> void {
+
+        // clearing the framebuffer
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
         auto view = state.player
                 .get_camera()
                 .get_view_matrix();
@@ -74,8 +86,9 @@ namespace core::level::chunk::chunk_renderer {
         this->shader["texture_array"] = static_cast<i32>(0);
         this->shader.upload_uniforms();
 
+        // binding the 2D texture array containing the textures of all tiles
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D_ARRAY, this->texture);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, this->tile_manager.texture_array);
 
         auto vertex_sum = 0;
         auto draw_calls = 0;
@@ -168,13 +181,5 @@ namespace core::level::chunk::chunk_renderer {
         vec[vec.size() - 1].size += len;
 
         ASSERT_EQ(vec[vec.size() - 1].size <= vec[vec.size() - 1].capacity);
-    }
-
-    auto ChunkRenderer::operator[](size_t i) -> model::voxel::CubeStructure & {
-        return this->meshes[i];
-    }
-
-    auto ChunkRenderer::add_texture(u32 texture) -> void {
-        this->texture = texture;
     }
 }

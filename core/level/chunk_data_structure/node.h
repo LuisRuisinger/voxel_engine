@@ -27,13 +27,12 @@ namespace core::level::node {
     struct Args {
         const glm::vec3 &_point;
         const util::camera::Camera &_camera;
-        state::State &state;
         const VERTEX *_voxelVec;
         u64 &actual_size;
     };
 
     struct Node {
-        Node();
+        Node() =default;
         ~Node() =default;
 
         Node(Node &&) noexcept =default;
@@ -43,7 +42,7 @@ namespace core::level::node {
         auto operator=(const Node &) =delete;
 
         auto cull(Args &, util::culling::CollisionType type) const -> void;
-        auto updateFaceMask(u16) -> u8;
+        auto update_face_mask(u16) -> u8;
         auto recombine() -> void;
         auto update_chunk_mask(u16) -> void;
         auto count_mask(u64) -> size_t;
@@ -70,8 +69,8 @@ namespace core::level::node {
 
     static_assert(sizeof(Node) == 2 * sizeof(Node *));
 
-    inline auto insertNode(u64 packedVoxel, u32 packedData, Node *current) -> Node *;
-    inline auto findNode(u32 packedVoxel, Node *current) -> Node *;
+    inline auto insert_node(u64, u32, Node *) -> Node *;
+    inline auto find_node(u32, Node *) -> Node *;
 }
 
 #endif //OPENGL_3D_ENGINE_NODE_H

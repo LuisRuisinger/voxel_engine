@@ -98,7 +98,7 @@ namespace util::renderable {
             friend Renderable<T>;
         public:
             Layout()
-                : cnt { 0 } {
+                    : cnt { 0 } {
                 auto indices_buffer = util::IndicesGenerator<MAX_VERTICES_BUFFER>();
                 this->indices.insert(
                         this->indices.end(),

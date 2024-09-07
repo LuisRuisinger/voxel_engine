@@ -32,10 +32,6 @@ namespace core::level::chunk {
             this->chunk_segments.emplace_back(i);
     }
 
-    static auto ridgenoise(siv::BasicPerlinNoise<f32> gen, i32 x, i32 z) -> f32 {
-        return 2.0F * (0.5F - std::abs(0.5F - gen.noise2D_01(x, z)));
-    }
-
     auto Chunk::generate(glm::vec2 root) -> void {
 
         // generate steps
@@ -55,7 +51,7 @@ namespace core::level::chunk {
 
     auto Chunk::insert(
             const glm::vec3 position,
-            u8 voxel_ID, platform::Platform *platform,
+            u16 voxel_ID, platform::Platform *platform,
             bool recombine) -> void {
         auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
         auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
@@ -70,7 +66,7 @@ namespace core::level::chunk {
         // 12 highest bit set to the index of the chunk inside chunk managing array
         u32 packed_data_lowp = (this->chunk_idx << 20) |
                                (segment.segment_idx << 16) |
-                               voxel_ID;
+                               (voxel_ID & 0x1FF);
 
         auto *node = segment.root->addPoint(
                 (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
@@ -232,6 +228,7 @@ namespace core::level::chunk {
                 static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
         };
 
+        auto pos = global_root + offset;
         auto sum = 0;
         for (u64 i = 0; i < 6; ++i)
                 sum += this->mask_container[static_cast<u64>(1) << (50 + i)];
@@ -239,23 +236,17 @@ namespace core::level::chunk {
         if (!sum)
             return;
 
-        auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+        u64 actual_size = 0;
+        const auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
                 state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
                         .request_writeable_area(sum, threading::thread_pool::worker_id);
 
-        u64 actual_size = 0;
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
             if (this->chunk_segments[i].initialized) {
-                const auto pos = global_root + offset + glm::vec3 {
-                    0.0F,
-                    i * static_cast<f32>(CHUNK_SIZE),
-                    0.0F
-                };
-
+                pos.y = static_cast<f32>((i - 4) * CHUNK_SIZE);
                 this->chunk_segments[i].root->cull(
                         pos,
                         state.player.get_camera(),
-                        state,
                         buffer,
                         actual_size);
             }
@@ -290,8 +281,11 @@ namespace core::level::chunk {
     auto Chunk::update_and_render(u16 nchunk_idx,
                                   state::State &state) -> void {
         this->chunk_idx = nchunk_idx & 0xFFF;
-        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
-            this->chunk_segments[i].root->update_chunk_mask((this->chunk_idx << 4) | i);
+        for (u8 i = 0; i < CHUNK_SEGMENTS; ++i) {
+            if (this->chunk_segments[i].initialized) {
+                this->chunk_segments[i].root->update_chunk_mask((this->chunk_idx << 4) | i);
+            }
+        }
 
         cull(state);
     }

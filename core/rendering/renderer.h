@@ -18,6 +18,7 @@
 #include "../../util/camera.h"
 #include "../state.h"
 #include "../../util/renderable.h"
+#include "../core/rendering/framebuffer.h"
 
 namespace core::rendering::renderer {
     using namespace util::renderable;
@@ -52,6 +53,7 @@ namespace core::rendering::renderer {
                 RenderType,
                 Renderable<BaseInterface> *> sub_renderer;
 
+        framebuffer::Framebuffer framebuffer;
     };
 }
 

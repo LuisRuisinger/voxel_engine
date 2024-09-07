@@ -17,9 +17,9 @@ namespace core::level::chunk::generation::biome {
         m = step(m, 0.6F, 0.6F);
 
         auto max_y = std::min(static_cast<i32>(m + WATER_LEVEL), max_height);
-        for (auto y = MIN_HEIGHT; y <= max_y; ++y) {
+        for (auto y = 0; y <= max_y; ++y) {
             auto pos = glm::vec3{x, y, z};
-            chunk.insert(pos, rand(), nullptr, false);
+            chunk.insert(pos, 3, nullptr, false);
         }
     }
 
@@ -29,16 +29,6 @@ namespace core::level::chunk::generation::biome {
         ret = ret * std::log(std::pow(i, 2.0F));
 
         return ret + 1;
-    }
-
-    auto Cliffs::rand() -> f32 {
-        /*
-        f32 val = static_cast<f32>(::rand()) / static_cast<f32>(RAND_MAX);
-        if (val > 0.20)
-            return 3;
-            */
-
-        return 3;
     }
 
     auto Forest::generate(chunk::Chunk &chunk, f32 x, f32 z, f32 m) -> void {
@@ -51,7 +41,7 @@ namespace core::level::chunk::generation::biome {
             chunk.insert(pos, 0, nullptr, false);
         }
 
-        for (auto y = MIN_HEIGHT; y < max_y - 3; ++y) {
+        for (auto y = 0; y < max_y - 3; ++y) {
             auto pos = glm::vec3 { x, y, z };
             chunk.insert(pos, 3, nullptr, false);
         }

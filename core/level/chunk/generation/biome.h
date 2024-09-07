@@ -39,7 +39,6 @@ namespace core::level::chunk::generation::biome {
     struct Cliffs : public Biome<Forest> {
         auto generate(chunk::Chunk &chunk, f32 x, f32 z, f32 m) -> void;
         auto amplify(f32) -> f32;
-        auto rand() -> f32;
     };
 }
 
