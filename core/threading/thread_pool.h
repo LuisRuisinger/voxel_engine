@@ -232,14 +232,13 @@ namespace core::threading::thread_pool {
                     for (size_t n = 0; n < this->thread_instance_count + 1; ++n) {
                         if (this->task_queue[(i + n) %
                             this->thread_instance_count].try_pop(task)) {
-                            this->enqueued_tasks_count.fetch_sub(1, std::memory_order_relaxed);
 
                             // through the relaxed subtraction of the enqueued count it could
                             // be possible a thread tries to extract a non-valid element
                             // of the SPMC queue
-                            if (task)
-                                task();
 
+                            this->enqueued_tasks_count.fetch_sub(1, std::memory_order_relaxed);
+                            task();
                             this->active_tasks_count.fetch_sub(1, std::memory_order_relaxed);
                         }
                     }
@@ -256,8 +255,8 @@ namespace core::threading::thread_pool {
 
         const u32                                   thread_instance_count;
         std::vector<std::thread>                    thread_instances;
-        // std::vector<ThreadsafeQueue<Function_type>> task_queue;
-        std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
+        std::vector<ThreadsafeQueue<Function_type>> task_queue;
+        // std::vector<spmc_queue::SPMCQueue<Function_type>> task_queue;
 
         std::atomic_size_t enqueued_tasks_count = 0;
         std::atomic_size_t active_tasks_count = 0;

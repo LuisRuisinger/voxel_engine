@@ -61,7 +61,7 @@ namespace core::level::platform {
      */
     auto Platform::unload_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> Platform & {
         static auto destroy = [](std::shared_ptr<chunk::Chunk> ptr) -> void {
-            ASSERT_EQ(ptr.get());
+            // ASSERT_EQ(ptr.get());
         };
 
         DEBUG_LOG("Unloading chunks");
@@ -92,27 +92,39 @@ namespace core::level::platform {
         return *this;
     }
 
-    auto Platform::init_chunk_neighbours(i32 i,
-                                         i32 j,
-                                         chunk::Position p1,
-                                         chunk::Position p2) -> void {
-        if (j > -1 && j < MAX_RENDER_VOLUME &&
-            this->queued_chunks.contains(j)) {
-            this->queued_chunks[i]->add_neigbor(p1, this->chunks[this->queued_chunks[j]]);
-            this->queued_chunks[j]->add_neigbor(p2, this->chunks[this->queued_chunks[i]]);
+    auto Platform::init_neighbors(i32 x, i32 z) -> void {
+        auto init_chunk_neighbours = [this](i32 i, i32 j, chunk::Position p1, chunk::Position p2) {
+            if ((j > -1 && j < MAX_RENDER_VOLUME) &&
+                this->queued_chunks.contains(j)) {
+                this->queued_chunks[i]->add_neigbor(p1, this->chunks[this->queued_chunks[j]]);
+                this->queued_chunks[j]->add_neigbor(p2, this->chunks[this->queued_chunks[i]]);
+            }
+        };
+
+        if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x - 1, z)) < RENDER_RADIUS) {
+            init_chunk_neighbours(
+                    INDEX(x, z), INDEX(x - 1, z),
+                    chunk::Position::BACK, chunk::Position::FRONT);
+        }
+
+        if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x + 1, z)) < RENDER_RADIUS) {
+            init_chunk_neighbours(
+                    INDEX(x, z), INDEX(x + 1, z),
+                    chunk::Position::FRONT, chunk::Position::BACK);
+        }
+
+        if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z - 1)) < RENDER_RADIUS) {
+            init_chunk_neighbours(
+                    INDEX(x, z), INDEX(x, z - 1),
+                    chunk::Position::LEFT, chunk::Position::RIGHT);
+        }
+
+        if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z + 1)) < RENDER_RADIUS) {
+            init_chunk_neighbours(
+                    INDEX(x, z), INDEX(x, z + 1),
+                    chunk::Position::RIGHT, chunk::Position::LEFT);
         }
     }
-
-#define INIT_NEIGHBOR(_x, _z) ({                                                    \
-        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x) - 1, (_z)),       \
-                                    chunk::Position::BACK, chunk::Position::FRONT); \
-        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x) + 1, (_z)),       \
-                                    chunk::Position::FRONT, chunk::Position::BACK); \
-        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x), (_z) - 1),       \
-                                    chunk::Position::LEFT, chunk::Position::RIGHT); \
-        this->init_chunk_neighbours(INDEX((_x), (_z)), INDEX((_x), (_z) + 1),       \
-                                    chunk::Position::RIGHT, chunk::Position::LEFT); \
-    })
 
     /**
      * @brief Load new chunks and share ownership of currently loaded chunks that are still
@@ -148,7 +160,7 @@ namespace core::level::platform {
 
                         this->queued_chunks[INDEX(x, z)] =
                                 this->active_chunks[INDEX(old_pos.x, old_pos.y)];
-                        INIT_NEIGHBOR(x, z);
+                        init_neighbors(x, z);
                     }
                     else {
                         auto ptr = std::make_shared<chunk::Chunk>(INDEX(x, z));
@@ -156,7 +168,7 @@ namespace core::level::platform {
 
                         this->chunks[chunk] = std::move(ptr);
                         this->queued_chunks[INDEX(x, z)] = chunk;
-                        INIT_NEIGHBOR(x, z);
+                        init_neighbors(x, z);
 
                         // generate new chunk
                         thread_pool.enqueue_detach(generate, chunk, new_root);

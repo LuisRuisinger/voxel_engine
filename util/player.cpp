@@ -78,31 +78,26 @@ namespace util::player {
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_W>() -> void {
         camera_hook->move_camera(util::camera::FORWARD, this->delta_time);
-        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_S>() -> void {
         camera_hook->move_camera(util::camera::BACKWARD, this->delta_time);
-        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_A>() -> void {
         camera_hook->move_camera(util::camera::LEFT, this->delta_time);
-        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_D>() -> void {
         camera_hook->move_camera(util::camera::RIGHT, this->delta_time);
-        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>
     auto Player::on_input<Action::ON_REPEAT, Keymap::KEY_SPACE>() -> void {
         camera_hook->move_camera(util::camera::UP, this->delta_time);
-        DEBUG_LOG(this->camera_hook->get_position());
     }
 
     template <>

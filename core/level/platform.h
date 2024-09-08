@@ -53,11 +53,7 @@ class Platform :
         auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> Platform &;
         auto load_chunks(threading::thread_pool::Tasksystem<> &, glm::vec2) -> Platform &;
         auto swap_chunks(glm::vec2) -> Platform &;
-        auto init_chunk_neighbours(
-                i32,
-                i32,
-                chunk::Position,
-                chunk::Position) -> void;
+        auto init_neighbors(i32 x, i32 z) -> void;
 
         std::unordered_map<chunk::Chunk *, std::shared_ptr<chunk::Chunk>> chunks;
         std::unordered_map<u32, chunk::Chunk *> active_chunks;

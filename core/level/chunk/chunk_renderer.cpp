@@ -50,10 +50,10 @@ namespace core::level::chunk::chunk_renderer {
         for (auto i = 0; i < this->storage.size(); ++i) {
             this->storage[i].clear();
             this->storage[i].push_back({
-                .mem = this->allocator.allocate<VERTEX>(_batch),
-                .capacity = _batch,
-                .size = 0
-            });
+                                               .mem = this->allocator.allocate<VERTEX>(_batch),
+                                               .capacity = _batch,
+                                               .size = 0
+                                       });
         }
 
 #ifdef DEBUG
@@ -161,10 +161,10 @@ namespace core::level::chunk::chunk_renderer {
             auto _batch = batch(sizeof(VERTEX));
 
             vec.push_back({
-                .mem = this->allocator.allocate<VERTEX>(_batch),
-                .capacity = _batch,
-                .size = 0
-            });
+                                  .mem = this->allocator.allocate<VERTEX>(_batch),
+                                  .capacity = _batch,
+                                  .size = 0
+                          });
 
             ASSERT_EQ(vec[vec.size() - 1].mem);
         }

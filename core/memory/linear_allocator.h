@@ -8,7 +8,7 @@
 #include "memory.h"
 #include "../../util/result.h"
 
-#define DECAY       (60)
+#define DECAY       (1024)
 #define BUFFER_SIZE (HUGE_PAGE * 8)
 #define ACQUIRE_GUARD(_a) ({                                       \
     for (;;) {                                                     \
@@ -34,7 +34,7 @@ namespace core::memory::linear_allocator {
      */
     struct Metadata {
         u8 *next;
-        u8 used;
+        u32 used;
         std::atomic<u8 *> head;
     };
 

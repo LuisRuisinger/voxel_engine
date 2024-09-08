@@ -43,9 +43,14 @@ namespace core::level::chunk {
         BACK
     };
 
-    //
-    //
-    //
+    class OcclusionMap {
+    public:
+        OcclusionMap() =default;
+        auto operator[](u64 mask) -> std::unordered_map<node::Node *, u32> &;
+
+    private:
+        std::array<std::unordered_map<node::Node *, u32>, 6> map;
+    };
 
     class Chunk {
     public:
@@ -64,7 +69,7 @@ namespace core::level::chunk {
         auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
         auto find(std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
 
-        auto updateOcclusion(node::Node *, node::Node *, u64, u64) -> void;
+        auto update_occlusion(node::Node *, node::Node *, u64, u64) -> void;
         auto visible(const util::camera::Camera &, const platform::Platform &) const -> bool;
         auto index() const -> u16;
         auto add_neigbor(Position, std::shared_ptr<Chunk>) -> void;
@@ -77,13 +82,15 @@ namespace core::level::chunk {
         };
 
     private:
+        std::vector<std::pair<Position, std::weak_ptr<Chunk>>> neighbors;
+        OcclusionMap occlusion_map;
 
-        std::vector<std::pair<Position, std::weak_ptr<Chunk>>> neighbors {};
-        std::vector<ChunkSegment> chunk_segments {};
-        u16                       chunk_idx;
+        std::vector<ChunkSegment> chunk_segments;
+        std::vector<ChunkSegment> water_segments;
 
-        u32 size { 0 };
-        u8  faces { 0 };
+        u16 chunk_idx;
+        u16 faces;
+        u32 size;
 
         mutable size_t cur_frame_alloc_size { 0 };
         mutable Faces mask_container;

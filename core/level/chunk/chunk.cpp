@@ -8,12 +8,24 @@
 
 #include "../chunk_data_structure/voxel_data_layout.h"
 
-#include "../../../util/assert.h"
-#include "../../../util/player.h"
+#include "../util/assert.h"
+#include "../util/player.h"
+#include "../util/tagged_ptr.h"
 
 #include "generation/generation.h"
 
 namespace core::level::chunk {
+    auto OcclusionMap::operator[](u64 mask) -> std::unordered_map<node::Node *, u32> & {
+        switch (mask) {
+            case TOP_BIT   : return this->map[0];
+            case BOTTOM_BIT: return this->map[1];
+            case FRONT_BIT : return this->map[2];
+            case BACK_BIT  : return this->map[3];
+            case LEFT_BIT  : return this->map[4];
+            case RIGHT_BIT : return this->map[5];
+        }
+    }
+
     auto Chunk::Faces::operator[](u64 mask) -> u64 & {
         switch (mask) {
             case TOP_BIT   : return this->stored_faces[0];
@@ -26,7 +38,7 @@ namespace core::level::chunk {
     }
 
     Chunk::Chunk(u16 chunkIdentifier)
-        : chunk_idx{static_cast<u16>(chunkIdentifier & 0xFFF)}
+            : chunk_idx{static_cast<u16>(chunkIdentifier & 0xFFF)}
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments.emplace_back(i);
@@ -75,12 +87,12 @@ namespace core::level::chunk {
         f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
 
         // occlusion culling
-        updateOcclusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-        updateOcclusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-        updateOcclusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-        updateOcclusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-        updateOcclusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-        updateOcclusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
 
         // recombining voxels
         if (recombine) {
@@ -90,34 +102,36 @@ namespace core::level::chunk {
     }
 
     inline
-    auto Chunk::updateOcclusion(node::Node *current,
-                                node::Node *neighbor,
-                                u64 cBit,
-                                u64 nBit) -> void {
+    auto Chunk::update_occlusion(
+            node::Node *current,
+            node::Node *neighbor,
+            u64 current_mask,
+            u64 neighbor_mask) -> void {
         if (neighbor) {
 
             // every voxel we insert has BASE_SIZE and thus is guaranteed
             // to be blocked if a neighbor exists for this face
-            current->packed_data &= ~cBit;
-
-            // bit is already not set
-            if (!(neighbor->packed_data & nBit))
-                return;
+            current->packed_data &= ~current_mask;
 
             // the neighbor is a simple BASE_SIZE voxel
             auto neighbor_cube_side = 1 << ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3);
             if (neighbor_cube_side == BASE_SIZE) {
-                neighbor->packed_data &= ~nBit;
+                neighbor->packed_data &= ~neighbor_mask;
                 return;
             }
 
             // the neighbor is bigger than BASE_SIZE
-            // we need to check for all other possible voxels if the block it
-            auto center = glm::vec3 {
-                    (neighbor->packed_data >> (13 + SHIFT_HIGH)) & MASK_5,
-                    (neighbor->packed_data >> (8  + SHIFT_HIGH)) & MASK_5,
-                    (neighbor->packed_data >> (3  + SHIFT_HIGH)) & MASK_5
-            };
+            // we need to check for all other voxels of this quad if it is occluded
+            auto &map = this->occlusion_map[neighbor_mask];
+            if (map.contains(neighbor)) {
+                ++map[neighbor];
+
+                if (map[neighbor] == neighbor_cube_side * neighbor_cube_side)
+                    neighbor->packed_data &= ~neighbor_mask;
+            }
+            else {
+                map[neighbor] = 1;
+            }
         }
     }
 
@@ -165,7 +179,7 @@ namespace core::level::chunk {
                 }
         }
 
-        // intra-chunk-finding
+            // intra-chunk-finding
         else if ((position.x >= 0 && position.x < CHUNK_SIZE) &&
                  (position.z >= 0 && position.z < CHUNK_SIZE)) {
             auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
@@ -231,7 +245,7 @@ namespace core::level::chunk {
         auto pos = global_root + offset;
         auto sum = 0;
         for (u64 i = 0; i < 6; ++i)
-                sum += this->mask_container[static_cast<u64>(1) << (50 + i)];
+            sum += this->mask_container[static_cast<u64>(1) << (50 + i)];
 
         if (!sum)
             return;
@@ -239,7 +253,7 @@ namespace core::level::chunk {
         u64 actual_size = 0;
         const auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
                 state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
-                        .request_writeable_area(sum, threading::thread_pool::worker_id);
+                .request_writeable_area(sum, threading::thread_pool::worker_id);
 
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
             if (this->chunk_segments[i].initialized) {
@@ -255,7 +269,7 @@ namespace core::level::chunk {
         ASSERT_EQ(actual_size <= sum);
         reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
                 state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
-                        .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
+                .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
     }
 
     auto Chunk::recombine() -> void {
@@ -304,17 +318,16 @@ namespace core::level::chunk {
         auto offset =
                 static_cast<f32>(CHUNK_SIZE) *
                 glm::vec2 {
-                    static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
-                    static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
-        };
+                        static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                        static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+                };
 
         return camera.check_in_frustum(platform.get_world_root() + offset, CHUNK_SIZE);
     }
 
     auto Chunk::add_neigbor(Position position, std::shared_ptr<Chunk> neighbor) -> void {
         for (auto &[p, w] : this->neighbors)
-            if (p == position && !w.expired()) {
-                DEBUG_LOG("Neighbour candidate failure");
+            if (p == position && w.expired()) {
                 w = std::move(neighbor);
                 return;
             }

@@ -15,9 +15,10 @@
 #include <functional>
 
 #include "node.h"
-#include "../../../util/aliases.h"
-#include "glad/glad.h"
-#include "../../../util/assert.h"
+
+#include "../util/assert.h"
+#include "../util/aliases.h"
+#include "../util/aabb.h"
 
 #define BASE_SIZE  0x1
 #define MASK_3     0x7
@@ -109,19 +110,20 @@ namespace core::level::node_inline {
      */
     inline static
     auto find_node(u32 packed_voxel, node::Node *current) -> node::Node * {
+        const auto position_vec = glm::vec3 {
+                (packed_voxel >> 13) & MASK_5,
+                (packed_voxel >>  8) & MASK_5,
+                (packed_voxel >>  3) & MASK_5
+        };
+
+        const auto aabb = util::aabb::AABB<f32>().translate(position_vec);
+
         for(;;) {
             if (!(current->packed_data >> 56)) {
 
-                // spherical approximation of the position
-                // via distance between the position and current node
+                // node default init without any content
                 if (!((current->packed_data >> 50) & MASK_6))
                     return nullptr;
-
-                const auto position_vec = glm::vec3 {
-                        (packed_voxel >> 13) & MASK_5,
-                        (packed_voxel >>  8) & MASK_5,
-                        (packed_voxel >>  3) & MASK_5
-                };
 
                 const auto root_vec = glm::vec3 {
                         (current->packed_data >> 45) & MASK_5,
@@ -129,11 +131,23 @@ namespace core::level::node_inline {
                         (current->packed_data >> 35) & MASK_5
                 };
 
-                // radius generation from bitmask stored exponent
-                // the exponent scales the side of the bounding volume of each
-                // level of the SVO hierarchy
-                const u8 cur_cube_side = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
-                if (glm::distance(position_vec, root_vec) <= SQRT_2 * cur_cube_side)
+                // aabb - aabb intersection
+                const u8 scale = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
+                bool intersect = false;
+                if (scale == BASE_SIZE) {
+                    intersect = util::aabb::AABB<f32>()
+                            .translate(root_vec)
+                            .intersection(aabb);
+                }
+                else {
+                    intersect = util::aabb::AABB<f32>()
+                            .translate(root_vec)
+                            .scale_center(static_cast<f32>(scale))
+                            .translate(0.5F)
+                            .intersection(aabb);
+                }
+
+                if (intersect)
                     return current;
             }
 
