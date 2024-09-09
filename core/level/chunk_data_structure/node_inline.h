@@ -14,34 +14,42 @@
 #include <stack>
 #include <functional>
 
+#ifdef __AVX2__
+#include <immintrin.h>
+#define GLM_FORCE_AVX
+#endif
+
 #include "node.h"
 
 #include "../util/assert.h"
 #include "../util/aliases.h"
 #include "../util/aabb.h"
 
-#define BASE_SIZE  0x1
-#define MASK_3     0x7
-#define MASK_5     0x1F
-#define MASK_6     0x3F
-#define SHIFT_HIGH 32
+#define BASE_SIZE     0x1
+#define MASK_3        0x7
+#define MASK_5        0x1F
+#define MASK_6        0x3F
+#define SHIFT_HIGH    0x20
+#define MASK_VOXEL_ID 0x1FF
 
 namespace core::level::node_inline {
 
     /** @brief Mask to extract the x-offset inside the chunk from packed_data */
-    static constexpr const u32 x_and = 0x1F << 13;
+    static constexpr const u32 x_and = 0x1F << 0xD;
 
     /** @brief Mask to extract the y-offset inside the chunk from packed_data */
-    static constexpr const u32 y_and = 0x1F << 8;
+    static constexpr const u32 y_and = 0x1F << 0x8;
 
     /** @brief Mask to extract the z-offset inside the chunk from packed_data */
-    static constexpr const u32 z_and = 0x1F << 3;
+    static constexpr const u32 z_and = 0x1F << 0x3;
 
     /** @brief Extract the exponent of the scale from packed_data */
     static constexpr const u64 exponent_and = 0x700000000;
 
+    static constexpr const u64 mask_coords = (0x1 << 0x12) - 0x1;
+
     /** @brief Mask packed_data with exponent threshold */
-    static constexpr const u64 exponent_check = static_cast<u64>(2) << 32;
+    static constexpr const u64 exponent_check = static_cast<u64>(0x2) << SHIFT_HIGH;
 
     /** @brief Extract everything of packed_data except the highest 14 bit (segment, faces) */
     static constexpr const u64 save_and = 0x03FFFFFFFFFFFF;
@@ -60,46 +68,80 @@ namespace core::level::node_inline {
      */
     inline static
     auto select_child(u32 packed_voxel, u32 packed_data_high) -> u8 {
-        return (((packed_voxel & x_and) >= (packed_data_high & x_and)) << 2) |
-               (((packed_voxel & y_and) >= (packed_data_high & y_and)) << 1) |
+#ifdef __AVX512VL__
+        const __m128i _mask = _mm_set_epi32(0x0, x_and, y_and, z_and);
+
+        __m128i _pv = _mm_set1_epi32(packed_voxel);
+        __m128i _pd = _mm_set1_epi32(packed_data_high);
+
+        _pv = _mm_and_si128(_pv, _mask);
+        _pd = _mm_and_si128(_pd, _mask);
+
+        // (a >= b) direct computable and storable in u8 mask
+        return _mm_cmpge_epi32_mask(_pv, _pd);
+
+#elif __AVX2__
+        const __m256i _and = _mm256_set1_epi32(0x1);
+        const __m256i _mask = _mm256_set_epi32(0x0, 0x0, 0x0, 0x0, 0x0, x_and, y_and, z_and);
+
+        __m256i _pv = _mm256_set1_epi32(packed_voxel);
+        __m256i _pd = _mm256_set1_epi32(packed_data_high);
+
+        _pv = _mm256_and_si256(_pv, _mask);
+        _pd = _mm256_and_si256(_pd, _mask);
+
+        // (a >= b) is equal to !(b > a)
+        _pd = _mm256_cmpgt_epi32(_pd, _pv);
+
+        // !(b > a)
+        _pd = _mm256_xor_si256(_pd, _and);
+        _pd = _mm256_and_si256(_pd, _and);
+
+        return (_mm256_extract_epi32(_pd, 2) << 0x2) |
+               (_mm256_extract_epi32(_pd, 1) << 0x1) |
+               (_mm256_extract_epi32(_pd, 0));
+#else
+        return (((packed_voxel & x_and) >= (packed_data_high & x_and)) << 0x2) |
+               (((packed_voxel & y_and) >= (packed_data_high & y_and)) << 0x1) |
                 ((packed_voxel & z_and) >= (packed_data_high & z_and));
+#endif
     }
 
     /**
      * @brief  Building a cubic box enclosing a certain section of the chunk_data_structure
-     * @param  childMask  The targeted child of the curret node
-     * @param  packedData The high 32 bit of the current node containing position and scale
+     * @param  child_mask  The targeted child of the curret node
+     * @param  packed_data_high32 The high 32 bit of the current node containing position and scale
      * @return A u32 mask equal to the packed data's high 32 bit of a node
      */
     inline static
-    auto build_AABB(u8 childMask, u32 packedData) -> u32 {
-        auto [pX, pY, pZ] = index_to_prefix[childMask];
+    auto build_AABB(u8 child_mask, u32 packed_data_high32) -> u32 {
+        auto [prefix_x, prefix_y, prefix_z] = index_to_prefix[child_mask];
 
         // calculating 2^(n + 1) / 2^2 = 2^n / 2 = 2^(n - 1)
         // n + 1 because we need to fake a 32^3 segment as 64^3 to never need floats
-        u8 scale  = (1 << (packedData & MASK_3)) >> 1;
+        u8 scale  = (1 << (packed_data_high32 & MASK_3)) >> 0x1;
 
-        u8 x = ((packedData >> 13) & MASK_5) << 1;
-        u8 y = ((packedData >>  8) & MASK_5) << 1;
-        u8 z = ((packedData >>  3) & MASK_5) << 1;
+        u8 x = ((packed_data_high32 >> 0xD) & MASK_5) << 0x1;
+        u8 y = ((packed_data_high32 >> 0x8) & MASK_5) << 0x1;
+        u8 z = ((packed_data_high32 >> 0x3) & MASK_5) << 0x1;
 
-        x = static_cast<i8>(x) + scale * pX;
-        y = static_cast<i8>(y) + scale * pY;
-        z = static_cast<i8>(z) + scale * pZ;
+        x += scale * prefix_x;
+        y += scale * prefix_y;
+        z += scale * prefix_z;
 
-        // the new packedData will always have its packed segments set to 0
+        // the new packed_data_high32 will always have its packed segments set to 0
         // selecting a node will set the respective segment
-        return (packedData & (MASK_6 << 18)) |
+        return (packed_data_high32 & (MASK_6 << 0x12)) |
 
                // setting current position
                // because we shiftet the coordinates to the left
                // we can just extract the higher number and shift it less
-               ((x & 0x3E) << 12) |
-               ((y & 0x3E) <<  7) |
-               ((z & 0x3E) <<  2) |
+               ((x & 0x3E) << 0xC) |
+               ((y & 0x3E) << 0x7) |
+               ((z & 0x3E) << 0x2) |
 
                // the new factor
-               ((packedData & MASK_3) - 1);
+               ((packed_data_high32 & MASK_3) - 0x1);
     }
 
     /**
@@ -109,51 +151,51 @@ namespace core::level::node_inline {
      * @return A std::optional containing either the voxel or none
      */
     inline static
-    auto find_node(u32 packed_voxel, node::Node *current) -> node::Node * {
+    auto find_node(u32 packed_data_high32, node::Node *current) -> node::Node * {
         const auto position_vec = glm::vec3 {
-                (packed_voxel >> 13) & MASK_5,
-                (packed_voxel >>  8) & MASK_5,
-                (packed_voxel >>  3) & MASK_5
+                (packed_data_high32 >> 0xD) & MASK_5,
+                (packed_data_high32 >> 0x8) & MASK_5,
+                (packed_data_high32 >> 0x3) & MASK_5
         };
 
         const auto aabb = util::aabb::AABB<f32>().translate(position_vec);
 
         for(;;) {
-            if (!(current->packed_data >> 56)) {
+            if (!(current->packed_data >> 0x38)) {
 
                 // node default init without any content
-                if (!((current->packed_data >> 50) & MASK_6))
+                if (!((current->packed_data >> 0x32) & MASK_6))
                     return nullptr;
 
                 const auto root_vec = glm::vec3 {
-                        (current->packed_data >> 45) & MASK_5,
-                        (current->packed_data >> 40) & MASK_5,
-                        (current->packed_data >> 35) & MASK_5
+                        (current->packed_data >> 0x2D) & MASK_5,
+                        (current->packed_data >> 0x28) & MASK_5,
+                        (current->packed_data >> 0x23) & MASK_5
                 };
 
-                // aabb - aabb intersection
                 const u8 scale = 1 << ((current->packed_data >> SHIFT_HIGH) & MASK_3);
-                bool intersect = false;
+
+                // both aabb's are BASE_SIZE, thus they can be compared by just the position
+                // there is no possible other voxel which could fit if the positions
+                // do not equal each other
                 if (scale == BASE_SIZE) {
-                    intersect = util::aabb::AABB<f32>()
-                            .translate(root_vec)
-                            .intersection(aabb);
+                    return root_vec == position_vec ? current : nullptr;
                 }
-                else {
-                    intersect = util::aabb::AABB<f32>()
-                            .translate(root_vec)
-                            .scale_center(static_cast<f32>(scale))
-                            .translate(0.5F)
-                            .intersection(aabb);
-                }
+
+                // aabb - aabb intersection
+                auto intersect = util::aabb::AABB<f32>()
+                        .translate(root_vec)
+                        .scale_center(static_cast<f32>(scale))
+                        .translate(0.5F)
+                        .intersection(aabb);
 
                 if (intersect)
                     return current;
             }
 
             // if the segment is not in use the voxel doesn't exist
-            const auto index = select_child(packed_voxel, current->packed_data >> SHIFT_HIGH);
-            if (!((current->packed_data >> 56) & (1 << index)))
+            const auto index = select_child(packed_data_high32, current->packed_data >> SHIFT_HIGH);
+            if (!((current->packed_data >> 0x38) & (0x1 << index)))
                 return nullptr;
 
             current = &(current->nodes->operator[](index));
@@ -178,13 +220,13 @@ namespace core::level::node_inline {
     auto insert_node(u64 packed_voxel, u32 data, node::Node *current) -> node::Node * {
         for(;;) {
             ASSERT_EQ(current);
-            if ((1 << (data & MASK_3)) == BASE_SIZE) {
+            if ((0x1 << (data & MASK_3)) == BASE_SIZE) {
 
                 // setting all faces to visible
                 // shifting chunk_data_structure local data to the higher 32 bit
                 // adding the voxel unique data
                 current->packed_data =
-                        (static_cast<u64>(MASK_6) << 50) |
+                        (static_cast<u64>(MASK_6) << 0x32) |
                         (static_cast<u64>(data) << SHIFT_HIGH) |
                         (packed_voxel & UINT32_MAX);
                 return current;
@@ -192,7 +234,7 @@ namespace core::level::node_inline {
             else {
                 u8 index    = select_child(packed_voxel >> SHIFT_HIGH, data);
                 u8 segment  = 1 << index;
-                u8 segments = current->packed_data >> 56;
+                u8 segments = current->packed_data >> 0x38;
 
                 // if the node does not contain any children
                 if (!segments) {
@@ -210,7 +252,7 @@ namespace core::level::node_inline {
                     // segments, faces, position and high 16 bit of the packed_voxel
                     // containing chunk data lowest 16 bit are set to 0
                     current->packed_data =
-                            (static_cast<u64>(segment) << 56) |
+                            (static_cast<u64>(segment) << 0x38) |
                             (static_cast<u64>(data) << SHIFT_HIGH) |
                             (packed_voxel & 0xFFFF0000);
                 }
@@ -218,8 +260,8 @@ namespace core::level::node_inline {
                 // if the chosen segment is not in use
                 if (!(segments & segment))
                     current->packed_data |=
-                            (static_cast<u64>(segment) << 56) |
-                            (static_cast<u64>(MASK_6) << 50);
+                            (static_cast<u64>(segment) << 0x38) |
+                            (static_cast<u64>(MASK_6) << 0x32);
 
                 ASSERT_EQ(current->nodes.get());
                 data = build_AABB(index, data);
@@ -228,59 +270,92 @@ namespace core::level::node_inline {
         }
     }
 
-    template <typename T, typename ...Args>
-    requires std::is_integral_v<T> &&
-             std::conjunction_v<std::is_same<T, Args> ...>
-    INLINE static constexpr auto equal(T t, Args ...args) -> bool {
-        return (((t & 0x1FF) == (args & 0x1FF)) && ...);
-    }
-
     /**
      * @brief  Checks if all subareas of the current volume can be combined to the current volume.
-     * @tparam Args Type of node indices. Should be std::integral.
      * @param  node Node ptr to the current node whose children we observe.
-     * @param  args Parameter pack of indices.
      * @return Boolean indicating if children are combinable to volume of the size of the current node.
      */
     template <typename ...Args>
     requires std::conjunction_v<std::is_integral<Args> ...>
     INLINE static
-    auto check_combinable(node::Node *node, Args ...args) -> bool {
+    auto check_combinable(node::Node *node) -> bool {
 
         // all children must be in use
-        if ((node->packed_data >> 56) ^ 0xFF)
+        if ((node->packed_data >> 0x38) ^ 0xFF)
             return false;
 
-        // all children must be leaves to ensure equal cubic subareas
-        if (((node->nodes->operator[](args).packed_data >> 56) || ...))
+#ifdef __AVX512VL__
+        __m256i _pd = _mm256_set_epi32(
+                node->nodes->operator[](0).packed_data,
+                node->nodes->operator[](1).packed_data,
+                node->nodes->operator[](2).packed_data,
+                node->nodes->operator[](3).packed_data,
+                node->nodes->operator[](4).packed_data,
+                node->nodes->operator[](5).packed_data,
+                node->nodes->operator[](6).packed_data,
+                node->nodes->operator[](7).packed_data);
+
+        __m256i _leaves = _mm256_srli_epi32(_pd, 0x38);
+        if (_mm256_cmpge_epi32_mask(_leaves, _mm256_set1_epi32(0x0)))
             return false;
 
-        // all children must be of equal size
-        if (!(((node->nodes->operator[](args).packed_data >> SHIFT_HIGH) & MASK_3) == ...))
+        _leaves = _mm256_srli_epi32(_pd, SHIFT_HIGH);
+        _leaves = _mm256_and_si256(_leaves, _mm256_set1_epi32(MASK_3));
+        if (_mm256_cmpneq_epi32_mask(
+                _leaves,
+                _mm256_set1_epi32(_mm256_extract_epi32(_leaves, 0)))) {
             return false;
+        }
 
-        // all children must contain the same voxel
-        return equal(node->nodes->operator[](args).packed_data...);
+        _leaves = _mm256_and_si256(_pd, _mm256_set1_epi32(MASK_VOXEL_ID));
+        if (_mm256_cmpneq_epi32_mask(
+                _leaves,
+                _mm256_set1_epi32(_mm256_extract_epi32(_leaves, 0)))) {
+            return false;
+        }
+#else
+
+        for (const auto &child : *node->nodes) {
+            if (child.packed_data >> 0x38)
+                return false;
+        }
+
+        const auto &first = (*node->nodes)[0];
+        for (const auto &child : *node->nodes) {
+            if (((child.packed_data >> SHIFT_HIGH) & MASK_3) !=
+                ((first.packed_data >> SHIFT_HIGH) & MASK_3)) {
+                return false;
+            }
+        }
+
+        for (const auto &child : *node->nodes) {
+            if ((child.packed_data & MASK_VOXEL_ID) !=
+                (first.packed_data & MASK_VOXEL_ID)) {
+                return false;
+            }
+        }
+
+        return true;
+#endif
     }
 
     /**
      * @brief  Combines faces of all children to a combined face mask.
-     * @tparam Args Type of node indices. Should be std::integral.
      * @param  node Node ptr to the current node whose children we observe.
-     * @param  args Parameter pack of indices.
      * @return Non-shifted, combined face mask.
      */
-    template <typename ...Args>
-    requires std::conjunction_v<std::is_integral<Args> ...>
     INLINE static
-    auto combine_faces(node::Node *node, Args ...args) -> u64 {
+    auto combine_faces(node::Node *node) -> u64 {
 
         // mask to extract the faces of each node
         // packed node data in 64 bit representation assumed here
-        static constexpr const u64 mask = static_cast<u64>(MASK_6) << 50;
+        static constexpr const u64 mask = static_cast<u64>(MASK_6) << 0x32;
 
-        // retunrs combined faces of all children
-        return (node->nodes->operator[](args).packed_data | ...) & mask;
+        u64 sum = 0;
+        for (const auto &child : *node->nodes)
+            sum |= child.packed_data;
+
+        return sum & mask;
     }
 }
 

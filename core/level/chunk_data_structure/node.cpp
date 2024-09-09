@@ -2,7 +2,11 @@
 // Created by Luis Ruisinger on 26.05.24.
 //
 
+#ifdef __AVX2__
 #include <immintrin.h>
+#define GLM_FORCE_AVX
+#endif
+
 #include <cmath>
 
 #include "node_inline.h"
@@ -86,7 +90,7 @@ namespace core::level::node {
                 this->nodes->operator[](i).recombine();
 
         // checks if all children equal each other
-        if (!node_inline::check_combinable(this, 0, 1, 2, 3, 4, 5, 6, 7))
+        if (!node_inline::check_combinable(this))
             return;
 
         // deleting highest 14 bit and lowest 9 bit
@@ -94,8 +98,8 @@ namespace core::level::node {
         // deletes dirty faces the recalculate them in an higher order volume
         // deletes dirty voxel_ID to assign one of the subareas
         this->packed_data &= (UINT64_MAX >> 14) & (UINT64_MAX << 9);
-        this->packed_data |= node_inline::combine_faces(this, 0, 1, 2, 3, 4, 5, 6, 7);
-        this->packed_data |= this->nodes->operator[](0).packed_data & 0xFF;
+        this->packed_data |= node_inline::combine_faces(this);
+        this->packed_data |= this->nodes->operator[](0).packed_data & MASK_VOXEL_ID;
 
         // reset nodes
         this->nodes = {};

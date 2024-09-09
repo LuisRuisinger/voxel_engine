@@ -5,6 +5,11 @@
 #ifndef OPENGL_3D_ENGINE_AABB_H
 #define OPENGL_3D_ENGINE_AABB_H
 
+#ifdef __AVX2__
+#include <immintrin.h>
+#define GLM_FORCE_AVX
+#endif
+
 #include "aliases.h"
 
 namespace util::aabb {
