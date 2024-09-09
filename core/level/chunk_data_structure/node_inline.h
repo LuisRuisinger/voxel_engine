@@ -314,7 +314,6 @@ namespace core::level::node_inline {
             return false;
         }
 #else
-
         for (const auto &child : *node->nodes) {
             if (child.packed_data >> 0x38)
                 return false;

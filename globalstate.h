@@ -97,6 +97,8 @@ public:
         auto window = Engine::window_handler.get_window();
 
         while (!glfwWindowShouldClose(window)) {
+
+            // TODO: move this to tick
             Engine::time = glfwGetTime();
             Engine::delta_time = Engine::time - Engine::last_frame;
             Engine::last_frame = time;

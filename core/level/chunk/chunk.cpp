@@ -3,6 +3,10 @@
 
 #include <random>
 
+#ifdef __AVX2__
+#define GLM_FORCE_AVX
+#endif
+
 #include "chunk.h"
 #include "chunk_renderer.h"
 
@@ -37,8 +41,8 @@ namespace core::level::chunk {
         }
     }
 
-    Chunk::Chunk(u16 chunkIdentifier)
-            : chunk_idx{static_cast<u16>(chunkIdentifier & 0xFFF)}
+    Chunk::Chunk(u16 chunk_idx)
+            : chunk_idx { static_cast<u16>(chunk_idx & 0xFFF) }
     {
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)
             this->chunk_segments.emplace_back(i);
