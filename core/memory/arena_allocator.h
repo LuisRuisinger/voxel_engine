@@ -12,6 +12,7 @@
 #include "../../util/result.h"
 
 namespace core::memory::arena_allocator {
+    using Byte = u8;
 
     class ArenaAllocator {
     public:
@@ -27,11 +28,11 @@ namespace core::memory::arena_allocator {
         auto operator=(ArenaAllocator &&other) noexcept -> ArenaAllocator & =delete;
 
         auto destroy() -> void;
-        auto deallocate(const u8 *ptr, [[maybe_unused]] const u64 len) -> void;
-        auto allocate(u64 size) -> Result<u8 *, memory::Error>;
+        auto deallocate(const Byte *ptr, [[maybe_unused]] const size_t len) -> void;
+        auto allocate(size_t size) -> Result<Byte *, memory::Error>;
 
     private:
-        std::atomic<memory::SLL<u8> *> list;
+        std::atomic<memory::SLL<Byte> *> list;
     };
 }
 

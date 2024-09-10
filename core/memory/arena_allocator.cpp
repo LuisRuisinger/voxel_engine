@@ -5,19 +5,21 @@
 #include "arena_allocator.h"
 
 namespace core::memory::arena_allocator {
-    static auto construct_page(u64 size) -> Result<memory::SLL<u8> *, memory::Error> {
-        if (size < HUGE_PAGE)
+    static auto construct_page(size_t size) -> Result<memory::SLL<u8> *, memory::Error> {
+        if (size < HUGE_PAGE) {
             return Err(memory::INVALID_PAGE_SIZE);
+        }
 
-        auto *ptr = new memory::SLL<u8> {
+        auto *ptr = new memory::SLL<Byte> {
                 .size = size,
                 .ptr = nullptr,
                 .used = true,
                 .next = nullptr
         };
 
-        if (!ptr)
+        if (!ptr) {
             return Err(memory::ALLOC_FAILED);
+        }
 
         // memory aligned to huge pages
         // because madvise operators on page aligned memory addresses
@@ -53,10 +55,10 @@ namespace core::memory::arena_allocator {
     }
 
     auto ArenaAllocator::destroy() -> void {
-        memory::SLL<u8> *page = list;
+        memory::SLL<Byte> *page = list;
 
         while (page) {
-            memory::SLL<u8> *dealloc = page;
+            memory::SLL<Byte> *dealloc = page;
             page = page->next.load(std::memory_order_relaxed);
 
             ::operator delete(dealloc);
@@ -65,12 +67,13 @@ namespace core::memory::arena_allocator {
         this->list.store(nullptr, std::memory_order_release);
     }
 
-    auto ArenaAllocator::deallocate(const u8 *ptr, [[maybe_unused]] const u64 len) -> void {
-        memory::SLL<u8> *page = list.load(std::memory_order_relaxed);
+    auto ArenaAllocator::deallocate(const Byte *ptr, [[maybe_unused]] const size_t len) -> void {
+        memory::SLL<Byte> *page = list.load(std::memory_order_relaxed);
 
         // linear search for page
-        while (page && page->ptr != ptr)
+        while (page && page->ptr != ptr) {
             page = page->next.load(std::memory_order_acquire);
+        }
 
         // the page must exist
         ASSERT_EQ(page);
@@ -78,8 +81,8 @@ namespace core::memory::arena_allocator {
         page->used.store(false, std::memory_order_release);
     }
 
-    auto ArenaAllocator::allocate(u64 size) -> Result<u8 *, memory::Error> {
-        memory::SLL<u8> *page = this->list.load(std::memory_order_acquire);
+    auto ArenaAllocator::allocate(size_t size) -> Result<u8 *, memory::Error> {
+        memory::SLL<Byte> *page = this->list.load(std::memory_order_acquire);
 
         // traversing all reset pages does only make sense if pages exist
         // this is not the case if the root is nullptr
@@ -114,8 +117,9 @@ namespace core::memory::arena_allocator {
         // in case no old pages are unused
         // allocate a new page and try to insert it into the linked list of pages
         auto ret = construct_page(size);
-        if (ret.isErr())
+        if (ret.isErr()) {
             return Err(ret.unwrapErr());
+        }
 
         auto *head = ret.unwrap();
         for (;;) {
@@ -130,14 +134,16 @@ namespace core::memory::arena_allocator {
                 // in case the root is not nullptr we try to append
                 // to the list head a new head
                 for (;;) {
-                    while (page->next.load(std::memory_order_acquire))
+                    while (page->next.load(std::memory_order_acquire)) {
                         page = page->next.load(std::memory_order_acquire);
+                    }
 
                     auto *next = page->next.load(std::memory_order_relaxed);
-                    if (!page->next.compare_exchange_weak(next,
-                                                          head,
-                                                          std::memory_order_release,
-                                                          std::memory_order_acquire)) {
+                    if (!page->next.compare_exchange_weak(
+                            next,
+                            head,
+                            std::memory_order_release,
+                            std::memory_order_acquire)) {
                         DEBUG_LOG("CAS failure");
                         continue;
                     }
@@ -148,10 +154,11 @@ namespace core::memory::arena_allocator {
             else {
 
                 // try to replace the root if it is still nullptr
-                if (!list.compare_exchange_strong(page,
-                                                  head,
-                                                  std::memory_order_release,
-                                                  std::memory_order_acquire)) {
+                if (!list.compare_exchange_strong(
+                        page,
+                        head,
+                        std::memory_order_release,
+                        std::memory_order_acquire)) {
                     DEBUG_LOG("Root has been set");
                     continue;
                 }

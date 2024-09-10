@@ -1,15 +1,32 @@
-//
-// Created by Luis Ruisinger on 01.08.24.
-//
-
 #ifndef OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_H
 #define OPENGL_3D_ENGINE_LINEAR_ALLOCATOR_H
 
 #include "memory.h"
-#include "../../util/result.h"
+#include "../util/result.h"
 
-#define DECAY       (1024)
+/**
+ * @brief Because memory reclamation is deferred we need some kind of counter
+ *        indicating unused memory over a long time span. If this counter would reach 0
+ *        the underlying buffer is given back to the memory backend to be
+ *        destroyed / cached / etc.
+ */
+#define DECAY 1024
+
+/**
+ * @brief The standard continous memory segment size the linear allocator manages and is
+ *        able to split up in multiple smaller segments for actors to use.
+ */
 #define BUFFER_SIZE (HUGE_PAGE * 8)
+
+/**
+ * @brief Acquires the guard of the caller allocator. Used to ensure that during move
+ *        operations or instance destruction no actor will be able to perform critical
+ *        memory allocations.
+ *        However it is not defined what would happen if an actor still tries to allocate
+ *        or destroy memory after the instance has been destroyed.
+ *        Allocations and destruction of memory after move operations are well defined
+ *        and are happening in the scope of the new container.
+ */
 #define ACQUIRE_GUARD(_a) ({                                       \
     for (;;) {                                                     \
         bool is_allocating = (_a).load(std::memory_order_relaxed); \
@@ -25,6 +42,7 @@
         }})
 
 namespace core::memory::linear_allocator {
+    using Byte = u8;
 
     /**
      * @brief Metadata stored at the beginning of each page.
@@ -33,9 +51,9 @@ namespace core::memory::linear_allocator {
      *        Head pointer to the next allocatable segment in this page.
      */
     struct Metadata {
-        u8 *next;
+        Byte *next;
         u32 used;
-        std::atomic<u8 *> head;
+        std::atomic<Byte *> head;
     };
 
     /**
@@ -133,21 +151,25 @@ namespace core::memory::linear_allocator {
                 : allocator { allocator },
                   appending { false     }
         {
-            u8 *ptr = nullptr;
+            Byte *ptr = nullptr;
 
             if constexpr (allocator_returns_result<Allocator, u64>::value) {
                 const auto res = this->allocator->allocate(Size);
 
-                if (res.isErr())
-                    util::log::out() << util::log::Level::LOG_LEVEL_ERROR
-                                     << res.unwrapErr()
-                                     << util::log::end;
-                ptr = res.unwrap();
+                if (res.isErr()) {
+                    LOG(util::log::Level::LOG_LEVEL_ERROR, res.unwrapErr());
+                    std::exit(EXIT_FAILURE);
+                }
+                else {
+                    ptr = res.unwrap();
+                }
             }
 
             if constexpr (allocator_returns_ptr<Allocator, u64>::value) {
                 ptr = this->allocator->allocate(Size);
-                if (!ptr) std::exit(EXIT_FAILURE);
+                if (!ptr) {
+                    std::exit(EXIT_FAILURE);
+                }
             }
 
             // unknown allocator type is in use
@@ -158,8 +180,8 @@ namespace core::memory::linear_allocator {
             this->memory = ptr;
 
             // init metadata for the first page
-            const u64 metadata_pad =
-                    reinterpret_cast<u64>(memory::ptr_offset(ptr, sizeof(Metadata)));
+            const uintptr_t metadata_pad =
+                    reinterpret_cast<uintptr_t>(memory::ptr_offset(ptr, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata->next = nullptr;
@@ -213,10 +235,11 @@ namespace core::memory::linear_allocator {
             u8 *page = this->memory;
 
             while (page) {
-                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                        memory::ptr_offset(page, sizeof(Metadata)));
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
-                u8 *dealloc = page;
+                Byte *dealloc = page;
                 page = metadata->next;
 
                 this->allocator->deallocate(dealloc, Size);
@@ -234,28 +257,28 @@ namespace core::memory::linear_allocator {
          *         stating where the accessible segment starts in memory.
          */
         template <typename T>
-        auto allocate(u64 len) -> T * {
-            u8 *page = this->memory;
+        auto allocate(size_t len) -> T * {
+            Byte *page = this->memory;
 
             for (;;) {
-                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                        memory::ptr_offset(page, sizeof(Metadata)));
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
-                ASSERT_EQ(
-                        reinterpret_cast<u64>(metadata) % sizeof(Metadata) == 0,
-                        std::to_string(reinterpret_cast<u64>(metadata) % sizeof(Metadata)));
+                ASSERT_EQ(reinterpret_cast<uintptr_t>(metadata) % sizeof(Metadata) == 0);
 
                 for (;;) {
-                    u8 *head = metadata->head.load(std::memory_order_relaxed);
-                    const u64 buffer_padding =
-                            reinterpret_cast<u64>(memory::ptr_offset(head, sizeof(T)));
+                    Byte *head = metadata->head.load(std::memory_order_relaxed);
+                    const uintptr_t buffer_padding =
+                            reinterpret_cast<uintptr_t>(memory::ptr_offset(head, sizeof(T)));
                     //const u64 buffer_padding = memory::calculate_padding(head, sizeof(T));
-                    const u64 max_size = buffer_padding + len * sizeof(T);
+                    const uintptr_t max_size = buffer_padding + len * sizeof(T);
 
                     // check if the remaining size of the page satisfies
                     // the actual size of the allocation (all padding, metadata and len * alignment)
-                    if (reinterpret_cast<u64>(head) + max_size >
-                        reinterpret_cast<u64>(page) + Size)
+                    if (reinterpret_cast<uintptr_t>(head) + max_size >
+                        reinterpret_cast<uintptr_t>(page) + Size) {
                         break;
+                    }
 
                     if (!metadata->head.compare_exchange_weak(
                             head,
@@ -266,9 +289,9 @@ namespace core::memory::linear_allocator {
                         continue;
                     }
 #ifdef DEBUG
-                    const u64 diff =
-                            reinterpret_cast<u64>(head + buffer_padding) + len * sizeof(T) -
-                            reinterpret_cast<u64>(page);
+                    const uintptr_t diff =
+                            reinterpret_cast<uintptr_t>(head + buffer_padding) + len * sizeof(T) -
+                            reinterpret_cast<uintptr_t>(page);
                     ASSERT_EQ(diff <= Size);
 #endif
                     return reinterpret_cast<T *>(head + buffer_padding);
@@ -298,12 +321,13 @@ namespace core::memory::linear_allocator {
          *  this allocator.
          */
         auto reset() -> void {
-            u8 *last_valid_page = nullptr;
-            u8 *page = this->memory;
+            Byte *last_valid_page = nullptr;
+            Byte *page = this->memory;
 
             // traverse as long as we hit the first unused page
             while (page) {
-                const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                        memory::ptr_offset(page, sizeof(Metadata)));
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 // page is unused
@@ -312,7 +336,7 @@ namespace core::memory::linear_allocator {
                     break;
 
                 // check if the head has been moved
-                u8 *head = reinterpret_cast<u8 *>(metadata) + sizeof(Metadata);
+                Byte *head = reinterpret_cast<Byte *>(metadata) + sizeof(Metadata);
                 metadata->used =
                         (metadata->head != head)
                             ? DECAY
@@ -329,67 +353,83 @@ namespace core::memory::linear_allocator {
             // deallocate every page after first hit
             ASSERT_EQ(page != this->memory);
             while (page) {
-                const u64 pad =
-                        reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                        memory::ptr_offset(page, sizeof(Metadata)));
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
-                u8 *dealloc = page;
+                Byte *dealloc = page;
                 page = metadata->next;
 
                 this->allocator->deallocate(dealloc, Size);
             }
 
             // the last valid page loses reference to its following pages
-            const u64 pad =
-                    reinterpret_cast<u64>(memory::ptr_offset(last_valid_page, sizeof(Metadata)));
+            const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                    memory::ptr_offset(last_valid_page, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(last_valid_page + pad);
             metadata->next = nullptr;
         }
 
-        auto req_memory(u8 *page) -> void {
+        /**
+         * @brief Allocates a new page from the memory backend.
+         *        Ensures only one actor can actually request and append a new page.
+         *        The page size is static and the same for all pages.
+         * @param page The last valid page this allocator can use and offer actors.
+         *             The new page will be appended into the metadata of this page.
+         * @post  The allocator's linked list of pages will contain a new, unused and valid
+         *        page at the end of the list. Actors are able to allocate regions on this new
+         *        page.
+         */
+        auto req_memory(Byte *page) -> void {
             bool is_allocating = this->appending.load(std::memory_order_acquire);
             if (is_allocating)
                 return;
 
             // some thread try to gain the flag to allocate at the same time
             // might fail due to spurious failure
-            if (!this->appending.compare_exchange_weak(is_allocating,
-                                                       true,
-                                                       std::memory_order_release,
-                                                       std::memory_order_acquire)) {
+            if (!this->appending.compare_exchange_weak(
+                    is_allocating,
+                    true,
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
                 return;
             }
 
-            u8 *ptr = nullptr;
+            Byte *ptr = nullptr;
             if constexpr (allocator_returns_result<Allocator, u64>::value) {
                 const auto res = this->allocator->allocate(Size);
 
-                if (res.isErr())
-                    util::log::out() << util::log::Level::LOG_LEVEL_ERROR
-                                     << res.unwrapErr()
-                                     << util::log::end;
-                ptr = res.unwrap();
+                if (res.isErr()) {
+                    LOG(util::log::Level::LOG_LEVEL_ERROR, res.unwrapErr());
+                    std::exit(EXIT_FAILURE);
+                }
+                else {
+                    ptr = res.unwrap();
+                }
             }
 
             if constexpr (allocator_returns_ptr<Allocator, u64>::value) {
                 ptr = this->allocator->allocate(Size);
-                if (!ptr) std::exit(EXIT_FAILURE);
+                if (!ptr) {
+                    std::exit(EXIT_FAILURE);
+                }
             }
 
             // appending the new page
-            const u64 pad = reinterpret_cast<u64>(memory::ptr_offset(page, sizeof(Metadata)));
+            const uintptr_t pad = reinterpret_cast<uintptr_t>(
+                    memory::ptr_offset(page, sizeof(Metadata)));
             auto *metadata = reinterpret_cast<Metadata *>(page + pad);
             metadata->next = ptr;
 
             // init metadata for the new page
-            const u64 metadata_pad =
-                    reinterpret_cast<u64>(memory::ptr_offset(ptr, sizeof(Metadata)));
+            const uintptr_t metadata_pad = reinterpret_cast<uintptr_t>(
+                    memory::ptr_offset(ptr, sizeof(Metadata)));
             auto *metadata_ptr = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata_ptr->next = nullptr;
             metadata_ptr->used = DECAY;
             metadata_ptr->head.store(
-                    static_cast<u8 *>(ptr + metadata_pad + sizeof(Metadata)),
+                    static_cast<Byte *>(ptr + metadata_pad + sizeof(Metadata)),
                     std::memory_order_relaxed);
 
             // releasing the flag
@@ -409,7 +449,7 @@ namespace core::memory::linear_allocator {
          * @brief Raw pointer addressing the start of the first page.
          *        Metadata and per allocation data are embedded in each page.
          */
-        u8 *memory;
+        Byte *memory;
 
         /** @brief Indicating if a thread is currently requesting a new page */
         alignas(CACHE_LINE_SIZE) std::atomic<bool> appending;
