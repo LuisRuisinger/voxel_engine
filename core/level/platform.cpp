@@ -34,24 +34,73 @@ namespace core::level::platform {
                 .get_camera()
                 .get_position();
 
-        const auto new_root = glm::vec2{
-            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.x / CHUNK_SIZE)) * CHUNK_SIZE),
-            static_cast<i32>(std::lround(static_cast<i32>(cameraPos.z / CHUNK_SIZE)) * CHUNK_SIZE)
+        const auto new_root_candidate = glm::vec2{
+                std::lround(static_cast<i32>(cameraPos.x / CHUNK_SIZE)) * CHUNK_SIZE,
+                std::lround(static_cast<i32>(cameraPos.z / CHUNK_SIZE)) * CHUNK_SIZE
         };
 
-        ASSERT_NEQ(static_cast<i32>(new_root.x) % CHUNK_SIZE,
-                  "global platform roots must be multiple of 32");
-        ASSERT_NEQ(static_cast<i32>(new_root.y) % CHUNK_SIZE,
-                  "global platform roots must be multiple of 32");
+        switch (this->level_state) {
 
-        // threshold to render new chunks is double the chunk size
-        if (!this->queue_ready &&
-            (LOAD_THRESHOLD(this->current_root, new_root) || !this->platform_ready)) {
+            // the initial state of a platform - nothing is loaded
+            case INIT: {
+                this->new_root = new_root_candidate;
+                load_chunks(state.chunk_tick_pool);
+                this->level_state = LOADING;
 
-            DEBUG_LOG(new_root);
-            load_chunks(state.chunk_tick_pool, new_root)
-                .swap_chunks(new_root)
-                .unload_chunks(state.chunk_tick_pool);
+                break;
+            }
+
+            // no threshold has been passed
+            case IDLE: {
+                if (this->queue_ready || !LOAD_THRESHOLD(this->current_root, new_root_candidate))
+                    break;
+
+                if (!state.chunk_tick_pool.no_tasks())
+                    break;
+
+                this->new_root = new_root_candidate;
+                load_chunks(state.chunk_tick_pool);
+                this->level_state = LOADING;
+
+                break;
+            };
+
+            // loading and initializing new chunks
+            case LOADING: {
+                if (!state.chunk_tick_pool.no_tasks())
+                    break;
+
+                compress_chunks(state.chunk_tick_pool);
+                this->level_state = COMPRESSING;
+
+                break;
+            };
+
+            // compressing the SVO's inside the chunks
+            case COMPRESSING: {
+                if (!state.chunk_tick_pool.no_tasks())
+                    break;
+
+                swap_chunks();
+                this->level_state = SWAPPING;
+                break;
+            }
+
+            // sliding window swap of active renderable chunks
+            case SWAPPING: {
+                unload_chunks(state.chunk_tick_pool);
+                this->level_state = UNLOADING;
+                break;
+            };
+
+            // unloading inactive, old chunks
+            case UNLOADING: {
+                if (!state.chunk_tick_pool.no_tasks())
+                    break;
+
+                this->level_state = IDLE;
+                break;
+            };
         }
     }
 
@@ -59,7 +108,7 @@ namespace core::level::platform {
      * @brief Unload chunks whose shared count is 1, meaning they are no in use in this cycle.
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
-    auto Platform::unload_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> Platform & {
+    auto Platform::unload_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> void {
         static auto destroy = [](std::shared_ptr<chunk::Chunk> ptr) -> void {
             // ASSERT_EQ(ptr.get());
         };
@@ -87,15 +136,11 @@ namespace core::level::platform {
             this->chunks.erase(k);
 
         this->queued_chunks.clear();
-        DEBUG_LOG("Finished unloading chunks");
-
-        return *this;
     }
 
     auto Platform::init_neighbors(i32 x, i32 z) -> void {
         auto init_chunk_neighbours = [this](i32 i, i32 j, chunk::Position p1, chunk::Position p2) {
-            if ((j > -1 && j < MAX_RENDER_VOLUME) &&
-                this->queued_chunks.contains(j)) {
+            if ((j > -1 && j < MAX_RENDER_VOLUME) && this->queued_chunks.contains(j)) {
                 this->queued_chunks[i]->add_neigbor(p1, this->chunks[this->queued_chunks[j]]);
                 this->queued_chunks[j]->add_neigbor(p2, this->chunks[this->queued_chunks[i]]);
             }
@@ -106,6 +151,7 @@ namespace core::level::platform {
                     INDEX(x, z), INDEX(x - 1, z),
                     chunk::Position::BACK, chunk::Position::FRONT);
         }
+
 
         if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x + 1, z)) < RENDER_RADIUS) {
             init_chunk_neighbours(
@@ -132,19 +178,12 @@ namespace core::level::platform {
      * @param thread_pool Threadpool to parallel generate new chunks.
      * @param new_root    The center of the new region.
      */
-    auto Platform::load_chunks(threading::thread_pool::Tasksystem<> &thread_pool,
-                               glm::vec2 new_root) -> Platform & {
+    auto Platform::load_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> void {
         static auto generate = [](chunk::Chunk *ptr, glm::vec2 root) -> void {
             ASSERT_EQ(ptr);
             ptr->generate(root);
         };
 
-        static auto compress = [](chunk::Chunk *ptr) -> void {
-            ASSERT_EQ(ptr);
-            ptr->recombine();
-        };
-
-        std::vector<u64> generated {};
         for (i32 x = -RENDER_RADIUS; x < RENDER_RADIUS; ++x) {
             for (i32 z = -RENDER_RADIUS; z < RENDER_RADIUS; ++z) {
                 if (DISTANCE_2D(glm::vec2(-0.5), glm::vec2(x, z)) < RENDER_RADIUS) {
@@ -153,10 +192,10 @@ namespace core::level::platform {
                     // the old root
                     auto old_pos =
                             (glm::vec2(x, z) * static_cast<f32>(CHUNK_SIZE) +
-                            new_root - current_root) / static_cast<f32>(CHUNK_SIZE);
+                            this->new_root - this->current_root) / static_cast<f32>(CHUNK_SIZE);
 
                     if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
-                        this->platform_ready) [[likely]] {
+                        this->level_state == IDLE) {
 
                         this->queued_chunks[INDEX(x, z)] =
                                 this->active_chunks[INDEX(old_pos.x, old_pos.y)];
@@ -171,31 +210,31 @@ namespace core::level::platform {
                         init_neighbors(x, z);
 
                         // generate new chunk
-                        thread_pool.enqueue_detach(generate, chunk, new_root);
-                        generated.push_back(INDEX(x, z));
+                        thread_pool.enqueue_detach(generate, chunk, this->new_root);
                     }
 
                 }
             }
         }
-
-        thread_pool.wait_for_tasks();
-
-        for (auto i : generated)
-            thread_pool.enqueue_detach(
-                    compress,
-                    this->queued_chunks[i]);
-
-        thread_pool.wait_for_tasks();
-        DEBUG_LOG("Finished chunk initialization");
-        return *this;
     }
 
-    /**
-    * @brief Sliding window principle to swap active chunks with the new region.
-    * @param new_root The center of the new region.
-    */
-    auto Platform::swap_chunks(glm::vec2 new_root) -> Platform & {
+    auto Platform::compress_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> void {
+        static auto compress = [](chunk::Chunk *ptr) -> void {
+            ASSERT_EQ(ptr);
+            ptr->recombine();
+        };
+
+        for (auto &[k ,v] : this->queued_chunks) {
+            if (k == v->index()) {
+                thread_pool.enqueue_detach(
+                        compress,
+                        v);
+            }
+        }
+    }
+
+    /**  @brief Sliding window principle to swap active chunks with the new region. */
+    auto Platform::swap_chunks() -> void {
         {
             std::unique_lock lock { this->mutex };
             std::swap(this->active_chunks, this->queued_chunks);
@@ -204,13 +243,9 @@ namespace core::level::platform {
             for (const auto &[k, v] : this->active_chunks)
                 this->active_chunks_vec.emplace_back(k, v);
 
-            this->current_root = new_root;
+            this->current_root = this->new_root;
             this->queue_ready = true;
-            this->platform_ready = true;
         }
-
-        DEBUG_LOG("Chunks swapped");
-        return *this;
     }
 
     /**
@@ -270,9 +305,6 @@ namespace core::level::platform {
 
     auto Platform::get_nearest_chunks(const glm::vec3 &pos)
         -> std::optional<std::array<chunk::Chunk *, 4>> {
-        if (!this->platform_ready)
-            return std::nullopt;
-
         std::unique_lock lock { this->mutex };
 
         auto root = glm::vec2 {

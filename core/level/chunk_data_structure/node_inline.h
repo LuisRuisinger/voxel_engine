@@ -273,11 +273,12 @@ namespace core::level::node_inline {
     /**
      * @brief  Checks if all subareas of the current volume can be combined to the current volume.
      * @param  node Node ptr to the current node whose children we observe.
-     * @return Boolean indicating if children are combinable to volume of the size of the current node.
+     * @return Boolean indicating if children are combinable
+     *         to volume of the size of the current node.
      */
     template <typename ...Args>
     requires std::conjunction_v<std::is_integral<Args> ...>
-    INLINE static
+    inline static
     auto check_combinable(node::Node *node) -> bool {
 
         // all children must be in use
@@ -343,18 +344,26 @@ namespace core::level::node_inline {
      * @param  node Node ptr to the current node whose children we observe.
      * @return Non-shifted, combined face mask.
      */
-    INLINE static
+    inline static
     auto combine_faces(node::Node *node) -> u64 {
 
         // mask to extract the faces of each node
         // packed node data in 64 bit representation assumed here
         static constexpr const u64 mask = static_cast<u64>(MASK_6) << 0x32;
 
+#ifdef __AVX512VL__
+
+        // experimental
+        // TODO: maybe this is also usable for check_combinable instead of this many loads
+        __m512 _low  = _mm512_load_epi64(reinterpret_cast<u64 *>(node->nodes.get()));
+        __m512 _high = _mm512_load_epi64(reinterpret_cast<u64 *>(node->nodes.get() + 4));
+#else
         u64 sum = 0;
         for (const auto &child : *node->nodes)
             sum |= child.packed_data;
 
         return sum & mask;
+#endif
     }
 }
 

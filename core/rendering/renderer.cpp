@@ -17,6 +17,10 @@ namespace core::rendering::renderer {
     auto Renderer::init_pipeline() -> void {
         for (auto &[_, v] : this->sub_renderer)
             v->_crtp_init_shader();
+
+        auto init = [](framebuffer::Framebuffer &targe, i32 width, i32 height) {
+
+        };
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
@@ -26,7 +30,11 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::frame(state::State &state) -> void {
+        this->g_buffer.bind();
         this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
+
+
+        this->g_buffer.unbind();
         interface::render();
     }
 

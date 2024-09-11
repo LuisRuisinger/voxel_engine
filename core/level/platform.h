@@ -23,6 +23,15 @@
 namespace core::level::platform {
     using namespace util;
 
+    enum State : u8 {
+        INIT        = 0,
+        IDLE        = 1,
+        LOADING     = 2,
+        COMPRESSING = 3,
+        SWAPPING    = 4,
+        UNLOADING   = 5,
+    };
+
 class Platform :
         public traits::Tickable<Platform>,
         public traits::Updateable<Platform> {
@@ -33,26 +42,14 @@ class Platform :
         auto tick(state::State &) -> void;
         auto update(state::State &state) -> void;
         auto get_world_root() const -> glm::vec2;
-
-        template <
-                typename Func,
-                typename ...Args,
-                typename Ret = std::invoke_result_t<Func, chunk::Chunk*, Args...>>
-        requires util::reflections::has_member_v<chunk::Chunk, Func>
-        INLINE auto request_handle(threading::thread_pool::Tasksystem<> &,
-                                   Func func,
-                                   Args &&...args) const -> Ret {
-            using namespace util::reflections;
-            constexpr auto args_tuple = tuple_from_params(std::forward<Args>(args)...);
-        }
-
         auto get_visible_faces(util::camera::Camera &camera) -> size_t;
         auto get_nearest_chunks(const glm::vec3 &) -> std::optional<std::array<chunk::Chunk *, 4>>;
 
     private:
-        auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> Platform &;
-        auto load_chunks(threading::thread_pool::Tasksystem<> &, glm::vec2) -> Platform &;
-        auto swap_chunks(glm::vec2) -> Platform &;
+        auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> void;
+        auto load_chunks(threading::thread_pool::Tasksystem<> &) -> void;
+        auto compress_chunks(threading::thread_pool::Tasksystem<> &) -> void;
+        auto swap_chunks() -> void;
         auto init_neighbors(i32 x, i32 z) -> void;
 
         std::unordered_map<chunk::Chunk *, std::shared_ptr<chunk::Chunk>> chunks;
@@ -61,10 +58,11 @@ class Platform :
 
         std::vector<std::pair<u32, chunk::Chunk *>> active_chunks_vec;
 
-        glm::vec2                                   current_root   = {0.0F, 0.0F};
-        std::mutex                                  mutex;
-        std::atomic_bool                            queue_ready    = false;
-        std::atomic_bool                            platform_ready = false;
+        glm::vec2 current_root   = {0.0F, 0.0F};
+        glm::vec2 new_root = {0.0F, 0.0F};
+        std::mutex mutex;
+        std::atomic<bool> queue_ready    = false;
+        State level_state = INIT;
     };
 }
 

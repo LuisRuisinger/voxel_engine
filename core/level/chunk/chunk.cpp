@@ -9,14 +9,12 @@
 
 #include "chunk.h"
 #include "chunk_renderer.h"
+#include "generation/generation.h"
 
 #include "../chunk_data_structure/voxel_data_layout.h"
 
 #include "../util/assert.h"
 #include "../util/player.h"
-#include "../util/tagged_ptr.h"
-
-#include "generation/generation.h"
 
 namespace core::level::chunk {
     auto OcclusionMap::operator[](u64 mask) -> std::unordered_map<node::Node *, u32> & {

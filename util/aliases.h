@@ -50,14 +50,6 @@ using f64 = double_t;
             static constexpr size_t count = sizeof(enum_size) / sizeof(i32); \
     }
 
-#if defined(__GNUC__) || defined(__clang__)
-    #define INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-    #define INLINE __forceinline
-#else
-    #define INLINE inline
-#endif
-
 #ifdef __AVX2__
 #include <immintrin.h>
     #define VERTEX __m256i

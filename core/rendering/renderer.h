@@ -53,7 +53,7 @@ namespace core::rendering::renderer {
                 RenderType,
                 Renderable<BaseInterface> *> sub_renderer;
 
-        framebuffer::Framebuffer framebuffer;
+        framebuffer::Framebuffer g_buffer;
     };
 }
 

@@ -37,24 +37,6 @@ add_library(imgui
         ${IMGUI_DIR}/imgui_widgets.cpp
         ${IMGUI_DIR}/imgui_impl_opengl3.cpp
         ${IMGUI_DIR}/imgui_impl_glfw.cpp
-        core/level/chunk/generation/generation.cpp
-        core/level/chunk/generation/generation.h
-        core/level/chunk/generation/biome.h
-        core/level/chunk/generation/biome.cpp
-        core/level/tiles/tile.cpp
-        core/level/tiles/tile.h
-        core/level/tiles/impl/grass.cpp
-        core/level/tiles/impl/grass.h
-        core/level/tiles/impl/cobblestone.cpp
-        core/level/tiles/impl/cobblestone.h
-        core/level/tiles/impl/stone.cpp
-        core/level/tiles/impl/stone.h
-        core/level/tiles/impl/dirt.cpp
-        core/level/tiles/impl/dirt.h
-        core/level/tiles/tile_manager.cpp
-        core/level/tiles/tile_manager.h
-        core/level/tiles/impl/stone_brick.cpp
-        core/level/tiles/impl/stone_brick.h
 )
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -93,7 +75,6 @@ add_executable(
         util/assert.h
         util/atomic_shared_ptr.h
         util/perlin_noise.hpp
-        util/tagged_ptr.h
         util/binary_conversion.h
         core/memory/linear_allocator.h
         core/memory/memory.h
@@ -120,6 +101,24 @@ add_executable(
         core/rendering/framebuffer.h
         util/sun.cpp
         util/sun.h
+        core/level/chunk/generation/generation.cpp
+        core/level/chunk/generation/generation.h
+        core/level/chunk/generation/biome.h
+        core/level/chunk/generation/biome.cpp
+        core/level/tiles/tile.cpp
+        core/level/tiles/tile.h
+        core/level/tiles/impl/grass.cpp
+        core/level/tiles/impl/grass.h
+        core/level/tiles/impl/cobblestone.cpp
+        core/level/tiles/impl/cobblestone.h
+        core/level/tiles/impl/stone.cpp
+        core/level/tiles/impl/stone.h
+        core/level/tiles/impl/dirt.cpp
+        core/level/tiles/impl/dirt.h
+        core/level/tiles/tile_manager.cpp
+        core/level/tiles/tile_manager.h
+        core/level/tiles/impl/stone_brick.cpp
+        core/level/tiles/impl/stone_brick.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)

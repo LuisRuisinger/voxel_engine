@@ -180,8 +180,7 @@ namespace core::memory::linear_allocator {
             this->memory = ptr;
 
             // init metadata for the first page
-            const uintptr_t metadata_pad =
-                    reinterpret_cast<uintptr_t>(memory::ptr_offset(ptr, sizeof(Metadata)));
+            const uintptr_t metadata_pad = memory::ptr_offset<Metadata>(ptr);
             auto *metadata = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata->next = nullptr;
@@ -235,8 +234,7 @@ namespace core::memory::linear_allocator {
             u8 *page = this->memory;
 
             while (page) {
-                const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                        memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad =  memory::ptr_offset<Metadata>(page);
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 Byte *dealloc = page;
@@ -261,15 +259,13 @@ namespace core::memory::linear_allocator {
             Byte *page = this->memory;
 
             for (;;) {
-                const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                        memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = memory::ptr_offset<Metadata>(page);
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
                 ASSERT_EQ(reinterpret_cast<uintptr_t>(metadata) % sizeof(Metadata) == 0);
 
                 for (;;) {
                     Byte *head = metadata->head.load(std::memory_order_relaxed);
-                    const uintptr_t buffer_padding =
-                            reinterpret_cast<uintptr_t>(memory::ptr_offset(head, sizeof(T)));
+                    const uintptr_t buffer_padding  =memory::ptr_offset<T>(head);
                     //const u64 buffer_padding = memory::calculate_padding(head, sizeof(T));
                     const uintptr_t max_size = buffer_padding + len * sizeof(T);
 
@@ -326,8 +322,7 @@ namespace core::memory::linear_allocator {
 
             // traverse as long as we hit the first unused page
             while (page) {
-                const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                        memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = memory::ptr_offset<Metadata>(page);
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 // page is unused
@@ -353,8 +348,7 @@ namespace core::memory::linear_allocator {
             // deallocate every page after first hit
             ASSERT_EQ(page != this->memory);
             while (page) {
-                const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                        memory::ptr_offset(page, sizeof(Metadata)));
+                const uintptr_t pad = memory::ptr_offset<Metadata>(page);
                 const auto *metadata = reinterpret_cast<Metadata *>(page + pad);
 
                 Byte *dealloc = page;
@@ -364,8 +358,7 @@ namespace core::memory::linear_allocator {
             }
 
             // the last valid page loses reference to its following pages
-            const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                    memory::ptr_offset(last_valid_page, sizeof(Metadata)));
+            const uintptr_t pad = memory::ptr_offset<Metadata>(last_valid_page);
             auto *metadata = reinterpret_cast<Metadata *>(last_valid_page + pad);
             metadata->next = nullptr;
         }
@@ -416,14 +409,12 @@ namespace core::memory::linear_allocator {
             }
 
             // appending the new page
-            const uintptr_t pad = reinterpret_cast<uintptr_t>(
-                    memory::ptr_offset(page, sizeof(Metadata)));
+            const uintptr_t pad =memory::ptr_offset<Metadata>(page);
             auto *metadata = reinterpret_cast<Metadata *>(page + pad);
             metadata->next = ptr;
 
             // init metadata for the new page
-            const uintptr_t metadata_pad = reinterpret_cast<uintptr_t>(
-                    memory::ptr_offset(ptr, sizeof(Metadata)));
+            const uintptr_t metadata_pad = memory::ptr_offset<Metadata>(ptr);
             auto *metadata_ptr = reinterpret_cast<Metadata *>(ptr + metadata_pad);
 
             metadata_ptr->next = nullptr;

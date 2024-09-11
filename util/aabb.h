@@ -12,6 +12,14 @@
 
 #include "aliases.h"
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define INLINE __forceinline
+#else
+    #define INLINE inline
+#endif
+
 namespace util::aabb {
     template <typename T>
     struct AABB {
@@ -95,4 +103,5 @@ namespace util::aabb {
     };
 }
 
+#undef INLINE
 #endif //OPENGL_3D_ENGINE_AABB_H

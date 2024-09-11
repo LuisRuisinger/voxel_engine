@@ -13,7 +13,7 @@
 namespace core::threading::executor {
 
     template<
-            u32 TPS = 20,
+            u32 TPS = 60,
             typename Function_type = thread::functor::default_function_type>
     class ScheduledExecutor {
     public:

@@ -11,7 +11,7 @@
 #include <ranges>
 #include <atomic>
 
-#include "../../util/aliases.h"
+#include "../util/aliases.h"
 #include "../util/assert.h"
 
 #define KByte(_v)  ((_v) * 1000)
@@ -23,6 +23,14 @@
 #define GiByte(_v) ((_v) * 1024 * 1024)
 
 #define HUGE_PAGE  (MiByte(2))
+
+#if defined(__GNUC__) || defined(__clang__)
+    #define INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define INLINE __forceinline
+#else
+    #define INLINE inline
+#endif
 
 namespace core::memory::memory {
     template <typename T>
@@ -46,14 +54,16 @@ namespace core::memory::memory {
 
     /**
      * @brief  Calculates the offset of a pointer in bytes needed to be aligned.
-     * @param  ptr   The address from which we try to align a pointer.
-     * @param  align The alignment of the type whose pointer we intend to align.
-     * @return The alignment in bytes.
+     * @tparam T   The type used to align to based from the given address.
+     * @param  ptr The address from which we try to align a pointer.
+     * @return The alignment in bytes as uintptr_t.
      */
-    inline auto ptr_offset(void *ptr, size_t align) noexcept -> void * {
-        return reinterpret_cast<void *>(
-                ((~reinterpret_cast<uintptr_t>(ptr)) + 1) & (align - 1));
+    template <typename T>
+    INLINE auto ptr_offset(void *ptr) noexcept -> uintptr_t {
+        constexpr const uintptr_t align = sizeof(T) - 1;
+        return ((~reinterpret_cast<uintptr_t>(ptr)) + 1) & align;
     }
 }
 
+#undef INLINE
 #endif //OPENGL_3D_ENGINE_MEMORY_H

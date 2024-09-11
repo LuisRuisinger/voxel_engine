@@ -81,9 +81,16 @@ public:
 
         DEBUG_LOG("Init scheduled executor callbacks")
         Engine::executor.enqueue_detach(std::move([&]() -> void {
+            Engine::time = glfwGetTime();
+            Engine::delta_time = Engine::time - Engine::last_frame;
+            Engine::last_frame = time;
+            Engine::state.player.update_delta_time(Engine::delta_time);
+
             Engine::state.player.tick(state);
             Engine::state.platform.tick(state);
             Engine::sun.tick(state);
+
+            Engine::key_map.run_repeat();
         }));
 
         DEBUG_LOG("Init renderer");
@@ -97,15 +104,7 @@ public:
         auto window = Engine::window_handler.get_window();
 
         while (!glfwWindowShouldClose(window)) {
-
-            // TODO: move this to tick
-            Engine::time = glfwGetTime();
-            Engine::delta_time = Engine::time - Engine::last_frame;
-            Engine::last_frame = time;
-            Engine::state.player.update_delta_time(Engine::delta_time);
-
-            Engine::key_map.run_repeat();
-
+            glfwPollEvents();
             Engine::renderer.prepare_frame(Engine::state);
 
             auto t_start = std::chrono::high_resolution_clock::now();
@@ -117,7 +116,6 @@ public:
             Engine::renderer.frame(Engine::state);
 
             glfwSwapBuffers(window);
-            glfwPollEvents();
         }
     }
 
@@ -131,20 +129,23 @@ private:
     static core::opengl::opengl_window::OpenGLWindow window_handler;
     static core::opengl::opengl_key_map::OpenGLKeyMap key_map;
 
-    // engine
+    // memory
     static core::memory::arena_allocator::ArenaAllocator allocator;
-    static core::rendering::renderer::Renderer renderer;
+
+    // concurrency
     static core::threading::executor::ScheduledExecutor<> executor;
-
-
     static core::threading::thread_pool::Tasksystem<> render_pool;
     static core::threading::thread_pool::Tasksystem<> chunk_tick_pool;
     static core::threading::thread_pool::Tasksystem<> normal_tick_pool;
 
+    // rendering
+    static core::rendering::renderer::Renderer renderer;
     static core::level::chunk::chunk_renderer::ChunkRenderer chunk_renderer;
+
+    // platform
     static core::level::platform::Platform platform;
 
-    // TODO: remove this and add ECS later
+    // utils
     static util::player::Player player;
     static util::sun::Sun sun;
     static core::state::State state;
@@ -163,10 +164,10 @@ decltype(Engine::executor)         Engine::executor         {                   
 decltype(Engine::render_pool)      Engine::render_pool      {                           };
 decltype(Engine::chunk_tick_pool)  Engine::chunk_tick_pool  {                           };
 decltype(Engine::normal_tick_pool) Engine::normal_tick_pool {                           };
-decltype(Engine::chunk_renderer)   Engine::chunk_renderer   { &Engine::allocator };
+decltype(Engine::chunk_renderer)   Engine::chunk_renderer   { &Engine::allocator        };
 decltype(Engine::platform)         Engine::platform         {                           };
 decltype(Engine::player)           Engine::player           { Engine::key_map           };
-decltype(Engine::sun)              Engine::sun              {};
+decltype(Engine::sun)              Engine::sun              {                           };
 decltype(Engine::state)            Engine::state            { Engine::render_pool,
                                                               Engine::chunk_tick_pool,
                                                               Engine::normal_tick_pool,
