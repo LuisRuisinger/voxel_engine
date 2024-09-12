@@ -8,64 +8,74 @@
 #define POS_CONV(_p) \
     (static_cast<u64>(((_p) + 0.5F) * 4.0F) & 0x7)
 
-#define UV_CONV(_p)  \
+#define UV_CONV(_p) \
     (static_cast<u64>((_p) * 2.0F) & 0x3)
 
 namespace core::level::model::voxel {
     CubeStructure::CubeStructure() {
         std::vector<std::vector<Mesh::Vertex>> mesh = {
 
-                // Face 0: Back
+                // face 0: back
                 {
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}, 2},   // bottom right
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}, 2},  // bottom left
-                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}, 2},   // top left
-                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}, 2}     // top right
+                    { {  0.5F, -0.5F, -0.5F }, { 0.0F, 0.0F, -1.0F }, { 0.0F, 0.0F }, 2 }, // bottom right
+                    { { -0.5F, -0.5F, -0.5F }, { 0.0F, 0.0F, -1.0F }, { 1.0F, 0.0F }, 2 }, // bottom left
+                    { { -0.5F,  0.5F, -0.5F }, { 0.0F, 0.0F, -1.0F }, { 1.0F, 1.0F }, 2 }, // top left
+                    { {  0.5F,  0.5F, -0.5F }, { 0.0F, 0.0F, -1.0F }, { 0.0F, 1.0F }, 2 }  // top right
                 },
 
-                // Face 1: Front
+                // face 1: front
                 {
-                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}, 1},  // bottom left
-                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}, 1},   // bottom right
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 1},    // top right
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 1}    // top left
+                    { { -0.5F, -0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 0.0F, 0.0F }, 1 }, // bottom left
+                    { {  0.5F, -0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 1.0F, 0.0F }, 1 }, // bottom right
+                    { {  0.5F,  0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 1.0F, 1.0F }, 1 }, // top right
+                    { { -0.5F,  0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 0.0F, 1.0F }, 1 }  // top left
                 },
 
-                // Face 2: Bottom
+                // face 2: bottom
                 {
-                    {{0.5f,  -0.5f, 0.5f},  {0.0f, 0.0f}, 3},    // bottom right
-                    {{-0.5f, -0.5f, 0.5f},  {1.0f, 0.0f}, 3},   // bottom left
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 1.0f}, 3},  // top left
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f}, 3},     // top right
+                    { {  0.5F, -0.5F,  0.5F }, { 0.0F, -1.0F, 0.0F }, { 0.0F, 0.0F }, 3 }, // bottom right
+                    { { -0.5F, -0.5F,  0.5F }, { 0.0F, -1.0F, 0.0F }, { 1.0F, 0.0F }, 3 }, // bottom left
+                    { { -0.5F, -0.5F, -0.5F }, { 0.0F, -1.0F, 0.0F }, { 1.0F, 1.0F }, 3 }, // top left
+                    { {  0.5F, -0.5F, -0.5F }, { 0.0F, -1.0F, 0.0F }, { 0.0F, 1.0F }, 3 }, // top right
                 },
 
-                // Face 3: Top
+                // face 3: top
                 {
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 0},     // bottom left
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 0},     // bottom right
-                    {{0.5f,  0.5f,  -0.5f}, {1.0f, 0.0f}, 0},    // top right
-                    {{-0.5f, 0.5f,  -0.5f}, {0.0f, 0.0f}, 0},   // top left
+                    { { -0.5F, 0.5F,   0.5F }, { 0.0F, 1.0F, 0.0F }, { 0.0F, 1.0F }, 0 }, // bottom left
+                    { {  0.5F, 0.5F,   0.5F }, { 0.0F, 1.0F, 0.0F }, { 1.0F, 1.0F }, 0 }, // bottom right
+                    { {  0.5F, 0.5F,  -0.5F }, { 0.0F, 1.0F, 0.0F }, { 1.0F, 0.0F }, 0 }, // top right
+                    { { -0.5F, 0.5F,  -0.5F }, { 0.0F, 1.0F, 0.0F }, { 0.0F, 0.0F }, 0 }, // top left
                 },
 
-                // Face 4: Right
+                // face 4: right
                 {
-                    {{0.5f,  0.5f,  -0.5f}, {0.0f, 1.0f}, 2},   // top front
-                    {{0.5f,  0.5f,  0.5f},  {1.0f, 1.0f}, 2},     // top back
-                    {{0.5f,  -0.5f, 0.5f},  {1.0f, 0.0f}, 2},    // bottom back
-                    {{0.5f,  -0.5f, -0.5f}, {0.0f, 0.0f}, 2},   // bottom front
+                    { { 0.5F,  0.5F, -0.5F }, { 1.0F, 0.0F, 0.0F }, { 0.0F, 1.0F }, 2 }, // top front
+                    { { 0.5F,  0.5F,  0.5F }, { 1.0F, 0.0F, 0.0F }, { 1.0F, 1.0F }, 2 }, // top back
+                    { { 0.5F, -0.5F,  0.5F }, { 1.0F, 0.0F, 0.0F }, { 1.0F, 0.0F }, 2 }, // bottom back
+                    { { 0.5F, -0.5F, -0.5F }, { 1.0F, 0.0F, 0.0F }, { 0.0F, 0.0F }, 2 }, // bottom front
                 },
 
-                // Face 5: Left
+                // face 5: left
                 {
-                    {{-0.5f, 0.5f,  0.5f},  {0.0f, 1.0f}, 2},     // top front
-                    {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f}, 2},   // top back
-                    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f}, 2},  // bottom back
-                    {{-0.5f, -0.5f, 0.5f},  {0.0f, 0.0f}, 2},  // bottom front
+                    { { -0.5F,  0.5f,  0.5F }, { -1.0F, 0.0F, 0.0F }, { 0.0F, 1.0F }, 2 }, // top front
+                    { { -0.5F,  0.5f, -0.5F }, { -1.0F, 0.0F, 0.0F }, { 1.0F, 1.0F }, 2 }, // top back
+                    { { -0.5F, -0.5f, -0.5F }, { -1.0F, 0.0F, 0.0F }, { 1.0F, 0.0F }, 2 }, // bottom back
+                    { { -0.5F, -0.5f,  0.5F }, { -1.0F, 0.0F, 0.0F }, { 0.0F, 0.0F }, 2 }, // bottom front
                 }
         };
 
         for (size_t i = 0; i < mesh.size(); ++i)
             compress_face(mesh[i], i);
+    }
+
+    inline static
+    auto compress_normal(glm::vec3 &normal) -> u8 {
+        if (normal.x < 0.0F) return 0b000;
+        if (normal.x > 0.0F) return 0b001;
+        if (normal.y < 0.0F) return 0b010;
+        if (normal.y > 0.0F) return 0b011;
+        if (normal.z < 0.0F) return 0b100;
+        return 0b101;
     }
 
     auto CubeStructure::compress_face(std::vector<Mesh::Vertex> &face, u8 face_idx) -> void {
@@ -79,6 +89,9 @@ namespace core::level::model::voxel {
                        // compressing uv coordinates
                        (UV_CONV(face[i].texCoords.x) << 53) |
                        (UV_CONV(face[i].texCoords.y) << 51) |
+
+                       // compressing normal
+                       (compress_normal(face[i].normal) << 13) |
 
                        // compressing texture offset
                        (face[i].texture_offset << 11);

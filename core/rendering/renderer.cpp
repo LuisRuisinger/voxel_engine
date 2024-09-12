@@ -32,16 +32,15 @@ namespace core::rendering::renderer {
         this->lighting_pass.registerUniformLocation("g_normal");
         this->lighting_pass.registerUniformLocation("g_albedospec");
 
-        // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
-        float quad_vertices[] = {
-                // positions   // texCoords
+        // screen-space quad
+        f32 quad_vertices[] = {
                 -1.0f,  1.0f,  0.0f, 1.0f,
                 -1.0f, -1.0f,  0.0f, 0.0f,
-                1.0f, -1.0f,  1.0f, 0.0f,
+                 1.0f, -1.0f,  1.0f, 0.0f,
 
                 -1.0f,  1.0f,  0.0f, 1.0f,
-                1.0f, -1.0f,  1.0f, 0.0f,
-                1.0f,  1.0f,  1.0f, 1.0f
+                 1.0f, -1.0f,  1.0f, 0.0f,
+                 1.0f,  1.0f,  1.0f, 1.0f
         };
         
         glGenVertexArrays(1, &this->quad_VAO);
@@ -100,9 +99,7 @@ namespace core::rendering::renderer {
         };
 
         auto destroy = [](framebuffer::Framebuffer &target) {
-            glDeleteTextures(1, &target.buffer[0]);
-            glDeleteTextures(1, &target.buffer[1]);
-            glDeleteTextures(1, &target.buffer[2]);
+            glDeleteTextures(3, target.buffer.data());
             glDeleteRenderbuffers(1, &target.buffer[3]);
         };
 
@@ -115,7 +112,6 @@ namespace core::rendering::renderer {
     auto Renderer::prepare_frame(state::State &state) -> void {
         for (auto &[_, v] : this->sub_renderer)
             v->_crtp_prepare_frame(state);
-
     }
 
     auto Renderer::frame(state::State &state) -> void {

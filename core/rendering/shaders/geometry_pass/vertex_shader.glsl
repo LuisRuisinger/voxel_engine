@@ -12,6 +12,16 @@ out vec3 FragPos;
 out vec3 FragNormal;
 out vec3 FragTexture;
 
+const vec3 normals[6] = vec3[](
+    vec3(-1.0, 0.0, 0.0),
+    vec3( 1.0, 0.0, 0.0),
+    vec3(0.0, -1.0, 0.0),
+    vec3(0.0,  1.0, 0.0),
+    vec3(0.0, 0.0, -1.0),
+    vec3(0.0, 0.0,  1.0)
+);
+
+// decompress world space position
 vec3 world_space_chunk_pos() {
     int chunk_index = int(high >> 20U);
     int render_diameter = int(render_radius * 2U);
@@ -23,6 +33,7 @@ vec3 world_space_chunk_pos() {
     return 32.0F * vec3(x, y, z);
 }
 
+// decompress object space position
 vec3 object_space_object_pos(float scale) {
     vec3 compressed_object_pos = vec3(
         float(low >> 29U),
@@ -33,6 +44,7 @@ vec3 object_space_object_pos(float scale) {
     return compressed_object_pos * 0.25F * scale;
 }
 
+// decompress object space uv coordinates
 vec3 object_space_texture_pos(float scale) {
     vec3 compressed_texture_pos = vec3(
         float((low >> 21U) & 0x3U) * 0.5F * scale,
@@ -41,6 +53,11 @@ vec3 object_space_texture_pos(float scale) {
     );
 
     return compressed_texture_pos;
+}
+
+// decompress normals
+vec3 normal() {
+    return normals[(high >> 13) & 0x7U];
 }
 
 void main() {
@@ -64,7 +81,7 @@ void main() {
     }
 
     FragPos = position;
-    FragNormal = vec3(0.0F, 1.0F, 0.0F);
+    FragNormal = normal();
     FragTexture = object_space_texture_pos(scale);
 
     gl_Position = projection * view * vec4(position, 1.0F);
