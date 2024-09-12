@@ -13,7 +13,7 @@ namespace core::rendering::framebuffer {
         using InitFunc = std::function<void(Framebuffer &, i32, i32)>;
         using DeleteFunc = std::function<void(Framebuffer &)>;
     public:
-        Framebuffer() =default;
+        Framebuffer();
         Framebuffer(const Framebuffer &) =delete;
         Framebuffer(Framebuffer &&);
 
@@ -29,13 +29,14 @@ namespace core::rendering::framebuffer {
         auto complete() -> bool;
         auto resize(i32, i32) -> void;
 
+        std::vector<u32> buffer;
+
     private:
         auto init() -> void;
         auto destroy() -> void;
 
         InitFunc init_fun;
         DeleteFunc delete_fun;
-        std::vector<u32> buffer;
         u32 fbo;
 
         i32 width;

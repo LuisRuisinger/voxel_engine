@@ -19,13 +19,18 @@ namespace core::level::chunk::chunk_renderer {
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
-        auto res = this->shader.init("vertex_shader.glsl", "fragment_shader.glsl");
+        // setting up geometry pass shaders
+        auto res = this->shader.init(
+                "geometry_pass/vertex_shader.glsl",
+                "geometry_pass/fragment_shader.glsl");
+
         if (res.isErr()) {
-            LOG(res.unwrapErr());
+            LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
             std::exit(EXIT_FAILURE);
         }
 
         // setting up uniforms
+        this->shader.use();
         this->shader.registerUniformLocation("view");
         this->shader.registerUniformLocation("projection");
         this->shader.registerUniformLocation("worldbase");
@@ -50,10 +55,10 @@ namespace core::level::chunk::chunk_renderer {
         for (auto i = 0; i < this->storage.size(); ++i) {
             this->storage[i].clear();
             this->storage[i].push_back({
-                                               .mem = this->allocator.allocate<VERTEX>(_batch),
-                                               .capacity = _batch,
-                                               .size = 0
-                                       });
+                .mem = this->allocator.allocate<VERTEX>(_batch),
+                .capacity = _batch,
+                .size = 0
+            });
         }
 
 #ifdef DEBUG
@@ -83,7 +88,7 @@ namespace core::level::chunk::chunk_renderer {
         this->shader["projection"] = projection;
         this->shader["worldbase"] = state.platform.get_world_root();
         this->shader["render_radius"] = static_cast<u32>(RENDER_RADIUS);
-        this->shader["texture_array"] = static_cast<i32>(0);
+        this->shader["texture_array"] = 0;
         this->shader.upload_uniforms();
 
         // binding the 2D texture array containing the textures of all tiles

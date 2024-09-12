@@ -37,6 +37,11 @@ public:
                     camera.set_projection_matrix(ref.first, ref.second);
                 }));
 
+        Engine::window_handler.add_framebuffer_size_callback(
+                1, std::move([&](std::pair<i32, i32> &ref) -> void {
+                    Engine::renderer.resize(ref.first, ref.second);
+                }));
+
         DEBUG_LOG("Init cursor position callbacks");
         Engine::window_handler.add_cursor_position_callback(
                 0, std::move([&](std::pair<f32, f32> &ref) -> void {

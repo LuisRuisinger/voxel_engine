@@ -8,6 +8,11 @@
 #include "../util/assert.h"
 
 namespace core::rendering::framebuffer {
+    Framebuffer::Framebuffer()
+        : width  { DEFAULT_WIDTH  },
+          height { DEFAULT_HEIGHT }
+    {}
+
     Framebuffer::Framebuffer(Framebuffer &&other)
         : buffer   { std::move(other.buffer)   },
           fbo      { other.fbo                 },
@@ -20,6 +25,8 @@ namespace core::rendering::framebuffer {
     Framebuffer::~Framebuffer() {
         unbind();
         destroy();
+
+        glDeleteFramebuffers(1, &this->fbo);
     }
 
     auto Framebuffer::operator=(Framebuffer &&other) -> Framebuffer & {
@@ -38,8 +45,10 @@ namespace core::rendering::framebuffer {
     }
 
     auto Framebuffer::operator=(std::pair<InitFunc, DeleteFunc> func) -> Framebuffer & {
-        unbind();
-        destroy();
+        if (this->init_fun) {
+            unbind();
+            destroy();
+        }
 
         // its safer to destroy the framebuffer and construct a new one
         // e.g. when chanaging the size of the buffer (resizing viewportr)
@@ -86,7 +95,6 @@ namespace core::rendering::framebuffer {
     }
 
     auto Framebuffer::destroy() -> void {
-        glDeleteFramebuffers(1, &this->fbo);
         this->delete_fun(*this);
     }
 }

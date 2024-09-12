@@ -15,12 +15,101 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::init_pipeline() -> void {
-        for (auto &[_, v] : this->sub_renderer)
-            v->_crtp_init_shader();
 
-        auto init = [](framebuffer::Framebuffer &targe, i32 width, i32 height) {
+        // lighting pass
+        glDisable(GL_DEPTH_TEST);
+        auto res = this->lighting_pass.init(
+                "shading_pass/vertex_shader.glsl",
+                "shading_pass/fragment_shader.glsl");
 
+        if (res.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        this->lighting_pass.use();
+        this->lighting_pass.registerUniformLocation("g_position");
+        this->lighting_pass.registerUniformLocation("g_normal");
+        this->lighting_pass.registerUniformLocation("g_albedospec");
+
+        // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+        float quad_vertices[] = {
+                // positions   // texCoords
+                -1.0f,  1.0f,  0.0f, 1.0f,
+                -1.0f, -1.0f,  0.0f, 0.0f,
+                1.0f, -1.0f,  1.0f, 0.0f,
+
+                -1.0f,  1.0f,  0.0f, 1.0f,
+                1.0f, -1.0f,  1.0f, 0.0f,
+                1.0f,  1.0f,  1.0f, 1.0f
         };
+        
+        glGenVertexArrays(1, &this->quad_VAO);
+        glGenBuffers(1, &this->quad_VBO);
+        glBindVertexArray(this->quad_VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, this->quad_VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+        // geometry pass
+        auto init = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
+
+            // allocate buffers
+            target.buffer.resize(4);
+
+            // position color buffer
+            glGenTextures(1, &target.buffer[0]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.buffer[0], 0);
+
+            // normal color buffer
+            glGenTextures(1, &target.buffer[1]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[1]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, target.buffer[1], 0);
+
+            // color + specular color buffer
+            glGenTextures(1, &target.buffer[2]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[2]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, target.buffer[2], 0);
+
+            // opengl needs to know which color attachments to use for the rendering of
+            // this framebuffer
+            u32 attachments[3] = {
+                    GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2
+            };
+
+            glDrawBuffers(3, attachments);
+
+            // depth buffer
+            glGenRenderbuffers(1, &target.buffer[3]);
+            glBindRenderbuffer(GL_RENDERBUFFER, target.buffer[3]);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, target.buffer[3]);
+        };
+
+        auto destroy = [](framebuffer::Framebuffer &target) {
+            glDeleteTextures(1, &target.buffer[0]);
+            glDeleteTextures(1, &target.buffer[1]);
+            glDeleteTextures(1, &target.buffer[2]);
+            glDeleteRenderbuffers(1, &target.buffer[3]);
+        };
+
+        this->g_buffer = { init, destroy };
+        this->g_buffer.bind();
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_init_shader();
+        this->g_buffer.unbind();
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
@@ -30,11 +119,35 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::frame(state::State &state) -> void {
+
+        // geometry pass
         this->g_buffer.bind();
         this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
-
-
         this->g_buffer.unbind();
+
+        // lighting pass
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        this->lighting_pass.use();
+        glBindVertexArray(this->quad_VAO);
+
+        this->lighting_pass["g_position"] = 0;
+        this->lighting_pass["g_normal"] = 1;
+        this->lighting_pass["g_albedospec"] = 2;
+        this->lighting_pass.upload_uniforms();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[0]);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[1]);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[2]);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // interface pass
         interface::render();
     }
 
@@ -48,5 +161,9 @@ namespace core::rendering::renderer {
 
     auto Renderer::remove_sub_renderer(RenderType render_type) -> void {
         this->sub_renderer.erase(render_type);
+    }
+
+    auto Renderer::resize(i32 width, i32 height) -> void {
+        this->g_buffer.resize(width, height);
     }
 }

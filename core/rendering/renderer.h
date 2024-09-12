@@ -47,6 +47,7 @@ namespace core::rendering::renderer {
         auto add_sub_renderer(RenderType, Renderable<BaseInterface> *) -> void;
         auto get_sub_renderer(RenderType) -> Renderable<BaseInterface> &;
         auto remove_sub_renderer(RenderType) -> void;
+        auto resize(i32, i32) -> void;
 
     private:
         std::unordered_map<
@@ -54,6 +55,9 @@ namespace core::rendering::renderer {
                 Renderable<BaseInterface> *> sub_renderer;
 
         framebuffer::Framebuffer g_buffer;
+        shader::Shader lighting_pass;
+        GLuint quad_VAO;
+        GLuint quad_VBO;
     };
 }
 
