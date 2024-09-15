@@ -8,7 +8,7 @@
 #include "aliases.h"
 #include "traits.h"
 
-#define MAX_TICK_COUNT 2400
+#define MAX_TICK_COUNT 24000
 #define MAX_DEGREES 360.0F
 
 namespace util::sun {

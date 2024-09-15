@@ -13,12 +13,14 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include "../../util/aliases.h"
-#include "shader.h"
-#include "../../util/camera.h"
-#include "../state.h"
-#include "../../util/renderable.h"
+#include "../core/state.h"
+#include "../core/rendering/shader.h"
 #include "../core/rendering/framebuffer.h"
+#include "../core/rendering/skybox_renderer.h"
+
+#include "../util/aliases.h"
+#include "../util/camera.h"
+#include "../util/renderable.h"
 
 namespace core::rendering::renderer {
     using namespace util::renderable;
@@ -28,7 +30,8 @@ namespace core::rendering::renderer {
         MODEL_RENDERER,
         WATER_RENDERER,
         UI_RENDERER,
-        DIAGNOSTICS_RENDERER
+        DIAGNOSTICS_RENDERER,
+        SKYBOX_RENDERER
     };
 
     class Renderer {
@@ -56,6 +59,9 @@ namespace core::rendering::renderer {
 
         framebuffer::Framebuffer g_buffer;
         shader::Shader lighting_pass;
+
+        skybox_renderer::SkyboxRenderer skybox;
+
         GLuint quad_VAO;
         GLuint quad_VBO;
     };

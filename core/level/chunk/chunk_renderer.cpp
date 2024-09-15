@@ -3,7 +3,7 @@
 //
 
 #include "chunk_renderer.h"
-#include "../../util/player.h"
+#include "../util/player.h"
 
 namespace core::level::chunk::chunk_renderer {
     ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator)
@@ -154,9 +154,6 @@ namespace core::level::chunk::chunk_renderer {
 
         rendering::interface::set_draw_calls(draw_calls);
         rendering::interface::set_vertices_count(vertex_sum * sizeof(VERTEX) / sizeof(u64));
-        rendering::interface::set_camera_pos(state.player.get_camera().get_position());
-        rendering::interface::update();
-        rendering::interface::render();
     }
 
     auto ChunkRenderer::request_writeable_area(u64 len, u64 thread_id) -> const VERTEX * {

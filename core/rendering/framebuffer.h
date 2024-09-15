@@ -28,6 +28,7 @@ namespace core::rendering::framebuffer {
         auto clear(u32) -> void;
         auto complete() -> bool;
         auto resize(i32, i32) -> void;
+        auto blit(u32) -> void;
 
         std::vector<u32> buffer;
 

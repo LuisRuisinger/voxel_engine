@@ -8,6 +8,7 @@
 #include "renderer.h"
 
 #include "../util/indices_generator.h"
+#include "../util/player.h"
 
 namespace core::rendering::renderer {
     auto Renderer::init_ImGui(GLFWwindow *window) -> void {
@@ -15,6 +16,9 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::init_pipeline() -> void {
+
+        // atmosphere pass
+        this->skybox.init_shader();
 
         // lighting pass
         glDisable(GL_DEPTH_TEST);
@@ -44,8 +48,9 @@ namespace core::rendering::renderer {
         };
         
         glGenVertexArrays(1, &this->quad_VAO);
-        glGenBuffers(1, &this->quad_VBO);
         glBindVertexArray(this->quad_VAO);
+
+        glGenBuffers(1, &this->quad_VBO);
         glBindBuffer(GL_ARRAY_BUFFER, this->quad_VBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
@@ -85,7 +90,7 @@ namespace core::rendering::renderer {
 
             // opengl needs to know which color attachments to use for the rendering of
             // this framebuffer
-            u32 attachments[3] = {
+            u32 attachments[4] = {
                     GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2
             };
 
@@ -110,8 +115,7 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
-        for (auto &[_, v] : this->sub_renderer)
-            v->_crtp_prepare_frame(state);
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_prepare_frame(state);
     }
 
     auto Renderer::frame(state::State &state) -> void {
@@ -121,9 +125,9 @@ namespace core::rendering::renderer {
         this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
         this->g_buffer.unbind();
 
-        // lighting pass
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
+
+        // lighting pass
         this->lighting_pass.use();
         glBindVertexArray(this->quad_VAO);
 
@@ -143,7 +147,15 @@ namespace core::rendering::renderer {
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        // blitting the depth
+        this->g_buffer.blit(0);
+
+        // atmosphere pass
+        this->skybox.frame(state);
+
         // interface pass
+        interface::set_camera_pos(state.player.get_camera().get_position());
+        interface::update();
         interface::render();
     }
 

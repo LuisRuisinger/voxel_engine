@@ -97,4 +97,18 @@ namespace core::rendering::framebuffer {
     auto Framebuffer::destroy() -> void {
         this->delete_fun(*this);
     }
+
+    auto Framebuffer::blit(u32 target) -> void {
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, this->fbo);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
+        glBlitFramebuffer(
+                0, 0, this->width, this->height,
+                0, 0, this->width, this->height,
+                GL_DEPTH_BUFFER_BIT,
+                GL_NEAREST
+        );
+
+        // the target framebuffer is now the active framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, target);
+    }
 }

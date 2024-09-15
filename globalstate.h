@@ -62,6 +62,14 @@ public:
                     util::renderable::Renderable<
                         util::renderable::BaseInterface> *>(&Engine::chunk_renderer));
 
+        /*
+        Engine::renderer.add_sub_renderer(
+                core::rendering::renderer::SKYBOX_RENDERER,
+                reinterpret_cast<
+                    util::renderable::Renderable<
+                        util::renderable::BaseInterface> *>(&Engine::skybox));
+                        */
+
         DEBUG_LOG("Init extra key_map calls");
         Engine::key_map.add_callback(
                 core::opengl::opengl_key_map::Action::ON_PRESSED,
@@ -178,7 +186,8 @@ decltype(Engine::state)            Engine::state            { Engine::render_poo
                                                               Engine::normal_tick_pool,
                                                               Engine::renderer,
                                                               Engine::platform,
-                                                              Engine::player            };
+                                                              Engine::player,
+                                                              Engine::sun               };
 decltype(Engine::delta_time)       Engine::delta_time       { 0.0F                      };
 decltype(Engine::last_frame)       Engine::last_frame       { 0.0F                      };
 decltype(Engine::time)             Engine::time             { 0.0F                      };

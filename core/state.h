@@ -27,6 +27,10 @@ namespace util::player {
     class Player;
 }
 
+namespace util::sun {
+    class Sun;
+}
+
 namespace core::state {
     struct State {
         threading::thread_pool::Tasksystem<> &render_pool;
@@ -38,6 +42,7 @@ namespace core::state {
 
         // TODO: remove this and add ECS later
         util::player::Player &player;
+        util::sun::Sun &sun;
     };
 }
 
