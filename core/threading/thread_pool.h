@@ -41,8 +41,8 @@ namespace core::threading::thread_pool {
          * @post  Threads are initialized and running. Waiting for work being available in the queue.
          */
         explicit Tasksystem(u32 thread_count = std::thread::hardware_concurrency())
-                : thread_instance_count{thread_count},
-                  task_queue{thread_count}
+            : thread_instance_count { thread_count },
+              task_queue            { thread_count }
         {
             for (size_t i = 0; i < this->thread_instance_count; ++i) {
                 this->thread_instances.emplace_back(
@@ -57,6 +57,7 @@ namespace core::threading::thread_pool {
             this->worker_runflag = false;
             this->tasks_available.notify_all();
 
+            wait_for_tasks();
             for (auto &t : this->thread_instances) {
                 if (t.joinable()) {
                     t.join();
@@ -71,9 +72,8 @@ namespace core::threading::thread_pool {
          */
         template <typename F>
         auto try_schedule(F &&f) -> bool {
-            u32 i = this->enqueue_task_index.fetch_add(
-                    1,
-                    std::memory_order_release) % this->thread_instance_count;
+            u32 i = this->enqueue_task_index.fetch_add(1, std::memory_order_release) %
+                    this->thread_instance_count;
 
             for (size_t n = 0; n < this->thread_instance_count; ++n) {
                 if (this->task_queue[(i + n) % this->thread_instance_count].try_push(
@@ -175,15 +175,11 @@ namespace core::threading::thread_pool {
          *                If set to 0 no timeout will be applied.
          */
         auto wait_for_tasks() -> void {
-            /*
             std::unique_lock lock { this->mutex };
+
             this->tasks_finished.wait(lock, [this] {
                 return no_tasks();
             });
-             */
-
-            while (!no_tasks())
-                std::this_thread::yield();
         }
 
         /**

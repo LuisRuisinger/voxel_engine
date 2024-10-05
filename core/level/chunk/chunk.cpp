@@ -26,6 +26,9 @@ namespace core::level::chunk {
             case LEFT_BIT  : return this->map[4];
             case RIGHT_BIT : return this->map[5];
         }
+
+        LOG(util::log::LOG_LEVEL_ERROR, "Unreachable segment reached");
+        std::exit(EXIT_FAILURE);
     }
 
     auto Chunk::Faces::operator[](u64 mask) -> u64 & {
@@ -37,6 +40,9 @@ namespace core::level::chunk {
             case LEFT_BIT  : return this->stored_faces[4];
             case RIGHT_BIT : return this->stored_faces[5];
         }
+
+        LOG(util::log::LOG_LEVEL_ERROR, "Unreachable segment reached");
+        std::exit(EXIT_FAILURE);
     }
 
     Chunk::Chunk(u16 chunk_idx)
@@ -254,8 +260,9 @@ namespace core::level::chunk {
 
         u64 actual_size = 0;
         const auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
-                state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
-                .request_writeable_area(sum, threading::thread_pool::worker_id);
+                state.renderer
+                    .get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
+                    .request_writeable_area(sum, threading::thread_pool::worker_id);
 
         for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
             if (this->chunk_segments[i].initialized) {
@@ -272,6 +279,19 @@ namespace core::level::chunk {
         reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
                 state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
                 .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
+    }
+
+    auto Chunk::cull_water(state::State &state) const -> void {
+        for (auto i : this->water_map) {
+            for (auto j = 0; j < CHUNK_SIZE; ++j) {
+                if (i & (1 << i)) {
+
+                }
+            }
+        }
+
+        // add to the subrenderer's buffer
+        // TODO: general form of subrenderer with buffer
     }
 
     auto Chunk::recombine() -> void {

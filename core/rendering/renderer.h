@@ -60,10 +60,18 @@ namespace core::rendering::renderer {
         framebuffer::Framebuffer g_buffer;
         shader::Shader lighting_pass;
 
+        framebuffer::Framebuffer ssao_buffer;
+        shader::Shader ssao_pass;
+
+        framebuffer::Framebuffer ssao_blur_buffer;
+        shader::Shader ssao_blur_pass;
+
+        framebuffer::Framebuffer atmosphere_buffer;
         skybox_renderer::SkyboxRenderer skybox;
 
         GLuint quad_VAO;
         GLuint quad_VBO;
+        GLuint ssao_noise_texture;
     };
 }
 

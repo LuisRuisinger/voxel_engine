@@ -265,8 +265,8 @@ namespace core::memory::linear_allocator {
 
                 for (;;) {
                     Byte *head = metadata->head.load(std::memory_order_relaxed);
-                    const uintptr_t buffer_padding  =memory::ptr_offset<T>(head);
-                    //const u64 buffer_padding = memory::calculate_padding(head, sizeof(T));
+
+                    const uintptr_t buffer_padding = memory::ptr_offset<T>(head);
                     const uintptr_t max_size = buffer_padding + len * sizeof(T);
 
                     // check if the remaining size of the page satisfies
@@ -286,7 +286,8 @@ namespace core::memory::linear_allocator {
                     }
 #ifdef DEBUG
                     const uintptr_t diff =
-                            reinterpret_cast<uintptr_t>(head + buffer_padding) + len * sizeof(T) -
+                            reinterpret_cast<uintptr_t>(head + buffer_padding) +
+                            (len * sizeof(T)) -
                             reinterpret_cast<uintptr_t>(page);
                     ASSERT_EQ(diff <= Size);
 #endif
@@ -359,8 +360,7 @@ namespace core::memory::linear_allocator {
 
             // the last valid page loses reference to its following pages
             const uintptr_t pad = memory::ptr_offset<Metadata>(last_valid_page);
-            auto *metadata = reinterpret_cast<Metadata *>(last_valid_page + pad);
-            metadata->next = nullptr;
+            reinterpret_cast<Metadata *>(last_valid_page + pad)->next = nullptr;
         }
 
         /**
@@ -403,15 +403,15 @@ namespace core::memory::linear_allocator {
 
             if constexpr (allocator_returns_ptr<Allocator, u64>::value) {
                 ptr = this->allocator->allocate(Size);
+
                 if (!ptr) {
                     std::exit(EXIT_FAILURE);
                 }
             }
 
             // appending the new page
-            const uintptr_t pad =memory::ptr_offset<Metadata>(page);
-            auto *metadata = reinterpret_cast<Metadata *>(page + pad);
-            metadata->next = ptr;
+            const uintptr_t pad = memory::ptr_offset<Metadata>(page);
+            reinterpret_cast<Metadata *>(page + pad)->next = ptr;
 
             // init metadata for the new page
             const uintptr_t metadata_pad = memory::ptr_offset<Metadata>(ptr);

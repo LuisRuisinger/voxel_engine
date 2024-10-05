@@ -121,6 +121,8 @@ add_executable(
         core/level/tiles/impl/stone_brick.h
         core/rendering/skybox_renderer.h
         core/rendering/skybox_renderer.cpp
+        util/bin_file.h
+        util/color.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)

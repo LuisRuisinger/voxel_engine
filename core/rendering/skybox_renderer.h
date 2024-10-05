@@ -29,6 +29,9 @@ namespace core::rendering::skybox_renderer {
         u32 ray_tex;
 
         u32 indices_amount;
+
+        GLuint ambient_texture;
+        GLuint sunlight_texture;
     };
 }
 

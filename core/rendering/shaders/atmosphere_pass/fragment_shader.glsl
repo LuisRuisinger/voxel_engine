@@ -53,11 +53,23 @@ void main() {
     vec3 viewDir = normalize(WorldPosition - camera);
 
     // Calculate the view-zenith and sun-zenith angles.
+    // negative for above 0 values in y i suppose
+    // therefore because of they are normalized the values range from [-1, 0]
+    // with 0 if y is 0, else decline in value towards -1
+
+    // but all values are equally used in the upper sphere => we can just interate
+    // over the dot product
     float cosV = dot(viewDir, vec3(0, -1, 0));
     float cosL = dot(lightDir, vec3(0, 1, 0));
 
     // Convert the angles to texture coordinates using the parameterization function.
     // Note: we use abs+sign to avoid negative roots!
+
+    // u declined the further y goes up
+    // at y = 0 => u = 0.5
+    // at the highest y angle <=> inverse of (0, -1, 0) : (0, 1, 0) the limit of the dot
+    // product is reached resulting in -1 => yields 0 for u
+    // therefore we only observe the lower 50% of the texture to calculate the ambient texture
     float u = 0.5 * (1.0 + sign(cosV)*pow(abs(cosV), 1.0/3.0));
     float v = 0.5 * (1.0 + sign(cosL)*pow(abs(cosL), 1.0/3.0));
 

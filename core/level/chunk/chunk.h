@@ -63,8 +63,11 @@ namespace core::level::chunk {
         auto generate(glm::vec2) -> void;
         auto insert(glm::vec3, u16, platform::Platform *platform, bool recombine = true) -> void;
         auto remove(glm::vec3) -> void;
+
         auto cull(state::State &) const -> void;
         auto update_and_render(u16, state::State &) -> void;
+
+        auto cull_water(state::State &) const -> void;
 
         auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
         auto find(std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
@@ -94,6 +97,8 @@ namespace core::level::chunk {
 
         mutable size_t cur_frame_alloc_size { 0 };
         mutable Faces mask_container;
+
+        std::array<u32, CHUNK_SIZE> water_map;
     };
 }
 

@@ -2,11 +2,14 @@
 #include "../util/player.h"
 #include "../util/stb_image.h"
 #include "../util/sun.h"
+#include "../util/bin_file.h"
 
 #define TEXTURE_DIMENSION 64
-#define AZIMUTH_SEGMENTS 32
-#define ZENITH_SEGMENTS 32
+#define AZIMUTH_SEGMENTS 16
+#define ZENITH_SEGMENTS 16
 #define RADIUS (CHUNK_SIZE * RENDER_RADIUS)
+#define MIE_TEXTURE "../resources/maps/mie.bin"
+#define RAYLEIGH_TEXTURE "../resources/maps/rayleigh.bin"
 
 namespace core::rendering::skybox_renderer {
     auto SkyboxRenderer::init_shader() -> void {
@@ -35,11 +38,6 @@ namespace core::rendering::skybox_renderer {
         this->shader.registerUniformLocation("mieEnabled");
         this->shader.registerUniformLocation("mieG");
 
-        // skydome - a simple sphere
-        // source https://www.songho.ca/opengl/gl_sphere.html
-        // TODO: put this in a util file
-        // TODO: add static renderable as crtp
-
         std::vector<f32> vertices;
         std::vector<u32> indices;
 
@@ -56,39 +54,32 @@ namespace core::rendering::skybox_renderer {
                 f32 y = RADIUS * sin(azimuth_rad) * sin(zenith_rad);
                 f32 z = RADIUS * cos(zenith_rad);
 
-                vertices.push_back(x);
-                vertices.push_back(y);
-                vertices.push_back(z);
+                util::push_back(vertices, x, y, z);
             }
         }
 
         auto sum = AZIMUTH_SEGMENTS * ZENITH_SEGMENTS;
-
-        // produces indices for 60% of a sphere
+        
         for (auto i = 0; i < AZIMUTH_SEGMENTS; ++i) {
             auto row = i * ZENITH_SEGMENTS;
             auto next_row = (i + 1) * AZIMUTH_SEGMENTS;
 
             // downwards facing triangle
-            for (auto j = 1; j < ZENITH_SEGMENTS * 0.6F; ++j) {
+            for (auto j = 1; j < ZENITH_SEGMENTS - 1; ++j) {
                 auto i1 = row + j;
                 auto i2 = row + j + 1;
                 auto i3 = (next_row + j) % sum;
 
-                indices.push_back(i1);
-                indices.push_back(i2);
-                indices.push_back(i3);
+                util::push_back(indices, i1, i2, i3);
             }
 
             // upwards facing triangle
-            for (auto j = 0; j < ZENITH_SEGMENTS * 0.6F; ++j) {
+            for (auto j = 0; j < ZENITH_SEGMENTS - 1; ++j) {
                 auto i1 = row + j + 1;
                 auto i2 = (next_row + j + 1) % sum;
                 auto i3 = (next_row + j) % sum;
 
-                indices.push_back(i1);
-                indices.push_back(i2);
-                indices.push_back(i3);
+                util::push_back(indices, i1, i2, i3);
             }
         }
 
@@ -105,11 +96,6 @@ namespace core::rendering::skybox_renderer {
                 vertices.data(),
                 GL_STATIC_DRAW);
 
-
-        //
-        //
-        //
-
         glGenBuffers(1, &this->EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
         glBufferData(
@@ -117,13 +103,6 @@ namespace core::rendering::skybox_renderer {
                 indices.size() * sizeof(decltype(indices)::value_type),
                 indices.data(),
                 GL_STATIC_DRAW);
-
-        //
-        //
-        //
-
-        LOG("amount vertices", vertices.size());
-        LOG("amount indices", indices.size());
 
         auto stride = sizeof(decltype(vertices)::value_type) * 3;
         glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
@@ -134,36 +113,10 @@ namespace core::rendering::skybox_renderer {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
         // textures
-        // TODO: move / opengl class for textures
-
         auto file_read = [](std::string file_name) -> u32 {
-            std::ifstream file { file_name, std::ios::binary };
-            if (!file) {
-                LOG("Failed to load", file_name);
-                std::exit(EXIT_FAILURE);
-            }
-
-            file.seekg(0 , std::ios::end);
-            u32 file_len = file.tellg();
-
-            file.seekg(0, std::ios::beg);
-
-            auto buffer = new f32[file_len / sizeof(f32)];
-            file.read(reinterpret_cast<char *>(buffer), file_len);
-            file.close();
-
-            auto swap_buffer = new f32[file_len / sizeof(f32)];
-
-            for (auto i = 0; i < TEXTURE_DIMENSION; ++i) {
-                for (auto j = 0; j < TEXTURE_DIMENSION; ++j) {
-                    for (auto k = 0; k < 3; ++k) {
-                        swap_buffer[(i + j * TEXTURE_DIMENSION) * 3 + k] =
-                                buffer[(i + (TEXTURE_DIMENSION - 1 - j) * TEXTURE_DIMENSION) * 3 + k];
-                    }
-                }
-            }
-
-            delete[] buffer;
+            auto file = util::bin_file::File<f32> {
+                file_name, TEXTURE_DIMENSION, TEXTURE_DIMENSION, 3, true
+            };
 
             // constructing image
             GLuint texture;
@@ -186,12 +139,9 @@ namespace core::rendering::skybox_renderer {
                             0,
                             GL_RGB,
                             GL_FLOAT,
-                            swap_buffer));
+                            file.buffer()));
 
             OPENGL_VERIFY(glBindTexture(GL_TEXTURE_2D, 0));
-            LOG("Successfully read and parsed", file_name);
-
-            delete[] swap_buffer;
             return texture;
         };
 
@@ -199,9 +149,7 @@ namespace core::rendering::skybox_renderer {
         this->mie_tex = file_read("../resources/maps/mie.bin");
     }
 
-    auto SkyboxRenderer::prepare_frame(state::State &state) -> void {
-        // TODO: maybe update the sun here
-    }
+    auto SkyboxRenderer::prepare_frame(state::State &state) -> void {}
 
     auto SkyboxRenderer::frame(state::State &state) -> void {
         auto view = state.player.get_camera().get_view_matrix();
@@ -233,11 +181,10 @@ namespace core::rendering::skybox_renderer {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, this->mie_tex);
 
-        glDrawElements(GL_TRIANGLES,                    // primitive type
-                       this->indices_amount,          // # of indices
-                       GL_UNSIGNED_INT,                 // data type
+        glDrawElements(GL_TRIANGLES,
+                       this->indices_amount,
+                       GL_UNSIGNED_INT,
                        nullptr);
-
     }
 }
 

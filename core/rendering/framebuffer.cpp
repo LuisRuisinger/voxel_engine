@@ -111,4 +111,12 @@ namespace core::rendering::framebuffer {
         // the target framebuffer is now the active framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, target);
     }
+
+    auto Framebuffer::get_width() const -> i32 {
+        return this->width;
+    }
+
+    auto Framebuffer::get_height() const -> i32 {
+        return this->height;
+    }
 }

@@ -63,8 +63,8 @@ namespace util::log {
     auto print(
             std::string_view out,
             Level kind = Level::LOG_LEVEL_DEBUG,
-            const char *file = __builtin_FILE(),
-            const char *caller = __builtin_FUNCTION(),
+            std::string file = __builtin_FILE(),
+            std::string caller = __builtin_FUNCTION(),
             const size_t line = __builtin_LINE()) -> void;
 
     template<typename T>
@@ -73,8 +73,8 @@ namespace util::log {
     auto print(
             const T &out,
             Level kind = Level::LOG_LEVEL_DEBUG,
-            const char *file = __builtin_FILE(),
-            const char *caller = __builtin_FUNCTION(),
+            std::string file = __builtin_FILE(),
+            std::string caller = __builtin_FUNCTION(),
             const size_t line = __builtin_LINE()) -> decltype(std::to_string(out), void()) {
         log::print(std::string_view(out), kind, file, caller, line);
     }
@@ -82,8 +82,8 @@ namespace util::log {
     inline auto print(
             std::stringstream &out,
             Level kind = Level::LOG_LEVEL_DEBUG,
-            const char *file = __builtin_FILE(),
-            const char *caller = __builtin_FUNCTION(),
+            std::string file = __builtin_FILE(),
+            std::string caller = __builtin_FUNCTION(),
             const size_t line = __builtin_LINE()) -> void {
         log::print(out.str(), kind, file, caller, line);
     }
@@ -92,7 +92,7 @@ namespace util::log {
     static constexpr auto end = _End{};
 
     struct _Log {
-        _Log(const char *file, const char *caller, const size_t line)
+        _Log(std::string file, std::string caller, const size_t line)
             : file   { file   },
               caller { caller },
               line   { line   }
@@ -145,8 +145,8 @@ namespace util::log {
         }
 
     private:
-        const char *file;
-        const char *caller;
+        std::string file;
+        std::string caller;
 
 #ifdef DEBUG
         Level kind = Level::LOG_LEVEL_DEBUG;
@@ -158,16 +158,16 @@ namespace util::log {
     };
 
     static inline auto out(
-            const char *file = __builtin_FILE(),
-            const char *caller = __builtin_FUNCTION(),
+            std::string file = __builtin_FILE(),
+            std::string caller = __builtin_FUNCTION(),
             const size_t line = __builtin_LINE()) -> _Log {
         return _Log{file, caller, line};
     }
 
     template <typename ...Args>
     static inline constexpr auto log(
-            const char *file,
-            const char *caller,
+            std::string file,
+            std::string caller,
             const u64 line,
             Args ...args) -> void {
         (out(file, caller, line) << ... << std::forward<Args>(args)) << end;

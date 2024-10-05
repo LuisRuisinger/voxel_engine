@@ -1,28 +1,25 @@
-//
-// Created by Luis Ruisinger on 13.06.24.
-//
-
-#include "log.h"
-
 #include <regex>
 #include <filesystem>
+
+#include "log.h"
+#include "../core/threading/thread_pool.h"
 
 namespace util::log {
     auto print(
             std::string_view out,
             Level kind,
-            const char *file,
-            const char *caller,
+            std::string file,
+            std::string caller,
             const size_t line) -> void {
         // Normalize and strip the project root directory from the file path
-        std::filesystem::path filePath = std::filesystem::canonical(file);
-        std::string f = filePath.string();
+        std::filesystem::path file_path = std::filesystem::canonical(file);
+        std::string f = file_path.string();
 
         // Remove the project root prefix
-        const std::string projectRoot = PROJECT_ROOT_DIR;
-        size_t pos = f.find(projectRoot);
+        const std::string project_root = PROJECT_ROOT_DIR;
+        size_t pos = f.find(PROJECT_ROOT_DIR);
         if (pos != std::string::npos) {
-            f = f.substr(pos + projectRoot.length() + 1); // +1 to remove the leading slash
+            f = f.substr(pos + project_root.length() + 1);
         }
 
         // Remove the file extension
@@ -38,7 +35,7 @@ namespace util::log {
 
         oss << "[" << f << ":" << line << "]"
             << "[" << caller << "] "
-            << out;
+            << "<< " << out << " >>";
 
         if (oss.str().back() != '\n') {
             oss << '\n';

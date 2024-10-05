@@ -32,6 +32,8 @@ namespace core::memory::arena_allocator {
         auto allocate(size_t size) -> Result<Byte *, memory::Error>;
 
     private:
+        auto reuse_pages(memory::SLL<Byte> *, size_t) -> u8 *;
+
         std::atomic<memory::SLL<Byte> *> list;
     };
 }

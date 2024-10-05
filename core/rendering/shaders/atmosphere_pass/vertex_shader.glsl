@@ -24,5 +24,5 @@ void main()  {
 
     // Set z to w, in other words as far as possible.
     // This makes the skysphere render behind everything else.
-    gl_Position = posCS;
+    gl_Position = posCS.xyww;
 }

@@ -81,37 +81,44 @@ namespace core::memory::arena_allocator {
         page->used.store(false, std::memory_order_release);
     }
 
+    auto ArenaAllocator::reuse_pages(memory::SLL<Byte> *page, size_t size) -> u8 * {
+        // check if any allocated page from the last frame is unused
+        // thus can be given a new owner
+        while (page->next.load(std::memory_order_relaxed)) {
+
+            auto used = page->used.load(std::memory_order_relaxed);
+            if (used || page->size != size) {
+                page = page->next;
+                continue;
+            }
+
+            // a valid unused page has been found and acquired
+            if (page->used.compare_exchange_weak(
+                    used,
+                    true,
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
+
+                DEBUG_LOG("Reusable page found", page->ptr);
+                ASSERT_EQ(page->ptr);
+                return page->ptr;
+            }
+
+            page = page->next;
+        }
+
+        return nullptr;
+    }
+
     auto ArenaAllocator::allocate(size_t size) -> Result<u8 *, memory::Error> {
         memory::SLL<Byte> *page = this->list.load(std::memory_order_acquire);
 
         // traversing all reset pages does only make sense if pages exist
         // this is not the case if the root is nullptr
-        if (page) [[likely]] {
-
-            // check if any allocated page from the last frame is unused
-            // thus can be given a new owner
-            while (page->next.load(std::memory_order_relaxed)) {
-
-                auto used = page->used.load(std::memory_order_relaxed);
-                if (used || page->size != size) {
-                    page = page->next;
-                    continue;
-                }
-
-                // a valid unused page has been found and acquired
-                if (page->used.compare_exchange_weak(
-                        used,
-                        true,
-                        std::memory_order_release,
-                        std::memory_order_acquire)) {
-
-                    DEBUG_LOG("Reusable page found", page->ptr);
-                    ASSERT_EQ(page->ptr);
-                    return Ok(page->ptr);
-                }
-
-                page = page->next;
-            }
+        if (page) {
+            auto candidate = reuse_pages(page, size);
+            if (candidate)
+                return Ok(candidate);
         }
 
         // in case no old pages are unused

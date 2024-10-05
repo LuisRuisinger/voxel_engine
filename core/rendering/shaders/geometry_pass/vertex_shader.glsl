@@ -55,6 +55,11 @@ vec3 object_space_texture_pos(float scale) {
     return compressed_texture_pos;
 }
 
+mat4 model_matrix(vec4 obj_space_vertex, vec4 model_space_vertex) {
+    return outerProduct(model_space_vertex, obj_space_vertex) *
+           inverse(outerProduct(obj_space_vertex, obj_space_vertex));
+}
+
 // decompress normals
 vec3 normal() {
     return normals[(high >> 13) & 0x7U];
@@ -68,10 +73,12 @@ void main() {
     float z_chunk_space  = float((low >>  3U) & 0x1FU);
     float scale          = float(1 << (low & 0x7U));
 
-    vec3 position = object_space_object_pos(scale) +
-    vec3(x_chunk_space, y_chunk_space, z_chunk_space) +
-    world_space_chunk_pos() - vec3(0.0F, 128.0F, 0.0F) +
-    vec3(worldbase.x, 0.0F, worldbase.y);
+    vec3 obj_space_position = object_space_object_pos(scale);
+    vec3 model_trans = vec3(x_chunk_space, y_chunk_space, z_chunk_space) +
+                       world_space_chunk_pos() -
+                       vec3(0.0F, 128.0F, 0.0F) +
+                       vec3(worldbase.x, 0.0F, worldbase.y);
+    vec3 position = obj_space_position + model_trans;
 
     if (scale == 1) {
         position += vec3(0.5F);
@@ -81,8 +88,8 @@ void main() {
     }
 
     FragPos = position;
-    FragNormal = normal();
+    FragNormal =  normal();
     FragTexture = object_space_texture_pos(scale);
-
     gl_Position = projection * view * vec4(position, 1.0F);
 }
+

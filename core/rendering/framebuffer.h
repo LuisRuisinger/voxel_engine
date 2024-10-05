@@ -30,6 +30,9 @@ namespace core::rendering::framebuffer {
         auto resize(i32, i32) -> void;
         auto blit(u32) -> void;
 
+        auto get_width() const -> i32;
+        auto get_height() const -> i32;
+
         std::vector<u32> buffer;
 
     private:

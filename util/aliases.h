@@ -57,4 +57,16 @@ using f64 = double_t;
     #define VERTEX u64
 #endif
 
+namespace util {
+    template <typename C, typename ...Args>
+    inline auto push_back(C &c, Args ...args) -> void {
+        (c.push_back(std::forward<Args>(args)), ...);
+    }
+
+    template <typename C, typename ...Args>
+    inline auto emplace_back(C &c, Args ...args) -> void {
+        (c.emplace_back(std::forward<Args>(args)), ...);
+    }
+}
+
 #endif //OPENGL_3D_ENGINE_ALIASES_H
