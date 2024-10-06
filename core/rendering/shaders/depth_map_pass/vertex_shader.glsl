@@ -1,4 +1,5 @@
 #version 330 core
+precision highp float;
 
 layout(location = 0) in uint high;
 layout(location = 1) in uint low;
@@ -7,19 +8,6 @@ uniform vec2 worldbase;
 uniform mat4 view;
 uniform mat4 projection;
 uniform uint render_radius;
-
-out vec3 FragPos;
-out vec3 FragNormal;
-out vec3 FragTexture;
-
-const vec3 normals[6] = vec3[](
-    vec3(-1.0, 0.0, 0.0),
-    vec3( 1.0, 0.0, 0.0),
-    vec3(0.0, -1.0, 0.0),
-    vec3(0.0,  1.0, 0.0),
-    vec3(0.0, 0.0, -1.0),
-    vec3(0.0, 0.0,  1.0)
-);
 
 // decompress world space position
 vec3 world_space_chunk_pos() {
@@ -55,24 +43,6 @@ vec3 object_space_texture_pos(float scale) {
     return compressed_texture_pos;
 }
 
-mat4 model_matrix(vec4 obj_space_vertex, vec4 model_space_vertex) {
-    return outerProduct(model_space_vertex, obj_space_vertex) *
-           inverse(outerProduct(obj_space_vertex, obj_space_vertex));
-}
-
-// decompress normals
-vec3 normal() {
-    return normals[(high >> 13) & 0x7U];
-}
-
-#define NEAR_PLANE 0.1F
-#define FAR_PLANE 640.0F
-
-float linearize_depth(float depth) {
-    return (2.0F * NEAR_PLANE * FAR_PLANE) /
-           (FAR_PLANE + NEAR_PLANE - depth * (FAR_PLANE - NEAR_PLANE));
-}
-
 void main() {
 
     // unpacking
@@ -83,9 +53,9 @@ void main() {
 
     vec3 obj_space_position = object_space_object_pos(scale);
     vec3 model_trans = vec3(x_chunk_space, y_chunk_space, z_chunk_space) +
-                       world_space_chunk_pos() -
-                       vec3(0.0F, 128.0F, 0.0F) +
-                       vec3(worldbase.x, 0.0F, worldbase.y);
+    world_space_chunk_pos() -
+    vec3(0.0F, 128.0F, 0.0F) +
+    vec3(worldbase.x, 0.0F, worldbase.y);
     vec3 position = obj_space_position + model_trans;
 
     if (scale == 1) {
@@ -95,9 +65,5 @@ void main() {
         position -= vec3(0.5F) * (scale - 1);
     }
 
-    FragPos = position;
-    FragNormal =  normal();
-    FragTexture = object_space_texture_pos(scale);
     gl_Position = projection * view * vec4(position, 1.0F);
 }
-

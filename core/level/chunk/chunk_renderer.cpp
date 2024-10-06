@@ -70,19 +70,14 @@ namespace core::level::chunk::chunk_renderer {
 #endif
     }
 
-    auto ChunkRenderer::frame(state::State &state) -> void {
+    auto ChunkRenderer::frame(
+            state::State &state,
+            glm::mat4 &view,
+            glm::mat4 &projection) -> void {
 
         // clearing the framebuffer
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        auto view = state.player
-                .get_camera()
-                .get_view_matrix();
-
-        auto projection = state.player
-                .get_camera()
-                .get_projection_matrix();
 
         this->shader["view"] = view;
         this->shader["projection"] = projection;
@@ -154,6 +149,68 @@ namespace core::level::chunk::chunk_renderer {
 
         rendering::interface::set_draw_calls(draw_calls);
         rendering::interface::set_vertices_count(vertex_sum * sizeof(VERTEX) / sizeof(u64));
+    }
+
+    auto ChunkRenderer::frame_inject_shader(
+            state::State &state,
+            glm::mat4 &view,
+            glm::mat4 &projection) -> void {
+        auto vertex_sum = 0;
+        auto draw_calls = 0;
+        auto _batch = batch(sizeof(VERTEX));
+
+        for (auto i = 0; i < this->storage.size(); ++i) {
+            for (auto j = 0; j < this->storage[i].size() - 1; ++j) {
+
+                auto size = this->storage[i][j].size;
+                if (size == 0)
+                    continue;
+
+                update_buffer(this->storage[i][j].mem, sizeof(VERTEX), size);
+                draw();
+                vertex_sum += size;
+                ++draw_calls;
+            }
+        }
+
+        u64 offset = 0;
+        auto i = 0;
+
+        // reduces overhead in draw calls
+        while (i < this->storage.size()) {
+            auto able_to_take = _batch;
+
+            while (able_to_take > 0 && i < this->storage.size()) {
+                auto &current_storage = this->storage[i].back();
+                auto size = current_storage.size;
+
+                if (size == 0) {
+                    ++i;
+                    offset = 0;
+                    continue;
+                }
+
+                auto remaining_size = size - offset;
+                auto to_take = std::min<size_t>(remaining_size, able_to_take);
+                update_buffer(
+                        current_storage.mem + offset,
+                        sizeof(VERTEX),
+                        to_take
+                );
+
+                vertex_sum += to_take;
+                able_to_take -= to_take;
+                offset += to_take;
+
+                if (offset == size) {
+                    offset = 0;
+                    ++i;
+                }
+            }
+
+            draw();
+            ++draw_calls;
+        }
     }
 
     auto ChunkRenderer::request_writeable_area(u64 len, u64 thread_id) -> const VERTEX * {

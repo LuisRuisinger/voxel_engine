@@ -151,9 +151,10 @@ namespace core::rendering::skybox_renderer {
 
     auto SkyboxRenderer::prepare_frame(state::State &state) -> void {}
 
-    auto SkyboxRenderer::frame(state::State &state) -> void {
-        auto view = state.player.get_camera().get_view_matrix();
-        auto projection = state.player.get_camera().get_projection_matrix();
+    auto SkyboxRenderer::frame(
+            state::State &state,
+            glm::mat4 &view,
+            glm::mat4 &projection) -> void {
         auto camera = state.player.get_camera().get_position();
 
         this->shader.use();

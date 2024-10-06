@@ -57,17 +57,20 @@ namespace core::rendering::renderer {
                 RenderType,
                 Renderable<BaseInterface> *> sub_renderer;
 
+        framebuffer::Framebuffer depth_map_buffer;
+        shader::Shader depth_map_pass;
+
         framebuffer::Framebuffer g_buffer;
         shader::Shader lighting_pass;
+
+        framebuffer::Framebuffer atmosphere_buffer;
+        skybox_renderer::SkyboxRenderer skybox;
 
         framebuffer::Framebuffer ssao_buffer;
         shader::Shader ssao_pass;
 
         framebuffer::Framebuffer ssao_blur_buffer;
         shader::Shader ssao_blur_pass;
-
-        framebuffer::Framebuffer atmosphere_buffer;
-        skybox_renderer::SkyboxRenderer skybox;
 
         GLuint quad_VAO;
         GLuint quad_VBO;

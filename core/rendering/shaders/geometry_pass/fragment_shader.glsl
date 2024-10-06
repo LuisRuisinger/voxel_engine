@@ -10,14 +10,6 @@ in vec3 FragTexture;
 
 uniform sampler2DArray texture_array;
 
-#define NEAR_PLANE 0.1F
-#define FAR_PLANE 1024.0F
-
-float linearize_depth(float depth, float near, float far)
-{
-    return (2.0 * near * far) / (far + near - depth * (far - near));
-}
-
 void main() {
     gPosition = FragPos;
     gNormal = normalize(FragNormal);

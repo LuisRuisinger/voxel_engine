@@ -48,6 +48,12 @@ namespace util::camera {
         auto move_camera(Camera_Movement, f32) -> void;
         auto rotate_camera(f32, f32) -> void;
 
+        auto set_pitch(f32) -> void;
+        auto increase_pitch(f32) -> void;
+
+        auto set_position(glm::vec3) -> void;
+        auto increase_position(glm::vec3) -> void;
+
         auto set_frustum(f32, f32, f32, f32) -> void;
         auto set_frustum_aspect(f32) -> void;
         auto set_frustum_definition(glm::vec3, glm::vec3, glm::vec3) -> void;

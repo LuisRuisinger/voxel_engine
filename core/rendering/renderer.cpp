@@ -49,6 +49,78 @@ namespace core::rendering::renderer {
 
         this->skybox.init_shader();
 
+        this->atmosphere_buffer.unbind();
+
+        // depth map pass
+        auto init_depth_map_pass = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
+
+            // allocate buffer
+            target.buffer.resize(1);
+            const u32 shadow_width_height = RENDER_RADIUS * 2 * CHUNK_SIZE;
+
+            glGenTextures(1, &target.buffer[0]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
+            glTexImage2D(
+                    GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+                    shadow_width_height, shadow_width_height, 0,
+                    GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+            f32 border_color[] = {
+                    1.0F, 1.0F, 1.0F, 1.0F
+            };
+
+            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
+
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, target.buffer[0], 0);
+
+            // explicitly telling OpenGL that we won't read or write color data
+            // a framebuffer cannot be complete without a single color buffer
+            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
+        };
+
+        auto destroy_depth_map_pass = [](framebuffer::Framebuffer &target) {
+            glDeleteTextures(1, target.buffer.data());
+        };
+
+        this->depth_map_buffer = { init_depth_map_pass, destroy_depth_map_pass };
+        this->depth_map_buffer.bind();
+        glEnable(GL_DEPTH_TEST);
+        glCullFace(GL_FRONT);
+
+        // lighting pass
+        auto res_depth_map_pass = this->depth_map_pass.init(
+                "depth_map_pass/vertex_shader.glsl",
+                "depth_map_pass/fragment_shader.glsl");
+
+        if (res_depth_map_pass.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res_depth_map_pass.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        this->depth_map_pass.use();
+        this->depth_map_pass.registerUniformLocation("view");
+        this->depth_map_pass.registerUniformLocation("projection");
+        this->depth_map_pass.registerUniformLocation("worldbase");
+        this->depth_map_pass.registerUniformLocation("render_radius");
+
+        this->depth_map_buffer.unbind();
+
+        /*
+         *
+         *
+         *
+         * done in the default frame buffer
+         *
+         *
+         *
+         */
+
         // lighting pass
         auto res = this->lighting_pass.init(
                 "shading_pass/vertex_shader.glsl",
@@ -64,8 +136,7 @@ namespace core::rendering::renderer {
         this->lighting_pass.registerUniformLocation("g_normal");
         this->lighting_pass.registerUniformLocation("g_albedospec");
         this->lighting_pass.registerUniformLocation("g_atmosphere");
-
-        this->atmosphere_buffer.unbind();
+        this->lighting_pass.registerUniformLocation("g_depth_map");
 
 #ifdef SSAO_PASS
         this->lighting_pass.registerUniformLocation("g_ssao");
@@ -74,6 +145,10 @@ namespace core::rendering::renderer {
         // sun shading attributes
         this->lighting_pass.registerUniformLocation("light_direction");
         this->lighting_pass.registerUniformLocation("view_direction");
+
+        // transformation matrices
+        this->lighting_pass.registerUniformLocation("depth_map_view");
+        this->lighting_pass.registerUniformLocation("depth_map_projection");
 
         // screen-space quad
         f32 quad_vertices[] = {
@@ -129,7 +204,7 @@ namespace core::rendering::renderer {
 
             // opengl needs to know which color attachments to use for the rendering of
             // this framebuffer
-            u32 attachments[4] = {
+            u32 attachments[3] = {
                     GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2
             };
 
@@ -201,10 +276,39 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::frame(state::State &state) -> void {
+        auto player_view = state.player.get_camera().get_view_matrix();
+        auto player_projection = state.player.get_camera().get_projection_matrix();
+        auto sun_view = state.sun.get_view_matrix();
+        auto sun_projection = state.sun.get_projection_matrix();
+
+        // depth map pass
+        // injecting another shader into the chunk renderer to just extract depth information
+        // TODO: change this later
+        glViewport(0, 0, RENDER_RADIUS * 2 * CHUNK_SIZE, RENDER_RADIUS * 2 * CHUNK_SIZE);
+        this->depth_map_buffer.bind();
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        this->depth_map_pass.use();
+        this->depth_map_pass["view"] = sun_view;
+        this->depth_map_pass["projection"] = sun_projection;
+
+        this->depth_map_pass["worldbase"] = state.platform.get_world_root();
+        this->depth_map_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
+        this->depth_map_pass.upload_uniforms();
+
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame_inject_shader(
+                state,
+                sun_view,
+                sun_projection);
+        this->depth_map_buffer.unbind();
 
         // geometry pass
+        glViewport(0, 0, this->g_buffer.get_width(), this->g_buffer.get_height());
         this->g_buffer.bind();
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(
+                state,
+                player_view,
+                player_projection);
         this->g_buffer.unbind();
 
 #ifdef SSAO_PASS
@@ -245,9 +349,7 @@ namespace core::rendering::renderer {
         // atmosphere pass
         this->atmosphere_buffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
-
-        this->skybox.frame(state);
-
+        this->skybox.frame(state, player_view, player_projection);;
         this->atmosphere_buffer.unbind();
 
         // base framebuffer
@@ -261,13 +363,17 @@ namespace core::rendering::renderer {
         this->lighting_pass["g_normal"] = 1;
         this->lighting_pass["g_albedospec"] = 2;
         this->lighting_pass["g_atmosphere"] = 3;
+        this->lighting_pass["g_depth_map"] = 4;
 
 #ifdef SSAO_PASS
-        this->lighting_pass["g_ssao"] = 4;
+        this->lighting_pass["g_ssao"] = 5;
 #endif
 
         this->lighting_pass["light_direction"] = state.sun.get_orientation();
         this->lighting_pass["view_direction"] = state.player.get_camera().get_position();
+
+        this->lighting_pass["depth_map_view"] = sun_view;
+        this->lighting_pass["depth_map_projection"] = sun_projection;
         this->lighting_pass.upload_uniforms();
 
         // position
@@ -286,9 +392,13 @@ namespace core::rendering::renderer {
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, this->atmosphere_buffer.buffer[0]);
 
+        // shadow map depth
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, this->depth_map_buffer.buffer[0]);
+
 #ifdef SSAO_PASS
         // ssao color
-        glActiveTexture(GL_TEXTURE4);
+        glActiveTexture(GL_TEXTURE5);
         glBindTexture(GL_TEXTURE_2D, this->ssao_buffer.buffer[0]);
 #endif
 

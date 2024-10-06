@@ -17,7 +17,7 @@ namespace core::level::chunk::generation::biome {
         m = step(m, 0.6F, 0.6F);
 
         auto max_y = std::min(static_cast<i32>(m + WATER_LEVEL), max_height);
-        for (auto y = max_y - 3; y <= max_y; ++y) {
+        for (auto y = 0; y <= max_y; ++y) {
             auto pos = glm::vec3{x, y, z};
             chunk.insert(pos, 3, nullptr, false);
         }
@@ -41,7 +41,7 @@ namespace core::level::chunk::generation::biome {
             chunk.insert(pos, 0, nullptr, false);
         }
 
-        for (auto y = max_y - 7; y < max_y - 3; ++y) {
+        for (auto y = 0; y < max_y - 3; ++y) {
             auto pos = glm::vec3 { x, y, z };
             chunk.insert(pos, 3, nullptr, false);
         }

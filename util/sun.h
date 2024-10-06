@@ -7,12 +7,14 @@
 
 #include "aliases.h"
 #include "traits.h"
+#include "camera.h"
 
 namespace util::sun {
     class Sun :
             public traits::Tickable<Sun>,
             public traits::Updateable<Sun> {
     public:
+        Sun();
 
         // TODO: update sun matrices here
         auto tick(core::state::State &) -> void;
@@ -27,20 +29,23 @@ namespace util::sun {
         auto update(core::state::State &) -> void;
         auto get_orientation() -> const glm::vec3 &;
 
+        auto get_view_matrix() -> const glm::mat4 &;
+        auto get_projection_matrix() -> const glm::mat4 &;
+
     private:
 
-        // offset for sun view
-        // used for shadow map calculations through the sun
-        const f32 height = 512.0F;
-        f32 sun_scalar_offset = RENDER_RADIUS * CHUNK_SIZE * 2.0F;
-
-        u32 max_tick_count = 24000;
+        u32 max_tick_count = 2400;
         u32 current_tick_count = 0;
 
         // used for sun rotation
         f32 rotation_angle_radians = -2.0F * M_PI / static_cast<f32>(this->max_tick_count);
         glm::mat4 rotation_mat;
         glm::vec3 orientation = { 0.0F, 0.0F, 1.0F };
+
+        camera::Camera sun_view;
+
+        glm::mat4 sun_view_matrix;
+        glm::mat4 sun_projection_matrix;
 
         // TODO: add orthogonal perspective camera for sun shadows
     };

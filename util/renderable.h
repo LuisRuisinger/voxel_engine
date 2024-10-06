@@ -38,7 +38,8 @@ namespace util::renderable {
 
         virtual auto init_shader() -> void =0;
         virtual auto prepare_frame(core::state::State &) -> void =0;
-        virtual auto frame(core::state::State &) -> void =0;
+        virtual auto frame(core::state::State &, glm::mat4 &, glm::mat4 &) -> void =0;
+        virtual auto frame_inject_shader(core::state::State &, glm::mat4 &, glm::mat4 &) -> void =0;
         virtual auto draw() -> void =0;
     };
 
@@ -56,10 +57,21 @@ namespace util::renderable {
             static_cast<T *>(this)->prepare_frame(state);
         }
 
-        auto _crtp_frame(core::state::State &state) -> void {
+        auto _crtp_frame(
+                core::state::State &state,
+                glm::mat4 &view,
+                glm::mat4 &projection) -> void {
             this->shader.use();
             glBindVertexArray(this->layout.VAO);
-            static_cast<T *>(this)->frame(state);
+            static_cast<T *>(this)->frame(state, view, projection);
+        }
+
+        auto _crtp_frame_inject_shader(
+                core::state::State &state,
+                glm::mat4 &view,
+                glm::mat4 &projection) -> void {
+            glBindVertexArray(this->layout.VAO);
+            static_cast<T *>(this)->frame_inject_shader(state, view, projection);
         }
 
         inline constexpr auto batch(size_t align) const -> size_t {

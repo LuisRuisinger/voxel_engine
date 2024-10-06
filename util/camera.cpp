@@ -6,6 +6,7 @@
 
 #include "camera.h"
 #include "aliases.h"
+#include "log.h"
 
 #define HORIZONTAL_THRESHOLD 0.55F
 #define VERTICAL_THRESHOLD   0.25F
@@ -37,8 +38,8 @@ namespace util::camera {
         set_frustum(
                 DEFAULT_FOV,
                 static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),
-                0.1F,
-                CHUNK_SIZE * (RENDER_RADIUS * 2));
+                1.0F,
+                CHUNK_SIZE * (RENDER_RADIUS + 4.0F));
         update();
         set_projection_matrix(DEFAULT_WIDTH, DEFAULT_HEIGHT);
     }
@@ -102,12 +103,32 @@ namespace util::camera {
         this->aa_visible_face_mask ^= (this->front.z < -HORIZONTAL_THRESHOLD) * (BACK_BIT   >> 10);
     }
 
+    auto Camera::set_pitch(f32 npitch) -> void {
+        this->pitch = std::fmod(npitch, 360.0F);
+    }
+
+    auto Camera::increase_pitch(f32 npitch) -> void {
+        this->pitch = std::fmod(this->pitch + npitch, 360.0F);
+    }
+
+    auto Camera::set_position(glm::vec3 npos) -> void {
+        this->position = npos;
+    }
+
+    auto Camera::increase_position(glm::vec3 npos) -> void {
+        this->position += npos;
+    }
+
     auto Camera::set_frustum(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void {
         this->frustum.set_cam_internals(angle, ratio, nearD, farD);
     }
 
     auto Camera::set_frustum_aspect(f32 r) -> void {
-        this->frustum.set_cam_internals(DEFAULT_FOV, r, 0.1F, CHUNK_SIZE * (RENDER_RADIUS * 2));
+        this->frustum.set_cam_internals(
+                DEFAULT_FOV,
+                r,
+                1.0F,
+                (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 
     auto Camera::set_frustum_definition(glm::vec3 p, glm::vec3 t, glm::vec3 u) -> void {
@@ -151,7 +172,7 @@ namespace util::camera {
                 glm::perspective(
                         glm::radians(60.0F),
                         static_cast<f32>(width) / static_cast<f32>(height),
-                        0.1F,
+                        1.0F,
                         (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 

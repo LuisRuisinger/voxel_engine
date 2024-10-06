@@ -16,7 +16,7 @@ namespace core::rendering::skybox_renderer {
         // renderable
         auto init_shader() -> void;
         auto prepare_frame(state::State &) -> void;
-        auto frame(state::State &) -> void;
+        auto frame(state::State &, glm::mat4 &, glm::mat4 &) -> void;
 
     private:
         GLuint VAO;

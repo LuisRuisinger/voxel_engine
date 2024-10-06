@@ -31,7 +31,8 @@ namespace core::level::chunk::chunk_renderer {
         // renderable
         auto init_shader() -> void;
         auto prepare_frame(state::State &state) -> void;
-        auto frame(state::State &state) -> void;
+        auto frame(state::State &state, glm::mat4 &, glm::mat4 &) -> void;
+        auto frame_inject_shader(state::State &state, glm::mat4 &, glm::mat4 &) -> void;
 
         // write traversed voxels
         auto request_writeable_area(u64, u64) -> const VERTEX *;
