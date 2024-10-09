@@ -12,6 +12,8 @@ uniform sampler2D g_albedospec;
 uniform sampler2D g_atmosphere;
 uniform sampler2D g_depth_map;
 
+#define SSAO_PASS
+
 // ssao pass texture
 #ifdef SSAO_PASS
 uniform sampler2D g_ssao;
@@ -29,7 +31,7 @@ const vec3 ambient_light = vec3(1.0F);
 const vec3 sun_light = vec3(1.0F);
 
 const float k_a = 0.35F;
-const float k_d = 0.60F;
+const float k_d = 0.75F;
 const float k_s = 0.15F;
 const float s   = 32.0F;
 
@@ -38,6 +40,11 @@ const float density = 0.007F;
 const float gradient = 1.5F;
 const float no_fog_offset = 256.0F;
 
+vec3 light_gradient() {
+    float s = smoothstep(-0.025F, 0.075F, light_direction.y);
+
+    return mix(vec3(0.0F), sun_light, s);
+}
 
 float shadow_calculation(vec4 light_coords, vec3 normal) {
     float shadow_bias = max(0.05F * (1.0F - dot(normal, light_direction)), 0.005F);
@@ -78,13 +85,10 @@ vec3 hdr(vec3 color) {
 }
 
 void main() {
-    vec3 frag_pos = texture(g_position, TexCoords).rgb;
-    vec3 normal   = texture(g_normal, TexCoords).rgb;
-    vec3 albedo   = texture(g_albedospec, TexCoords).rgb;
-
-#ifdef SSAO_PASS
+    vec3 frag_pos           = texture(g_position, TexCoords).rgb;
+    vec3 normal             = texture(g_normal, TexCoords).rgb;
+    vec3 albedo             = texture(g_albedospec, TexCoords).rgb;
     float ambient_occlusion = texture(g_ssao, TexCoords).r;
-#endif
 
     vec3 l = normalize(light_direction);
     vec3 n = normalize(normal);
@@ -95,9 +99,15 @@ void main() {
     float i_s = pow(clamp(dot(n, h), 0.0, 1.0), s);
     float i_d = clamp(dot(n, l), 0.0, 1.0);
 
+    vec3 gradient_light = light_gradient();
+
     vec3 ambient = i_a * k_a * albedo * ambient_light;
-    vec3 specular = i_s * k_s * sun_light;
-    vec3 diffuse = i_d * k_d * albedo * sun_light;
+    ambient *= max(smoothstep(-0.025F, 0.075F, light_direction.y), 0.3);
+    ambient *= ambient_occlusion;
+    ambient *= max(0.0F, 1.0F - i_d * k_d);
+
+    vec3 specular = i_s * k_s * gradient_light;
+    vec3 diffuse = i_d * k_d * albedo * gradient_light;
 
     // shadow peel
     vec4 light_coords = depth_map_projection * depth_map_view * vec4(frag_pos, 1.0F);
@@ -111,21 +121,15 @@ void main() {
     // TODO: this is very dirty but we can abuse the fact that normals are normalized
     if (length(normal) == 1.0F) {
         vec3 fragment_color = ambient + specular + diffuse;
-        fragment_color = clamp(fragment_color, 0.0F, 1.0F);
-
         vec3 atmosphere_color = texture(g_atmosphere, TexCoords).rgb;
 
-        vec2 frag_pos_2d = frag_pos.xz;
-        vec2 camera_pos_2d = view_direction.xz;
-
-        float frag_distance_2d = distance(frag_pos_2d, camera_pos_2d);
+        float frag_distance_2d = distance(frag_pos.xz, view_direction.xz);
         frag_distance_2d = frag_distance_2d - no_fog_offset;
         frag_distance_2d = max(frag_distance_2d, 0.0F);
 
         float visiblity = exp(-1.0F * pow(frag_distance_2d * density, gradient));
         visiblity = clamp(visiblity, 0.0F, 1.0F);
 
-        //float depth = texture(g_depth_map, TexCoords).r;
         final_color = mix(atmosphere_color, fragment_color, visiblity);
     }
     else {

@@ -12,6 +12,8 @@
 #include "../util/player.h"
 #include "../util/color.h"
 
+#define SSAO_PASS
+
 namespace core::rendering::renderer {
     auto Renderer::init_ImGui(GLFWwindow *window) -> void {
         interface::init(window);
@@ -155,7 +157,6 @@ namespace core::rendering::renderer {
                 -1.0f,  1.0f,  0.0f, 1.0f,
                 -1.0f, -1.0f,  0.0f, 0.0f,
                  1.0f, -1.0f,  1.0f, 0.0f,
-
                 -1.0f,  1.0f,  0.0f, 1.0f,
                  1.0f, -1.0f,  1.0f, 0.0f,
                  1.0f,  1.0f,  1.0f, 1.0f
@@ -182,25 +183,43 @@ namespace core::rendering::renderer {
             glGenTextures(1, &target.buffer[0]);
             glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.buffer[0], 0);
 
             // normal color buffer
             glGenTextures(1, &target.buffer[1]);
             glBindTexture(GL_TEXTURE_2D, target.buffer[1]);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, target.buffer[1], 0);
 
             // color + specular color buffer
             glGenTextures(1, &target.buffer[2]);
             glBindTexture(GL_TEXTURE_2D, target.buffer[2]);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, target.buffer[2], 0);
+
+            // fragment depth buffer
+            glGenTextures(1, &target.buffer[3]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[3]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, target.buffer[3], 0);
 
             // opengl needs to know which color attachments to use for the rendering of
             // this framebuffer
@@ -209,16 +228,10 @@ namespace core::rendering::renderer {
             };
 
             glDrawBuffers(3, attachments);
-
-            // depth buffer
-            glGenRenderbuffers(1, &target.buffer[3]);
-            glBindRenderbuffer(GL_RENDERBUFFER, target.buffer[3]);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, width, height);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, target.buffer[3]);
         };
 
         auto destroy = [](framebuffer::Framebuffer &target) {
-            glDeleteTextures(3, target.buffer.data());
+            glDeleteTextures(4, target.buffer.data());
             glDeleteRenderbuffers(1, &target.buffer[3]);
         };
 
@@ -276,10 +289,14 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::frame(state::State &state) -> void {
+        auto player_pos = state.player.get_camera().get_position();
         auto player_view = state.player.get_camera().get_view_matrix();
         auto player_projection = state.player.get_camera().get_projection_matrix();
+
+        auto sun_orientation = state.sun.get_orientation();
         auto sun_view = state.sun.get_view_matrix();
         auto sun_projection = state.sun.get_projection_matrix();
+
 
         // depth map pass
         // injecting another shader into the chunk renderer to just extract depth information
@@ -318,28 +335,15 @@ namespace core::rendering::renderer {
         this->ssao_pass.use();
         glBindVertexArray(this->quad_VAO);
 
-        // position
+        // geometry pass fragment depth
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[0]);
-
-        // normal
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[1]);
-
-        auto view = state.player
-                .get_camera()
-                .get_view_matrix();
-
-        auto projection = state.player
-                .get_camera()
-                .get_projection_matrix();
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[3]);
 
         // ssao shader runtime config
-        this->ssao_pass["g_position"] = 0;
-        this->ssao_pass["g_normal"] = 1;
+        this->ssao_pass["g_depth"] = 0;
 
-        this->ssao_pass["view"] = view;
-        this->ssao_pass["projection"] = projection;
+        this->ssao_pass["view"] = player_view;
+        this->ssao_pass["projection"] = player_projection;
         this->ssao_pass.upload_uniforms();
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -369,8 +373,8 @@ namespace core::rendering::renderer {
         this->lighting_pass["g_ssao"] = 5;
 #endif
 
-        this->lighting_pass["light_direction"] = state.sun.get_orientation();
-        this->lighting_pass["view_direction"] = state.player.get_camera().get_position();
+        this->lighting_pass["light_direction"] = sun_orientation;
+        this->lighting_pass["view_direction"] = player_pos;
 
         this->lighting_pass["depth_map_view"] = sun_view;
         this->lighting_pass["depth_map_projection"] = sun_projection;
@@ -404,11 +408,8 @@ namespace core::rendering::renderer {
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        // blitting the depth
-        this->g_buffer.blit(0);
-
         // interface pass
-        interface::set_camera_pos(state.player.get_camera().get_position());
+        interface::set_camera_pos(player_pos);
         interface::update();
         interface::render();
     }

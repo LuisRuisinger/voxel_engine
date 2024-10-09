@@ -7,6 +7,7 @@
 #include "player.h"
 
 namespace util::sun {
+    constexpr const f32 max_degrees = 360.0F;
     constexpr const f32 sun_height = 256.0F;
     constexpr const glm::vec3 axis = { 1.0F, 0.0F, 0.0F };
     constexpr const glm::vec3 sun_pos = sun_height * axis;
@@ -16,9 +17,9 @@ namespace util::sun {
         : sun_view { sun_pos, sun_up, -90.0F, PITCH }
     {
         this->sun_projection_matrix = glm::ortho(
-                -384.0F, 384.0F,
-                -384.0F, 384.0F,
-                1.0F, 384.0F);
+                -320.0F, 320.0F,
+                -320.0F, 320.0F,
+                0.1F, 320.0F);
     }
 
     auto Sun::update(core::state::State &state) -> void {
@@ -35,9 +36,10 @@ namespace util::sun {
                 glm::vec3(this->rotation_mat * glm::vec4(this->orientation, 1.0F)));
 
         // update sun view as object of the world
-        const f32 pitch_increase = 360.0F / static_cast<f32>(this->max_tick_count);
+        const f32 pitch_increase = max_degrees / static_cast<f32>(this->max_tick_count);
 
         glm::vec3 offset = state.player.get_camera().get_position();
+        offset.y = 0.0F;
 
         const f32 texel_size = 1.0F / (CHUNK_SIZE * 2 * RENDER_RADIUS);
         glm::vec3 cam_pos = this->orientation * sun_height + offset;

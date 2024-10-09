@@ -127,7 +127,7 @@ namespace util::camera {
         this->frustum.set_cam_internals(
                 DEFAULT_FOV,
                 r,
-                1.0F,
+                0.1F,
                 (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 
@@ -172,7 +172,7 @@ namespace util::camera {
                 glm::perspective(
                         glm::radians(60.0F),
                         static_cast<f32>(width) / static_cast<f32>(height),
-                        1.0F,
+                        0.1F,
                         (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 

@@ -34,7 +34,7 @@ namespace util::sun {
 
     private:
 
-        u32 max_tick_count = 2400;
+        u32 max_tick_count = 24000 * 3;
         u32 current_tick_count = 0;
 
         // used for sun rotation

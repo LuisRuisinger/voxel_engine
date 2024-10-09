@@ -96,8 +96,9 @@ void main() {
     }
 
     FragPos = position;
-    FragNormal =  normal();
+    FragNormal = normal();
     FragTexture = object_space_texture_pos(scale);
+
     gl_Position = projection * view * vec4(position, 1.0F);
 }
 
