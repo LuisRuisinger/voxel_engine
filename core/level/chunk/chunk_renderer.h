@@ -29,10 +29,9 @@ namespace core::level::chunk::chunk_renderer {
         ChunkRenderer(arena_allocator::ArenaAllocator *);
 
         // renderable
-        auto init_shader() -> void;
+        auto init() -> void;
         auto prepare_frame(state::State &state) -> void;
-        auto frame(state::State &state, glm::mat4 &, glm::mat4 &) -> void;
-        auto frame_inject_shader(state::State &state, glm::mat4 &, glm::mat4 &) -> void;
+        auto frame(state::State &state) -> void;
 
         // write traversed voxels
         auto request_writeable_area(u64, u64) -> const VERTEX *;
@@ -40,7 +39,7 @@ namespace core::level::chunk::chunk_renderer {
 
     private:
         std::vector<std::vector<Buffer<VERTEX>>> storage;
-        tiles::tile_manager::TileManager tile_manager;
+        //tiles::tile_manager::TileManager tile_manager;
         linear_allocator::LinearAllocator<arena_allocator::ArenaAllocator> allocator;
     };
 }

@@ -29,6 +29,7 @@ namespace core::rendering::framebuffer {
         auto complete() -> bool;
         auto resize(i32, i32) -> void;
         auto blit(u32) -> void;
+        auto set_viewport(i32, i32) -> void;
 
         auto get_width() const -> i32;
         auto get_height() const -> i32;

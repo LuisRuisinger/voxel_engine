@@ -11,41 +11,12 @@ namespace core::level::chunk::chunk_renderer {
               storage(std::thread::hardware_concurrency())
     {}
 
-    auto ChunkRenderer::init_shader() -> void {
-        glEnable(GL_DEPTH_TEST);
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
-        glFrontFace(GL_CCW);
-
-        // setting up geometry pass shaders
-        auto res = this->shader.init(
-                "geometry_pass/vertex_shader.glsl",
-                "geometry_pass/fragment_shader.glsl");
-
-        if (res.isErr()) {
-            LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
-            std::exit(EXIT_FAILURE);
-        }
-
-        // setting up uniforms
-        this->shader.use();
-        this->shader.registerUniformLocation("view");
-        this->shader.registerUniformLocation("projection");
-        this->shader.registerUniformLocation("worldbase");
-        this->shader.registerUniformLocation("render_radius");
-        this->shader.registerUniformLocation("texture_array");
-
-        // thin wrapper over VAO layouts
+    auto ChunkRenderer::init() -> void {
         this->layout
-                .begin(sizeof(u64))
-                .add(1, util::renderable::Type::U_INT, nullptr)
-                .add(1, util::renderable::Type::U_INT, sizeof(u32))
-                .end();
-
-        // setting up the tile management
-        setup(tile_manager);
+            .begin(sizeof(u64))
+            .add(1, util::renderable::Type::U_INT, nullptr)
+            .add(1, util::renderable::Type::U_INT, sizeof(u32))
+            .end();
     }
 
     auto ChunkRenderer::prepare_frame(state::State &state) -> void {
@@ -60,38 +31,9 @@ namespace core::level::chunk::chunk_renderer {
                 .size = 0
             });
         }
-
-#ifdef DEBUG
-        for (auto &vec : this->storage) {
-            ASSERT_EQ(vec[0].mem);
-            ASSERT_EQ(vec[0].capacity == _batch);
-            ASSERT_EQ(vec[0].size == 0);
-        }
-#endif
     }
 
-    auto ChunkRenderer::frame(
-            state::State &state,
-            glm::mat4 &view,
-            glm::mat4 &projection) -> void {
-
-        // clearing the framebuffer
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        this->shader["view"] = view;
-        this->shader["projection"] = projection;
-        this->shader["worldbase"] = state.platform.get_world_root();
-        this->shader["render_radius"] = static_cast<u32>(RENDER_RADIUS);
-        this->shader["texture_array"] = 0;
-        this->shader.upload_uniforms();
-
-        // binding the 2D texture array containing the textures of all tiles
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D_ARRAY, this->tile_manager.texture_array);
-
-        auto vertex_sum = 0;
-        auto draw_calls = 0;
+    auto ChunkRenderer::frame(state::State &state) -> void {
         auto _batch = batch(sizeof(VERTEX));
 
         for (auto i = 0; i < this->storage.size(); ++i) {
@@ -103,8 +45,6 @@ namespace core::level::chunk::chunk_renderer {
 
                 update_buffer(this->storage[i][j].mem, sizeof(VERTEX), size);
                 draw();
-                vertex_sum += size;
-                ++draw_calls;
             }
         }
 
@@ -133,7 +73,6 @@ namespace core::level::chunk::chunk_renderer {
                         to_take
                 );
 
-                vertex_sum += to_take;
                 able_to_take -= to_take;
                 offset += to_take;
 
@@ -144,72 +83,6 @@ namespace core::level::chunk::chunk_renderer {
             }
 
             draw();
-            ++draw_calls;
-        }
-
-        rendering::interface::set_draw_calls(draw_calls);
-        rendering::interface::set_vertices_count(vertex_sum * sizeof(VERTEX) / sizeof(u64));
-    }
-
-    auto ChunkRenderer::frame_inject_shader(
-            state::State &state,
-            glm::mat4 &view,
-            glm::mat4 &projection) -> void {
-        auto vertex_sum = 0;
-        auto draw_calls = 0;
-        auto _batch = batch(sizeof(VERTEX));
-
-        for (auto i = 0; i < this->storage.size(); ++i) {
-            for (auto j = 0; j < this->storage[i].size() - 1; ++j) {
-
-                auto size = this->storage[i][j].size;
-                if (size == 0)
-                    continue;
-
-                update_buffer(this->storage[i][j].mem, sizeof(VERTEX), size);
-                draw();
-                vertex_sum += size;
-                ++draw_calls;
-            }
-        }
-
-        u64 offset = 0;
-        auto i = 0;
-
-        // reduces overhead in draw calls
-        while (i < this->storage.size()) {
-            auto able_to_take = _batch;
-
-            while (able_to_take > 0 && i < this->storage.size()) {
-                auto &current_storage = this->storage[i].back();
-                auto size = current_storage.size;
-
-                if (size == 0) {
-                    ++i;
-                    offset = 0;
-                    continue;
-                }
-
-                auto remaining_size = size - offset;
-                auto to_take = std::min<size_t>(remaining_size, able_to_take);
-                update_buffer(
-                        current_storage.mem + offset,
-                        sizeof(VERTEX),
-                        to_take
-                );
-
-                vertex_sum += to_take;
-                able_to_take -= to_take;
-                offset += to_take;
-
-                if (offset == size) {
-                    offset = 0;
-                    ++i;
-                }
-            }
-
-            draw();
-            ++draw_calls;
         }
     }
 

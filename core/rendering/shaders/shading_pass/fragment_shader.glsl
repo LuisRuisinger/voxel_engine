@@ -101,24 +101,22 @@ void main() {
 
     vec3 gradient_light = light_gradient();
 
+    // shadow peel
+    vec4 light_coords = depth_map_projection * depth_map_view * vec4(frag_pos, 1.0F);
+    float shadow = shadow_calculation(light_coords, normal);
+
     vec3 ambient = i_a * k_a * albedo * ambient_light;
     ambient *= max(smoothstep(-0.025F, 0.075F, light_direction.y), 0.3);
     ambient *= ambient_occlusion;
     ambient *= max(0.0F, 1.0F - i_d * k_d);
 
     vec3 specular = i_s * k_s * gradient_light;
+    //specular = specular * (1.0F - shadow);
+
     vec3 diffuse = i_d * k_d * albedo * gradient_light;
-
-    // shadow peel
-    vec4 light_coords = depth_map_projection * depth_map_view * vec4(frag_pos, 1.0F);
-    float shadow = shadow_calculation(light_coords, normal);
-
-    specular = specular * (1.0F - shadow);
-    diffuse = diffuse * (1.0F - shadow);
+    //diffuse = diffuse * (1.0F - shadow);
 
     vec3 final_color = vec3(0.0F);
-
-    // TODO: this is very dirty but we can abuse the fact that normals are normalized
     if (length(normal) == 1.0F) {
         vec3 fragment_color = ambient + specular + diffuse;
         vec3 atmosphere_color = texture(g_atmosphere, TexCoords).rgb;

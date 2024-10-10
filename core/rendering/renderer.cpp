@@ -7,6 +7,8 @@
 
 #include "renderer.h"
 
+#include "../core/level/tiles/tile_manager.h"
+
 #include "../util/sun.h"
 #include "../util/indices_generator.h"
 #include "../util/player.h"
@@ -139,10 +141,7 @@ namespace core::rendering::renderer {
         this->lighting_pass.registerUniformLocation("g_albedospec");
         this->lighting_pass.registerUniformLocation("g_atmosphere");
         this->lighting_pass.registerUniformLocation("g_depth_map");
-
-#ifdef SSAO_PASS
         this->lighting_pass.registerUniformLocation("g_ssao");
-#endif
 
         // sun shading attributes
         this->lighting_pass.registerUniformLocation("light_direction");
@@ -237,10 +236,44 @@ namespace core::rendering::renderer {
 
         this->g_buffer = { init, destroy };
         this->g_buffer.bind();
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_init_shader();
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->init();
+
+        glEnable(GL_DEPTH_TEST);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+
+        auto res_g_buffer = this->g_pass.init(
+                "geometry_pass/vertex_shader.glsl",
+                "geometry_pass/fragment_shader.glsl");
+
+        if (res_g_buffer.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res_g_buffer.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        // setting up uniforms
+        this->g_pass.use();
+        this->g_pass.registerUniformLocation("view");
+        this->g_pass.registerUniformLocation("projection");
+        this->g_pass.registerUniformLocation("worldbase");
+        this->g_pass.registerUniformLocation("render_radius");
+        this->g_pass.registerUniformLocation("texture_array");
+
         this->g_buffer.unbind();
 
-#ifdef SSAO_PASS
+        /*
+         *
+         *
+         *
+         *
+         * SSAO
+         *
+         *
+         *
+         */
         auto init_ssao = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
 
             // allocator buffers
@@ -273,15 +306,54 @@ namespace core::rendering::renderer {
             std::exit(EXIT_FAILURE);
         }
 
-        this->lighting_pass.use();
-        this->lighting_pass.registerUniformLocation("g_position");
-        this->lighting_pass.registerUniformLocation("g_normal");
-
         this->ssao_pass.registerUniformLocation("view");
         this->ssao_pass.registerUniformLocation("projection");
 
         this->ssao_buffer.unbind();
-#endif
+
+        /*
+         *
+         *
+         *
+         *
+         * SSAO blur
+         *
+         *
+         *
+         */
+        auto init_ssao_blur = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
+
+            // allocate buffers
+            target.buffer.resize(1);
+
+            glGenTextures(1, &target.buffer[0]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.buffer[0], 0);
+        };
+
+        auto destroy_ssao_blur = [](framebuffer::Framebuffer &target) {
+            glDeleteTextures(1, target.buffer.data());
+        };
+
+        this->ssao_blur_buffer = { init_ssao_blur, destroy_ssao_blur };
+        this->ssao_blur_buffer.bind();
+
+        auto res_ssao_blur = this->ssao_blur_pass.init(
+                "ssao_pass/vertex_shader.glsl",
+                "ssao_blur_pass/fragment_shader.glsl");
+
+        if (res_ssao_blur.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res_ssao_blur.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        this->ssao_blur_pass.use();
+        this->ssao_blur_pass.registerUniformLocation("g_ssao");
+
+        this->ssao_blur_buffer.unbind();
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
@@ -313,22 +385,40 @@ namespace core::rendering::renderer {
         this->depth_map_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
         this->depth_map_pass.upload_uniforms();
 
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame_inject_shader(
-                state,
-                sun_view,
-                sun_projection);
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
         this->depth_map_buffer.unbind();
 
         // geometry pass
         glViewport(0, 0, this->g_buffer.get_width(), this->g_buffer.get_height());
         this->g_buffer.bind();
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(
-                state,
-                player_view,
-                player_projection);
+
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // binding the 2D texture array containing the textures of all tiles
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, state.tile_manager.texture_array);
+
+        this->g_pass.use();
+        this->g_pass["view"] = player_view;
+        this->g_pass["projection"] = player_projection;
+        this->g_pass["worldbase"] = state.platform.get_world_root();
+        this->g_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
+        this->g_pass["texture_array"] = 0;
+        this->g_pass.upload_uniforms();
+
+        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
         this->g_buffer.unbind();
 
-#ifdef SSAO_PASS
+
+
+        /*
+         *
+         *
+         * SSAO
+         *
+         *
+         */
         this->ssao_buffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -349,12 +439,43 @@ namespace core::rendering::renderer {
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         this->ssao_buffer.unbind();
-#endif
+
         // atmosphere pass
         this->atmosphere_buffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
         this->skybox.frame(state, player_view, player_projection);;
         this->atmosphere_buffer.unbind();
+
+        /*
+        *
+        *
+        * SSAO blur
+        *
+        *
+        */
+        this->ssao_blur_buffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        this->ssao_blur_pass.use();
+        glBindVertexArray(this->quad_VAO);
+
+        // ssao pass unfiltered
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, this->ssao_buffer.buffer[0]);;
+
+        this->ssao_blur_pass["g_ssao"] = 0;
+        this->ssao_blur_pass.upload_uniforms();
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        this->ssao_blur_buffer.unbind();
+
+        /*
+         *
+         *
+         * lighting + scene combination
+         *
+         *
+         */
 
         // base framebuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -368,10 +489,7 @@ namespace core::rendering::renderer {
         this->lighting_pass["g_albedospec"] = 2;
         this->lighting_pass["g_atmosphere"] = 3;
         this->lighting_pass["g_depth_map"] = 4;
-
-#ifdef SSAO_PASS
         this->lighting_pass["g_ssao"] = 5;
-#endif
 
         this->lighting_pass["light_direction"] = sun_orientation;
         this->lighting_pass["view_direction"] = player_pos;
@@ -400,11 +518,9 @@ namespace core::rendering::renderer {
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, this->depth_map_buffer.buffer[0]);
 
-#ifdef SSAO_PASS
         // ssao color
         glActiveTexture(GL_TEXTURE5);
-        glBindTexture(GL_TEXTURE_2D, this->ssao_buffer.buffer[0]);
-#endif
+        glBindTexture(GL_TEXTURE_2D, this->ssao_blur_buffer.buffer[0]);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -429,10 +545,7 @@ namespace core::rendering::renderer {
     auto Renderer::resize(i32 width, i32 height) -> void {
         this->g_buffer.resize(width, height);
         this->ssao_buffer.resize(width, height);
-
-        // TODO: uncomment when implemented
-        // this->ssao_blur_buffer.resize(width, height);
-
+        this->ssao_blur_buffer.resize(width, height);
         this->atmosphere_buffer.resize(width, height);
     }
 }

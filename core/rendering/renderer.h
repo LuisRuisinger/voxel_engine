@@ -61,7 +61,7 @@ namespace core::rendering::renderer {
         shader::Shader depth_map_pass;
 
         framebuffer::Framebuffer g_buffer;
-        shader::Shader lighting_pass;
+        shader::Shader g_pass;
 
         framebuffer::Framebuffer atmosphere_buffer;
         skybox_renderer::SkyboxRenderer skybox;
@@ -72,9 +72,10 @@ namespace core::rendering::renderer {
         framebuffer::Framebuffer ssao_blur_buffer;
         shader::Shader ssao_blur_pass;
 
+        shader::Shader lighting_pass;
+
         GLuint quad_VAO;
         GLuint quad_VBO;
-        GLuint ssao_noise_texture;
     };
 }
 

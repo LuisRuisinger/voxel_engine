@@ -106,6 +106,9 @@ public:
             Engine::key_map.run_repeat();
         }));
 
+        DEBUG_LOG("Init tile_manager");
+        core::level::tiles::tile_manager::setup(Engine::tile_manager);
+
         DEBUG_LOG("Init renderer");
         Engine::renderer.init_ImGui(window);
         Engine::renderer.init_pipeline();
@@ -151,6 +154,9 @@ private:
     static core::threading::thread_pool::Tasksystem<> chunk_tick_pool;
     static core::threading::thread_pool::Tasksystem<> normal_tick_pool;
 
+    // tile system
+    static core::level::tiles::tile_manager::TileManager tile_manager;
+
     // rendering
     static core::rendering::renderer::Renderer renderer;
     static core::level::chunk::chunk_renderer::ChunkRenderer chunk_renderer;
@@ -177,6 +183,7 @@ decltype(Engine::executor)         Engine::executor         {                   
 decltype(Engine::render_pool)      Engine::render_pool      {                           };
 decltype(Engine::chunk_tick_pool)  Engine::chunk_tick_pool  {                           };
 decltype(Engine::normal_tick_pool) Engine::normal_tick_pool {                           };
+decltype(Engine::tile_manager)     Engine::tile_manager     {                           };
 decltype(Engine::chunk_renderer)   Engine::chunk_renderer   { &Engine::allocator        };
 decltype(Engine::platform)         Engine::platform         {                           };
 decltype(Engine::player)           Engine::player           { Engine::key_map           };
@@ -186,6 +193,7 @@ decltype(Engine::state)            Engine::state            { Engine::render_poo
                                                               Engine::normal_tick_pool,
                                                               Engine::renderer,
                                                               Engine::platform,
+                                                              Engine::tile_manager,
                                                               Engine::player,
                                                               Engine::sun               };
 decltype(Engine::delta_time)       Engine::delta_time       { 0.0F                      };

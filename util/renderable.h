@@ -36,10 +36,9 @@ namespace util::renderable {
     struct BaseInterface {
         virtual ~BaseInterface() {}
 
-        virtual auto init_shader() -> void =0;
+        virtual auto init() -> void =0;
         virtual auto prepare_frame(core::state::State &) -> void =0;
-        virtual auto frame(core::state::State &, glm::mat4 &, glm::mat4 &) -> void =0;
-        virtual auto frame_inject_shader(core::state::State &, glm::mat4 &, glm::mat4 &) -> void =0;
+        virtual auto frame(core::state::State &) -> void =0;
         virtual auto draw() -> void =0;
     };
 
@@ -49,29 +48,17 @@ namespace util::renderable {
 
         Renderable() : buffer_offset { 0 }, buffer_handle { nullptr } {}
 
-        auto _crtp_init_shader() -> void {
-            static_cast<T *>(this)->init_shader();
+        auto _crtp_init() -> void {
+            static_cast<T *>(this)->init();
         }
 
         auto _crtp_prepare_frame(core::state::State &state) -> void {
             static_cast<T *>(this)->prepare_frame(state);
         }
 
-        auto _crtp_frame(
-                core::state::State &state,
-                glm::mat4 &view,
-                glm::mat4 &projection) -> void {
-            this->shader.use();
+        auto _crtp_frame(core::state::State &state) -> void {
             glBindVertexArray(this->layout.VAO);
-            static_cast<T *>(this)->frame(state, view, projection);
-        }
-
-        auto _crtp_frame_inject_shader(
-                core::state::State &state,
-                glm::mat4 &view,
-                glm::mat4 &projection) -> void {
-            glBindVertexArray(this->layout.VAO);
-            static_cast<T *>(this)->frame_inject_shader(state, view, projection);
+            static_cast<T *>(this)->frame(state);
         }
 
         inline constexpr auto batch(size_t align) const -> size_t {
@@ -197,7 +184,6 @@ namespace util::renderable {
         };
 
         Layout layout;
-        shader::Shader shader;
 
         u64 buffer_offset;
         u8 *buffer_handle;
