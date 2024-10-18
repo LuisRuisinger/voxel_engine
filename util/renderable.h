@@ -58,6 +58,9 @@ namespace util::renderable {
 
         auto _crtp_frame(core::state::State &state) -> void {
             glBindVertexArray(this->layout.VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, this->layout.VBO);
+            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->layout.EBO);
+
             static_cast<T *>(this)->frame(state);
         }
 
@@ -65,14 +68,18 @@ namespace util::renderable {
             return MAX_VERTICES_BUFFER * sizeof(u64) / align;
         }
 
+        auto bind_layout() -> void {
+            glBindVertexArray(this->layout.VAO);
+        }
+
         auto draw() -> void {
             drop_buffer();
 
-            glDrawElements(
+            OPENGL_VERIFY(glDrawElements(
                     GL_TRIANGLES,
                     static_cast<u32>(this->vertex_count * 1.5F),
                     GL_UNSIGNED_INT,
-                    nullptr);
+                    nullptr));
 
             this->vertex_count = 0;
         }
@@ -89,7 +96,7 @@ namespace util::renderable {
 
             this->buffer_offset += len * align;
             ASSERT_EQ(this->vertex_count);
-            glUnmapBuffer(GL_ARRAY_BUFFER);
+            OPENGL_VERIFY(glUnmapBuffer(GL_ARRAY_BUFFER));
         }
 
     protected:
@@ -97,7 +104,7 @@ namespace util::renderable {
             friend Renderable<T>;
         public:
             Layout()
-                    : cnt { 0 } {
+                : cnt { 0 } {
                 auto indices_buffer = util::IndicesGenerator<MAX_VERTICES_BUFFER>();
                 this->indices.insert(
                         this->indices.end(),
@@ -110,26 +117,26 @@ namespace util::renderable {
                 ASSERT_EQ(this->sz);
 
                 // VAO generation
-                glGenVertexArrays(1, &this->VAO);
-                glBindVertexArray(this->VAO);
+                OPENGL_VERIFY(glGenVertexArrays(1, &this->VAO));
+                OPENGL_VERIFY(glBindVertexArray(this->VAO));
 
                 // buffer generation
-                glGenBuffers(1, &this->VBO);
-                glGenBuffers(1, &this->EBO);
+                OPENGL_VERIFY(glGenBuffers(1, &this->VBO));
+                OPENGL_VERIFY(glGenBuffers(1, &this->EBO));
 
-                glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-                glBufferData(
+                OPENGL_VERIFY(glBindBuffer(GL_ARRAY_BUFFER, this->VBO));
+                OPENGL_VERIFY(glBufferData(
                         GL_ARRAY_BUFFER,
                         MAX_VERTICES_BUFFER * sizeof(u64),
                         nullptr,
-                        GL_DYNAMIC_DRAW);
+                        GL_DYNAMIC_DRAW));
 
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-                glBufferData(
+                OPENGL_VERIFY(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO));
+                OPENGL_VERIFY(glBufferData(
                         GL_ELEMENT_ARRAY_BUFFER,
                         this->indices.size() * sizeof(u32),
                         this->indices.data(),
-                        GL_STATIC_DRAW);
+                        GL_STATIC_DRAW));
 
                 return *this;
             }
@@ -143,13 +150,13 @@ namespace util::renderable {
                     rtype != Type::H_FLOAT &&
                     rtype != Type::DOUBLE) {
 
-                    glVertexAttribIPointer(this->cnt, amount, rtype, this->sz, offset);
-                    glEnableVertexAttribArray(this->cnt);
+                    OPENGL_VERIFY(glVertexAttribIPointer(this->cnt, amount, rtype, this->sz, offset));
+                    OPENGL_VERIFY(glEnableVertexAttribArray(this->cnt));
                     ++this->cnt;
                 }
                 else {
-                    glVertexAttribPointer(this->cnt, amount, rtype, normalized, this->sz, offset);
-                    glEnableVertexAttribArray(this->cnt);
+                    OPENGL_VERIFY(glVertexAttribPointer(this->cnt, amount, rtype, normalized, this->sz, offset));
+                    OPENGL_VERIFY(glEnableVertexAttribArray(this->cnt));
                     ++this->cnt;
                 }
 
@@ -165,7 +172,11 @@ namespace util::renderable {
             }
 
             auto end() -> void {
-                glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
+                OPENGL_VERIFY(glBindVertexArray(0));
+                OPENGL_VERIFY(glBindBuffer(GL_ARRAY_BUFFER, 0));
+                OPENGL_VERIFY(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
+
+                this->indices.clear();
             }
 
             inline auto size() -> size_t {
@@ -190,11 +201,11 @@ namespace util::renderable {
 
     private:
         auto get_buffer() -> void {
-            glBufferData(
+            OPENGL_VERIFY(glBufferData(
                     GL_ARRAY_BUFFER,
                     MAX_VERTICES_BUFFER * sizeof(u64),
                     nullptr,
-                    GL_DYNAMIC_DRAW);
+                    GL_DYNAMIC_DRAW));
 
             this->buffer_handle =
                     static_cast<u8 *>(
@@ -203,10 +214,13 @@ namespace util::renderable {
                                     0,
                                     MAX_VERTICES_BUFFER * sizeof(u64),
                                     GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT));
+
+            ASSERT_EQ(this->buffer_handle);
         }
 
         auto drop_buffer() -> void {
-            glUnmapBuffer(GL_ARRAY_BUFFER);
+            ASSERT_EQ(this->buffer_handle);
+            OPENGL_VERIFY(glUnmapBuffer(GL_ARRAY_BUFFER));
             this->buffer_handle = nullptr;
             this->buffer_offset = 0;
         }

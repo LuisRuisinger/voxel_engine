@@ -46,7 +46,7 @@ namespace util::aabb_ray_intersection {
             if (!chunk)
                 continue;
 
-            auto ret = chunk->find(fun);
+            auto ret = chunk->find<core::rendering::renderer::RenderType::CHUNK_RENDERER>(fun);
             ray_scale = ret < ray_scale ? ret : ray_scale;
         }
 

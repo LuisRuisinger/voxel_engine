@@ -35,8 +35,8 @@ namespace core::opengl::opengl_key_map {
             switch (action) {
                 case ON_RELEASE: this->on_release[key] = std::move(task); break;
 
-                // enqueues a function that should be called repeatedly also on
-                // pressed to capture the first occurence of the key callback
+                    // enqueues a function that should be called repeatedly also on
+                    // pressed to capture the first occurence of the key callback
                 case ON_REPEAT : this->on_repeat[key]  = std::move(task);
                 case ON_PRESSED: this->on_pressed[key] = std::move(task); break;
             }

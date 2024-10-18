@@ -7,9 +7,8 @@
 #include "../core/level/model/voxel.h"
 
 namespace core::level::tiles::impl::dirt {
-    Dirt::Dirt()  {
-        this->flags ^= this->flags;
-        this->flags |= 0x1'111111'0;
+    Dirt::Dirt() : tile::Tile()  {
+        this->flags = tile::can_cull_other | tile::can_cull_itself | tile::can_be_culled_by_other;
         this->mesh = std::make_shared<model::voxel::CubeStructure>();
         this->type = tile::DIRT;
         this->textures = {

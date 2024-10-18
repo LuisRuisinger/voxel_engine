@@ -8,46 +8,43 @@
 #include "aliases.h"
 #include "traits.h"
 #include "camera.h"
+#include "aabb.h"
+
+#include <vector>
 
 namespace util::sun {
-    class Sun :
-            public traits::Tickable<Sun>,
-            public traits::Updateable<Sun> {
+    constexpr const f32 shadow_map_resolution = 1024.0F;
+
+    class Frustum {
+    public:
+        Frustum();
+
+        auto transform(const glm::mat4 &) -> void;
+        auto calc_corners(const glm::mat4 &, const glm::mat4 &) -> void;
+        auto calc_center() -> glm::vec3;
+        auto calc_aabb() -> void;
+        auto calc_ortho_proj() -> glm::mat4;
+
+    private:
+        std::vector<glm::vec4> corners;
+        aabb::AABB<f32> aabb;
+    };
+
+    class Sun : public traits::Tickable<Sun> {
     public:
         Sun();
 
-        // TODO: update sun matrices here
         auto tick(core::state::State &) -> void;
-
-        // update can actually be left empty afaik
-        // because the angle of orientation changes per tick and not per frame
-        // thus matrices can be calculated in the tick and not update
-
-        // keep for completeness of logic
-        // call will be removed by the compiler
-        // not if put in a threadpool afaik
-        auto update(core::state::State &) -> void;
         auto get_orientation() -> const glm::vec3 &;
 
-        auto get_view_matrix() -> const glm::mat4 &;
-        auto get_projection_matrix() -> const glm::mat4 &;
+        std::vector<glm::mat4> light_space_matrices;
+        std::vector<f32> shadow_cascades_level;
 
     private:
+        auto calc_light_space_matrices(core::state::State &state) -> void;
+        auto calc_light_space_matrix_level(core::state::State &, const f32, const f32) -> glm::mat4;
 
-        u32 max_tick_count = 24000 * 3;
-        u32 current_tick_count = 0;
-
-        // used for sun rotation
-        f32 rotation_angle_radians = -2.0F * M_PI / static_cast<f32>(this->max_tick_count);
-        glm::mat4 rotation_mat;
         glm::vec3 orientation = { 0.0F, 0.0F, 1.0F };
-
-        camera::Camera sun_view;
-
-        glm::mat4 sun_view_matrix;
-        glm::mat4 sun_projection_matrix;
-
-        // TODO: add orthogonal perspective camera for sun shadows
     };
 }
 

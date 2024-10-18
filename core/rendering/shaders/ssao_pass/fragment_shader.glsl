@@ -1,4 +1,4 @@
-#version 330 core
+#version 410 core
 
 out float FragColor;
 
@@ -8,8 +8,8 @@ uniform sampler2D g_depth;
 uniform mat4 view;
 uniform mat4 projection;
 
-#define SAMPLES_AMOUNT 8
-#define NOISE_AMOUNT 8
+#define SAMPLES_AMOUNT 16
+#define NOISE_AMOUNT 16
 
 const vec3 samples[16] = vec3[](
     vec3(-0.062265, -0.051678, 0.037445), vec3(0.031211, -0.020697, 0.017174),
@@ -33,36 +33,41 @@ const vec3 noise[16] = vec3[](
     vec3(0.793303, -0.456560, 0.000000), vec3(-0.604099, -0.459038, 0.000000)
 );
 
-vec3 normal_from_depth(float depth, vec3 point) {
-    float offset_height = 1.0F / textureSize(g_depth, 0).y;
-    float offset_width  = 1.0F / textureSize(g_depth, 0).x;
+vec3 normal_from_depth(float depth, vec2 tex_coords) {
+    vec2 texel_size = 1.0F / textureSize(g_depth, 0);
 
-    float depth_height = texture(g_depth, TexCoords + vec2(0.0F, offset_height)).r;
-    float depth_width  = texture(g_depth, TexCoords + vec2(offset_width, 0.0F)).r;
+    float depth_right = texture(g_depth, tex_coords + vec2(texel_size.x, 0.0F)).r;
+    float depth_left = texture(g_depth, tex_coords - vec2(texel_size.x, 0.0F)).r;
+    float depth_up = texture(g_depth, tex_coords + vec2(0.0F, texel_size.y)).r;
+    float depth_down = texture(g_depth, tex_coords - vec2(0.0F, texel_size.y)).r;
 
-    vec3 point_1 = vec3(offset_width, depth_height - depth, 0.0F);
-    vec3 point_2 = vec3(offset_height, depth_height - depth, 0.0F);
+    // gradients
+    vec3 dx = vec3(2.0 * texel_size.x, depth_right - depth_left, 0.0F);
+    vec3 dy = vec3(0.0F, depth_up - depth_down, 2.0 * texel_size.y);
 
-    vec3 normal = cross(point_1, point_2);
-    normal.z = -normal.z;
-
-    return normalize(normal);
+    vec3 normal = normalize(-1.0F * cross(dx, dy));
+    return normal;
 }
+
 
 void main() {
     const float falloff = 0.000001F;
     const float area = 0.0075F;
     const float total_strength = 1.0F;
     const float radius = 0.35F;
-    const float bias = 0.025F;
     const float magnitude = 0.75F;
     const float contrast = 1.0F;
 
     float frag_depth = texture(g_depth, TexCoords).r;
     vec3 frag_pos = vec3(TexCoords, frag_depth);
-    vec3 frag_normal = normal_from_depth(frag_depth, frag_pos);
+    vec3 frag_normal = normal_from_depth(frag_depth, TexCoords);
 
-    // noise for tbn matrix
+    if (frag_depth < 0.0F) {
+        FragColor = 1.0F;
+        return;
+    }
+
+    // noise for TBN matrix
     int noise_s = int(sqrt(NOISE_AMOUNT));
     int noise_x = int(TexCoords.x * textureSize(g_depth, 0).x) % noise_s;
     int noise_y = int(TexCoords.y * textureSize(g_depth, 0).y) % noise_s;
@@ -70,14 +75,18 @@ void main() {
     vec3 random = noise[noise_x + (noise_y * noise_s)];
     random = normalize(random);
 
+    vec3 tangent = normalize(random - frag_normal * dot(random, frag_normal));
+    vec3 bitangent = cross(frag_normal, tangent);
+    mat3 TBN = mat3(tangent, bitangent, frag_normal);
+
     float radius_depth = radius / frag_depth;
     float occlusion = 0.0F;
 
     for (int i = 0; i < SAMPLES_AMOUNT; ++i) {
-        vec3 ray = radius_depth * reflect(samples[i], random);
-        vec3 hemi_ray = frag_pos + sign(dot(ray, frag_normal)) * ray;
+        vec3 sample_dir = TBN * samples[i];
+        vec3 sample_pos = frag_pos + radius_depth * sample_dir;
 
-        float occ_depth = texture(g_depth, clamp(hemi_ray.xy, 0.0F, 1.0F)).r;
+        float occ_depth = texture(g_depth, clamp(sample_pos.xy, 0.0F, 1.0F)).r;
         float difference = frag_depth - occ_depth;
 
         occlusion += step(falloff, difference) * (1.0F - smoothstep(falloff, area, difference));

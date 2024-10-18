@@ -261,7 +261,6 @@ namespace core::memory::linear_allocator {
             for (;;) {
                 const uintptr_t pad = memory::ptr_offset<Metadata>(page);
                 auto *metadata = reinterpret_cast<Metadata *>(page + pad);
-                ASSERT_EQ(reinterpret_cast<uintptr_t>(metadata) % sizeof(Metadata) == 0);
 
                 for (;;) {
                     Byte *head = metadata->head.load(std::memory_order_relaxed);

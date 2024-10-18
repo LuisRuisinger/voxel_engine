@@ -1,4 +1,4 @@
-#version 330 core
+#version 410 core
 
 layout(location = 0) in uint high;
 layout(location = 1) in uint low;

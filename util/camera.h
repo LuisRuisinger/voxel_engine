@@ -18,9 +18,11 @@
 #define SENSITIVITY 0.1F
 #define MAX_PITCH   89.0F
 #define MIN_PITCH   -89.0F
-#define DEFAULT_FOV 60.0F
+#define DEFAULT_FOV 75.0F
 
 namespace util::camera {
+    constexpr const f32 near_plane = 0.1F;
+
     enum Camera_Movement : u8 {
         FORWARD,
         BACKWARD,

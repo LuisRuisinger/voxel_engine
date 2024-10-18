@@ -17,6 +17,8 @@
 #include "../util/player.h"
 
 namespace core::level::chunk {
+    using rendering::renderer::RenderType;
+    
     auto OcclusionMap::operator[](u64 mask) -> std::unordered_map<node::Node *, u32> & {
         switch (mask) {
             case TOP_BIT   : return this->map[0];
@@ -64,82 +66,12 @@ namespace core::level::chunk {
                 };
 
         generation::generation::Generator::generate(*this, offset);
-        for (size_t i = 0; i < chunk_segments.size(); ++i)
-            this->faces |= this->chunk_segments[i].root->updateFaceMask(
-                    (this->chunk_idx << 4) | i);
-    }
+        for (size_t i = 0; i < chunk_segments.size(); ++i) {
+            this->faces |= this->chunk_segments[i]
+                    .voxel_root->updateFaceMask((this->chunk_idx << 4) | i);
 
-    auto Chunk::insert(
-            const glm::vec3 position,
-            u16 voxel_ID, platform::Platform *platform,
-            bool recombine) -> void {
-        auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
-        auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
-
-        u64 x = static_cast<u8>(normalized_vec.x) & MASK_5;
-        u64 y = static_cast<u8>(normalized_vec.y) & MASK_5;
-        u64 z = static_cast<u8>(normalized_vec.z) & MASK_5;
-
-        // setting coordinates
-        u32 packed_data_highp = (x << 13) | (y <<  8) | (z <<  3) | MASK_3;
-
-        // 12 highest bit set to the index of the chunk inside chunk managing array
-        u32 packed_data_lowp = (this->chunk_idx << 20) |
-                               (segment.segment_idx << 16) |
-                               (voxel_ID & 0x1FF);
-
-        auto *node = segment.root->addPoint(
-                (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
-        ++this->size;
-
-        f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
-
-        // occlusion culling
-        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
-
-        // recombining voxels
-        if (recombine) {
-            segment.root->recombine();
-            segment.chunk_modified = true;
-        }
-    }
-
-    inline
-    auto Chunk::update_occlusion(
-            node::Node *current,
-            node::Node *neighbor,
-            u64 current_mask,
-            u64 neighbor_mask) -> void {
-        if (neighbor) {
-
-            // every voxel we insert has BASE_SIZE and thus is guaranteed
-            // to be blocked if a neighbor exists for this face
-            current->packed_data &= ~current_mask;
-
-            // the neighbor is a simple BASE_SIZE voxel
-            auto neighbor_cube_side = 1 << ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3);
-            if (neighbor_cube_side == BASE_SIZE) {
-                neighbor->packed_data &= ~neighbor_mask;
-                return;
-            }
-
-            // the neighbor is bigger than BASE_SIZE
-            // we need to check for all other voxels of this quad if it is occluded
-            auto &map = this->occlusion_map[neighbor_mask];
-            if (map.contains(neighbor)) {
-                ++map[neighbor];
-
-                if (map[neighbor] == neighbor_cube_side * neighbor_cube_side)
-                    neighbor->packed_data &= ~neighbor_mask;
-            }
-            else {
-                map[neighbor] = 1;
-            }
+            this->faces |= this->chunk_segments[i]
+                    .water_root->updateFaceMask((this->chunk_idx << 4) | i);
         }
     }
 
@@ -187,7 +119,7 @@ namespace core::level::chunk {
                 }
         }
 
-            // intra-chunk-finding
+        // intra-chunk-finding
         else if ((position.x >= 0 && position.x < CHUNK_SIZE) &&
                  (position.z >= 0 && position.z < CHUNK_SIZE)) {
             auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
@@ -197,14 +129,148 @@ namespace core::level::chunk {
             u64 y = static_cast<u8>(normalized_vec.y) & MASK_5;
             u64 z = static_cast<u8>(normalized_vec.z) & MASK_5;
 
-            return segment.root->find((x << 13) | (y << 8) | (z << 3) | MASK_3);
+            u32 mask = (x << 13) | (y << 8) | (z << 3) | MASK_3;
+            auto *candidate = segment.voxel_root->find(mask);
+            return candidate
+                ? candidate
+                : segment.water_root->find(mask);
+
         }
 
         // in case this neighbor does not exist
+        // because we approach this from the water view we try to find a solid voxel
         return nullptr;
     }
 
-    auto Chunk::find(std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {
+    template <>
+    auto Chunk::insert<RenderType::CHUNK_RENDERER>(
+            const glm::vec3 position,
+            u16 voxel_ID, platform::Platform *platform,
+            bool recombine) -> void {
+        auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+        auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
+
+        u64 x = static_cast<u8>(normalized_vec.x) & MASK_5;
+        u64 y = static_cast<u8>(normalized_vec.y) & MASK_5;
+        u64 z = static_cast<u8>(normalized_vec.z) & MASK_5;
+
+        // setting coordinates
+        u32 packed_data_highp = (x << 13) | (y <<  8) | (z <<  3) | MASK_3;
+
+        // 12 highest bit set to the index of the chunk inside chunk managing array
+        u32 packed_data_lowp = (this->chunk_idx << 20) |
+                               (segment.segment_idx << 16) |
+                               (voxel_ID & 0x1FF);
+
+        auto *node = segment.voxel_root->addPoint(
+                (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
+        ++this->size;
+
+        f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
+
+        // occlusion culling
+        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+
+        // recombining voxels
+        if (recombine) {
+            segment.voxel_root->recombine();
+            segment.chunk_modified = true;
+        }
+    }
+
+    template <>
+    auto Chunk::insert<RenderType::WATER_RENDERER>(
+            const glm::vec3 position,
+            u16 voxel_ID, platform::Platform *platform,
+            bool recombine) -> void {
+        auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+        auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
+
+        u64 x = static_cast<u8>(normalized_vec.x) & MASK_5;
+        u64 y = static_cast<u8>(normalized_vec.y) & MASK_5;
+        u64 z = static_cast<u8>(normalized_vec.z) & MASK_5;
+
+        // setting coordinates
+        u32 packed_data_highp = (x << 13) | (y <<  8) | (z <<  3) | MASK_3;
+
+        // 12 highest bit set to the index of the chunk inside chunk managing array
+        u32 packed_data_lowp = (this->chunk_idx << 20) |
+                               (segment.segment_idx << 16) |
+                               (voxel_ID & 0x1FF);
+
+        auto *node = segment.water_root->addPoint(
+                (static_cast<u64>(packed_data_highp) << SHIFT_HIGH) | packed_data_lowp);
+        ++this->size;
+
+        f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
+
+        // occlusion culling
+        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+
+        // recombining voxels
+        if (recombine) {
+            segment.water_root->recombine();
+            segment.chunk_modified = true;
+        }
+    }
+
+    inline
+    auto Chunk::update_occlusion(
+            node::Node *current,
+            node::Node *neighbor,
+            u64 current_mask,
+            u64 neighbor_mask) -> void {
+        if (neighbor) {
+            auto current_id = current->packed_data & 0x1FF;
+            auto neighbor_id = neighbor->packed_data & 0x1FF;
+
+            const auto &current_voxel_config = tiles::tile_manager::tile_manager[current_id];
+            const auto &neighbor_voxel_config = tiles::tile_manager::tile_manager[neighbor_id];
+
+            // every voxel we insert has BASE_SIZE and thus is guaranteed
+            // to be blocked if a neighbor exists for this face
+
+            if (neighbor_voxel_config.can_cull(current_voxel_config))
+                current->packed_data &= ~current_mask;
+
+            if (!current_voxel_config.can_cull(neighbor_voxel_config))
+                return;
+
+            // the neighbor is a simple BASE_SIZE voxel
+            auto neighbor_cube_side = 1 << ((neighbor->packed_data >> SHIFT_HIGH) & MASK_3);
+            if (neighbor_cube_side == BASE_SIZE) {
+                neighbor->packed_data &= ~neighbor_mask;
+                return;
+            }
+
+            // the neighbor is bigger than BASE_SIZE
+            // we need to check for all other voxels of this quad if it is occluded
+            auto &map = this->occlusion_map[neighbor_mask];
+            if (map.contains(neighbor)) {
+                ++map[neighbor];
+
+                if (map[neighbor] == neighbor_cube_side * neighbor_cube_side)
+                    neighbor->packed_data &= ~neighbor_mask;
+            }
+            else {
+                map[neighbor] = 1;
+            }
+        }
+    }
+
+    template <>
+    auto Chunk::find<RenderType::CHUNK_RENDERER>(
+            std::function<f32(const glm::vec3 &,const u32)> &fun) -> f32 {
         const auto pos = static_cast<f32>(CHUNK_SIZE) * glm::vec3 {
                 static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
                 -4,
@@ -219,21 +285,60 @@ namespace core::level::chunk {
                     0.0F
             };
 
-            auto ret = this->chunk_segments[i].root->find(chunk_pos, fun);
+            auto ret = this->chunk_segments[i].voxel_root->find(chunk_pos, fun);
             ray_scale = ret < ray_scale ? ret : ray_scale;
         }
 
         return ray_scale;
     }
 
-    auto Chunk::remove(glm::vec3 position) -> void {
+    template <>
+    auto Chunk::find<RenderType::WATER_RENDERER>(
+            std::function<f32(const glm::vec3 &, const u32)> &fun) -> f32 {
+        const auto pos = static_cast<f32>(CHUNK_SIZE) * glm::vec3 {
+                static_cast<i32>(this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+                -4,
+                static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+        };
+
+        auto ray_scale = std::numeric_limits<f32>::max();
+        for (auto i = 0; i < this->chunk_segments.size(); ++i) {
+            const auto chunk_pos = pos + glm::vec3 {
+                    0.0F,
+                    i * static_cast<f32>(CHUNK_SIZE),
+                    0.0F
+            };
+
+            auto ret = this->chunk_segments[i].water_root->find(chunk_pos, fun);
+            ray_scale = ret < ray_scale ? ret : ray_scale;
+        }
+
+        return ray_scale;
+    }
+    
+    template<> 
+    auto Chunk::remove<RenderType::CHUNK_RENDERER>(
+            glm::vec3 position) -> void {
         auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
 
         u16 x = static_cast<u8>(normalized_vec.x) & MASK_5;
         u16 y = static_cast<u8>(normalized_vec.y) & MASK_5;
         u16 z = static_cast<u8>(normalized_vec.z) & MASK_5;
 
-        this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)].root->removePoint(
+        this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)].voxel_root->removePoint(
+                (x << 10) | (y << 5) | z);
+    }
+
+    template<>
+    auto Chunk::remove<RenderType::WATER_RENDERER>(
+            glm::vec3 position) -> void {
+        auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
+
+        u16 x = static_cast<u8>(normalized_vec.x) & MASK_5;
+        u16 y = static_cast<u8>(normalized_vec.y) & MASK_5;
+        u16 z = static_cast<u8>(normalized_vec.z) & MASK_5;
+
+        this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)].water_root->removePoint(
                 (x << 10) | (y << 5) | z);
     }
 
@@ -255,71 +360,91 @@ namespace core::level::chunk {
         for (u64 i = 0; i < 6; ++i)
             sum += this->mask_container[static_cast<u64>(1) << (50 + i)];
 
-        if (!sum)
-            return;
+        if (sum) {
+            u64 actual_size = 0;
+            auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                    state.renderer
+                        .get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
+                        .request_writeable_area(sum, threading::thread_pool::worker_id);
 
-        u64 actual_size = 0;
-        const auto *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
-                state.renderer
-                    .get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
-                    .request_writeable_area(sum, threading::thread_pool::worker_id);
-
-        for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
-            if (this->chunk_segments[i].initialized) {
-                pos.y = static_cast<f32>((i - 4) * CHUNK_SIZE);
-                this->chunk_segments[i].root->cull(
-                        pos,
-                        state.player.get_camera(),
-                        buffer,
-                        actual_size);
-            }
-        }
-
-        ASSERT_EQ(actual_size <= sum);
-        reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
-                state.renderer.get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
-                .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
-    }
-
-    auto Chunk::cull_water(state::State &state) const -> void {
-        for (auto i : this->water_map) {
-            for (auto j = 0; j < CHUNK_SIZE; ++j) {
-                if (i & (1 << i)) {
-
+            for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
+                if (this->chunk_segments[i].initialized) {
+                    pos.y = static_cast<f32>((i - 4) * CHUNK_SIZE);
+                    this->chunk_segments[i].voxel_root->cull(
+                            pos,
+                            state.player.get_camera(),
+                            buffer,
+                            actual_size);
                 }
             }
+
+            ASSERT_EQ(actual_size <= sum);
+            reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                    state.renderer
+                        .get_sub_renderer(rendering::renderer::CHUNK_RENDERER))
+                        .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
         }
 
-        // add to the subrenderer's buffer
-        // TODO: general form of subrenderer with buffer
+        if (this->water_size) {
+            u64 actual_size = 0;
+            auto  *buffer = reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                    state.renderer
+                        .get_sub_renderer(rendering::renderer::WATER_RENDERER))
+                        .request_writeable_area(this->water_size, threading::thread_pool::worker_id);
+
+            for (u8 i = 0; i < this->chunk_segments.size(); ++i) {
+                if (this->chunk_segments[i].initialized) {
+                    pos.y = static_cast<f32>((i - 4) * CHUNK_SIZE);
+                    this->chunk_segments[i].water_root->cull(
+                            pos,
+                            state.player.get_camera(),
+                            buffer,
+                            actual_size);
+                }
+            }
+
+            ASSERT_EQ(actual_size <= this->water_size);
+            reinterpret_cast<chunk::chunk_renderer::ChunkRenderer &>(
+                    state.renderer
+                        .get_sub_renderer(rendering::renderer::WATER_RENDERER))
+                        .add_size_writeable_area(actual_size, threading::thread_pool::worker_id);
+        }
     }
 
     auto Chunk::recombine() -> void {
-        for (auto &ref : this->chunk_segments)
+        for (auto &ref : this->chunk_segments) {
             if (!ref.initialized) {
 
                 // compress SVO
-                ref.root->recombine();
+                ref.voxel_root->recombine();
 
                 // count renderable faces
-                this->mask_container[TOP_BIT]    += ref.root->count_mask(TOP_BIT);
-                this->mask_container[BOTTOM_BIT] += ref.root->count_mask(BOTTOM_BIT);
-                this->mask_container[FRONT_BIT]  += ref.root->count_mask(FRONT_BIT);
-                this->mask_container[BACK_BIT]   += ref.root->count_mask(BACK_BIT);
-                this->mask_container[LEFT_BIT]   += ref.root->count_mask(LEFT_BIT);
-                this->mask_container[RIGHT_BIT]  += ref.root->count_mask(RIGHT_BIT);
+                this->mask_container[TOP_BIT]    += ref.voxel_root->count_mask(TOP_BIT);
+                this->mask_container[BOTTOM_BIT] += ref.voxel_root->count_mask(BOTTOM_BIT);
+                this->mask_container[FRONT_BIT]  += ref.voxel_root->count_mask(FRONT_BIT);
+                this->mask_container[BACK_BIT]   += ref.voxel_root->count_mask(BACK_BIT);
+                this->mask_container[LEFT_BIT]   += ref.voxel_root->count_mask(LEFT_BIT);
+                this->mask_container[RIGHT_BIT]  += ref.voxel_root->count_mask(RIGHT_BIT);
+
+                // compress SVO
+                ref.water_root->recombine();
+
+                // count water faces - we are only interested for the top face
+                this->water_size += ref.water_root->count_mask(TOP_BIT);
 
                 // indicate readiness
                 ref.initialized = true;
             }
+        }
     }
 
-    auto Chunk::update_and_render(u16 nchunk_idx,
-                                  state::State &state) -> void {
+    auto Chunk::update_and_render(u16 nchunk_idx, state::State &state) -> void {
         this->chunk_idx = nchunk_idx & 0xFFF;
+
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i) {
             if (this->chunk_segments[i].initialized) {
-                this->chunk_segments[i].root->update_chunk_mask((this->chunk_idx << 4) | i);
+                this->chunk_segments[i].voxel_root->update_chunk_mask((this->chunk_idx << 4) | i);
+                this->chunk_segments[i].water_root->update_chunk_mask((this->chunk_idx << 4) | i);
             }
         }
 

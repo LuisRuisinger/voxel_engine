@@ -34,14 +34,14 @@ namespace core::level::chunk::chunk_renderer {
     }
 
     auto ChunkRenderer::frame(state::State &state) -> void {
-        auto _batch = batch(sizeof(VERTEX));
-
         for (auto i = 0; i < this->storage.size(); ++i) {
             for (auto j = 0; j < this->storage[i].size() - 1; ++j) {
-
                 auto size = this->storage[i][j].size;
-                if (size == 0)
+
+                // assume nearly equally sized sub buffer because of round-robin threading
+                if (size == 0) [[unlikely]] {
                     continue;
+                }
 
                 update_buffer(this->storage[i][j].mem, sizeof(VERTEX), size);
                 draw();
@@ -53,7 +53,7 @@ namespace core::level::chunk::chunk_renderer {
 
         // reduces overhead in draw calls
         while (i < this->storage.size()) {
-            auto able_to_take = _batch;
+            auto able_to_take = batch(sizeof(VERTEX));;
 
             while (able_to_take > 0 && i < this->storage.size()) {
                 auto& current_storage = this->storage[i].back();
@@ -89,29 +89,28 @@ namespace core::level::chunk::chunk_renderer {
     auto ChunkRenderer::request_writeable_area(u64 len, u64 thread_id) -> const VERTEX * {
         auto &vec = this->storage[thread_id];
 
-        if (vec[vec.size() - 1].size + len > vec[vec.size() - 1].capacity) {
+        if (vec.back().size + len > vec.back().capacity) [[unlikely]] {
             auto _batch = batch(sizeof(VERTEX));
-
             vec.push_back({
-                                  .mem = this->allocator.allocate<VERTEX>(_batch),
-                                  .capacity = _batch,
-                                  .size = 0
-                          });
+                this->allocator.allocate<VERTEX>(_batch),
+                _batch,
+                0
+            });
 
-            ASSERT_EQ(vec[vec.size() - 1].mem);
+            ASSERT_EQ(vec.back().mem);
         }
 
-        ASSERT_NEQ(reinterpret_cast<u64>(vec[vec.size() - 1].mem) % 32);
-        ASSERT_EQ(vec[vec.size() - 1].size + len <= vec[vec.size() - 1].capacity);
+        ASSERT_NEQ(reinterpret_cast<u64>(vec.back().mem) % 32);
+        ASSERT_EQ(vec.back().size + len <= vec.back().capacity);
 
         // new local thread head
-        return vec[vec.size() - 1].mem + vec[vec.size() - 1].size;
+        return vec.back().mem + vec.back().size;
     }
 
     auto ChunkRenderer::add_size_writeable_area(u64 len, u64 thread_id) -> void {
         auto &vec = this->storage[thread_id];
-        vec[vec.size() - 1].size += len;
+        vec.back().size += len;
 
-        ASSERT_EQ(vec[vec.size() - 1].size <= vec[vec.size() - 1].capacity);
+        ASSERT_EQ(vec.back().size <= vec.back().capacity);
     }
 }

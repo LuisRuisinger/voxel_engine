@@ -39,7 +39,8 @@ namespace core::level::chunk {
         // -------------------------------------------
         // underlying chunk_data_structure, managing the cubic space
 
-        std::unique_ptr<octree::Octree> root;
+        std::unique_ptr<octree::Octree> voxel_root;
+        std::unique_ptr<octree::Octree> water_root;
 
         // ------------------------------------------------------------
         // indicator if the segment got manipulated (for serialization)

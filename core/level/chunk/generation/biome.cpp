@@ -4,6 +4,7 @@
 
 #include "biome.h"
 #include "../chunk.h"
+#include "../chunk_renderer.h"
 
 namespace core::level::chunk::generation::biome {
     constexpr const i32 deviation = CHUNK_SIZE * 10;
@@ -17,9 +18,16 @@ namespace core::level::chunk::generation::biome {
         m = step(m, 0.6F, 0.6F);
 
         auto max_y = std::min(static_cast<i32>(m + WATER_LEVEL), max_height);
+        for (auto y = max_y + 1; y < WATER_LEVEL; ++y) {
+            auto pos = glm::vec3{x, y, z};
+            chunk.insert<rendering::renderer::RenderType::WATER_RENDERER>(
+                    pos, tiles::tile::WATER, nullptr, false);
+        }
+
         for (auto y = 0; y <= max_y; ++y) {
             auto pos = glm::vec3{x, y, z};
-            chunk.insert(pos, 3, nullptr, false);
+            chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
+                    pos, tiles::tile::STONE, nullptr, false);
         }
     }
 
@@ -38,12 +46,14 @@ namespace core::level::chunk::generation::biome {
         auto max_y = std::min(static_cast<i32>(m + WATER_LEVEL), max_height);
         for (auto y = max_y - 3; y <= max_y; ++y) {
             auto pos = glm::vec3 { x, y, z };
-            chunk.insert(pos, 0, nullptr, false);
+            chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
+                    pos, tiles::tile::GRASS, nullptr, false);
         }
 
         for (auto y = 0; y < max_y - 3; ++y) {
             auto pos = glm::vec3 { x, y, z };
-            chunk.insert(pos, 3, nullptr, false);
+            chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
+                    pos, tiles::tile::STONE, nullptr, false);
         }
     }
 

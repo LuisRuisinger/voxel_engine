@@ -5,7 +5,8 @@
 #ifndef OPENGL_3D_ENGINE_OPENGL_VERIFY_H
 #define OPENGL_3D_ENGINE_OPENGL_VERIFY_H
 
-#include "../../util/log.h"
+#include "../util/log.h"
+#include "../util/assert.h"
 #include "GLFW/glfw3.h"
 
 namespace core::opengl::opengl_verify {
@@ -21,14 +22,30 @@ namespace core::opengl::opengl_verify {
 }
 
 #ifdef DEBUG
-    #define OPENGL_VERIFY(_x) do {                         \
-        (_x);                                              \
-        DEBUG_LOG(#_x);                                    \
-        while (GLenum error = glGetError() != GL_NO_ERROR) \
-            DEBUG_LOG(error);                              \
+    #define OPENGL_VERIFY(_x) do {                               \
+        (_x);                                                    \
+        while (GLenum error = glGetError() != GL_NO_ERROR) {     \
+            DEBUG_LOG(#_x);                                      \
+            DEBUG_LOG(util::log::Level::LOG_LEVEL_ERROR, error); \
+            DEBUG_BREAK();                                       \
+        }                                                        \
     } while (0)
 #else
     #define OPENGL_VERIFY(_x) (_x)
 #endif
+
+#ifdef DEBUG
+    #define OPENGL_VERIFY(_x) do {                               \
+        (_x);                                                    \
+        while (GLenum error = glGetError() != GL_NO_ERROR) {     \
+            DEBUG_LOG(#_x);                                      \
+            DEBUG_LOG(util::log::Level::LOG_LEVEL_ERROR, error); \
+            DEBUG_BREAK();                                       \
+        }                                                        \
+    } while (0)
+#else
+    #define OPENGL_VERIFY(_x) (_x)
+#endif
+
 
 #endif //OPENGL_3D_ENGINE_OPENGL_VERIFY_H

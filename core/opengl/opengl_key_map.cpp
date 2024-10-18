@@ -138,9 +138,7 @@ namespace core::opengl::opengl_key_map {
                 break;
             }
             case ON_RELEASE: {
-                if (this->repeat_functions.contains(key)) {
-                    this->repeat_functions.erase(key);
-                }
+                this->repeat_functions.erase(key);
 
                 if (this->on_release.contains(key)) {
                     this->on_release[key]();
@@ -148,7 +146,7 @@ namespace core::opengl::opengl_key_map {
                 break;
             }
 
-            // currently no concept for using this
+                // currently no concept for using this
             case ON_REPEAT: {}
         }
     }

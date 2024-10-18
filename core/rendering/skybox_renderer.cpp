@@ -14,8 +14,8 @@
 namespace core::rendering::skybox_renderer {
     auto SkyboxRenderer::init_shader() -> void {
         auto res = this->shader.init(
-                "atmosphere_pass/vertex_shader.glsl",
-                "atmosphere_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("atmosphere_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("atmosphere_pass/fragment_shader.glsl"));
 
         if (res.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());

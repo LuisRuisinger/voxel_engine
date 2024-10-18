@@ -14,6 +14,7 @@
 #include "../core/level/tiles/impl/cobblestone.h"
 #include "../core/level/tiles/impl/stone.h"
 #include "../core/level/tiles/impl/stone_brick.h"
+#include "../core/level/tiles/impl/water.h"
 
 #include "../util/assert.h"
 
@@ -110,14 +111,21 @@ namespace core::level::tiles::tile_manager {
         stbi_image_free(this->fallback_texture);
     }
 
-    auto setup(TileManager &tile_manager) -> void {
-        tile_manager
+    auto TileManager::operator[](u32 id) -> tile::Tile & {
+        return *this->tiles[id];
+    }
+
+    auto setup(TileManager &manager) -> void {
+        manager
             .init()
             .add_tile(impl::dirt::Dirt {})
             .add_tile(impl::grass::Grass {})
             .add_tile(impl::cobblestone::Cobblestone {})
             .add_tile(impl::stone::Stone {})
             .add_tile(impl::stone_brick::Stonebrick {})
+            .add_tile(impl::water::Water {})
             .finalize();
     }
+
+    TileManager tile_manager {};
 }

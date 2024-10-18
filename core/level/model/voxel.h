@@ -30,6 +30,9 @@ namespace core::level::model::voxel {
     private:
         Compressed compressed_faces;
     };
+
+    /** @brief Object containing a compressed representation of the sides of a voxel. */
+    static const CubeStructure cube_structure = {};
 }
 
 #endif //OPENGL_3D_ENGINE_VOXEL_H

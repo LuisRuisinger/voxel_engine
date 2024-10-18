@@ -23,7 +23,7 @@ namespace core::rendering::skybox_renderer {
         GLuint VBO;
         GLuint EBO;
 
-        shader::Shader shader;
+        shader::Program shader;
 
         u32 mie_tex;
         u32 ray_tex;

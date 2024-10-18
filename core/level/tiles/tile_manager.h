@@ -30,6 +30,8 @@ namespace core::level::tiles::tile_manager {
     };
 
     auto setup(TileManager &) -> void;
+
+    extern TileManager tile_manager;
 }
 
 #endif //OPENGL_3D_ENGINE_TILE_MANAGER_H

@@ -39,7 +39,6 @@ namespace core::level::chunk::chunk_renderer {
 
     private:
         std::vector<std::vector<Buffer<VERTEX>>> storage;
-        //tiles::tile_manager::TileManager tile_manager;
         linear_allocator::LinearAllocator<arena_allocator::ArenaAllocator> allocator;
     };
 }

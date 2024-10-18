@@ -123,6 +123,9 @@ add_executable(
         core/rendering/skybox_renderer.cpp
         util/bin_file.h
         util/color.h
+        util/static_renderable.h
+        core/level/tiles/impl/water.cpp
+        core/level/tiles/impl/water.h
 )
 
 target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)

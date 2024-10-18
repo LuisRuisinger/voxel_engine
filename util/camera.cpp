@@ -38,7 +38,7 @@ namespace util::camera {
         set_frustum(
                 DEFAULT_FOV,
                 static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),
-                1.0F,
+                -CHUNK_SIZE,
                 CHUNK_SIZE * (RENDER_RADIUS + 4.0F));
         update();
         set_projection_matrix(DEFAULT_WIDTH, DEFAULT_HEIGHT);
@@ -127,7 +127,7 @@ namespace util::camera {
         this->frustum.set_cam_internals(
                 DEFAULT_FOV,
                 r,
-                0.1F,
+                -CHUNK_SIZE,
                 (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 
@@ -170,9 +170,9 @@ namespace util::camera {
     auto Camera::set_projection_matrix(i32 width, i32 height) -> void {
         this->projection_matrix =
                 glm::perspective(
-                        glm::radians(60.0F),
+                        glm::radians(DEFAULT_FOV),
                         static_cast<f32>(width) / static_cast<f32>(height),
-                        0.1F,
+                        near_plane,
                         (static_cast<f32>(RENDER_RADIUS) + 4.0F) * static_cast<f32>(CHUNK_SIZE));
     }
 

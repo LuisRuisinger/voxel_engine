@@ -13,10 +13,12 @@
 #include <tuple>
 #include <type_traits>
 
-#include "../../../util/aliases.h"
-#include "chunk_segment.h"
-#include "../../../util/result.h"
-#include "../chunk_data_structure/octree.h"
+#include "../core/rendering/renderer.h"
+#include "../core/level/chunk/chunk_segment.h"
+#include "../core/level/chunk_data_structure/octree.h"
+
+#include "../util/aliases.h"
+#include "../util/result.h"
 
 #define CHUNK_SEGMENT_YOFFS(y) \
     (CHUNK_SIZE * y + MIN_HEIGHT)
@@ -61,15 +63,19 @@ namespace core::level::chunk {
         auto operator=(Chunk &&) -> Chunk & =default;
 
         auto generate(glm::vec2) -> void;
+
+        template <rendering::renderer::RenderType R>
         auto insert(glm::vec3, u16, platform::Platform *platform, bool recombine = true) -> void;
+
+        template <rendering::renderer::RenderType R>
         auto remove(glm::vec3) -> void;
 
         auto cull(state::State &) const -> void;
         auto update_and_render(u16, state::State &) -> void;
 
-        auto cull_water(state::State &) const -> void;
-
         auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
+
+        template <rendering::renderer::RenderType R>
         auto find(std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
 
         auto update_occlusion(node::Node *, node::Node *, u64, u64) -> void;
@@ -89,7 +95,6 @@ namespace core::level::chunk {
         OcclusionMap occlusion_map;
 
         std::vector<ChunkSegment> chunk_segments;
-        std::vector<ChunkSegment> water_segments;
 
         u16 chunk_idx;
         u16 faces;
@@ -98,7 +103,7 @@ namespace core::level::chunk {
         mutable size_t cur_frame_alloc_size { 0 };
         mutable Faces mask_container;
 
-        std::array<u32, CHUNK_SIZE> water_map;
+        u32 water_size { 0 };
     };
 }
 

@@ -1,11 +1,24 @@
 #version 410 core
-precision highp float;
 
 layout(location = 0) in uint high;
 layout(location = 1) in uint low;
 
 uniform vec2 worldbase;
+uniform mat4 view;
+uniform mat4 projection;
 uniform uint render_radius;
+
+out vec3 FragPos;
+out vec2 FragNormal;
+
+const vec3 normals[6] = vec3[](
+    vec3(-1.0, 0.0, 0.0),
+    vec3( 1.0, 0.0, 0.0),
+    vec3(0.0, -1.0, 0.0),
+    vec3(0.0,  1.0, 0.0),
+    vec3(0.0, 0.0, -1.0),
+    vec3(0.0, 0.0,  1.0)
+);
 
 // decompress world space position
 vec3 world_space_chunk_pos() {
@@ -31,11 +44,10 @@ vec3 object_space_object_pos(float scale) {
 }
 
 // decompress object space uv coordinates
-vec3 object_space_texture_pos(float scale) {
-    vec3 compressed_texture_pos = vec3(
+vec2 object_space_texture_pos(float scale) {
+    vec2 compressed_texture_pos = vec2(
         float((low >> 21U) & 0x3U) * 0.5F * scale,
-        float((low >> 19U) & 0x3U) * 0.5F * scale,
-        float((high & 0xFFU) * 4.0F + ((high >> 11) & 0x3U))
+        float((low >> 19U) & 0x3U) * 0.5F * scale
     );
 
     return compressed_texture_pos;
@@ -63,5 +75,10 @@ void main() {
         position -= vec3(0.5F) * (scale - 1);
     }
 
-    gl_Position = vec4(position, 1.0F);
+    position.y -= 0.25F;
+    FragPos = position;
+    FragNormal = object_space_texture_pos(scale);
+
+    gl_Position = projection * view * vec4(position, 1.0F);
 }
+

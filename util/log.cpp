@@ -35,7 +35,7 @@ namespace util::log {
 
         oss << "[" << f << ":" << line << "]"
             << "[" << caller << "] "
-            << "<< " << out << " >>";
+            << "| " << out;
 
         if (oss.str().back() != '\n') {
             oss << '\n';

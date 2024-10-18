@@ -68,6 +68,11 @@ namespace util::aabb {
             return *this;
         }
 
+        INLINE auto add(const V &v) -> void {
+            this->min = glm::min(this->min, v);
+            this->max = glm::max(this->max, v);
+        }
+
         INLINE auto translate(const T &t) -> Ref {
             const auto v = V { t };
             return translate(v);
@@ -80,8 +85,8 @@ namespace util::aabb {
             glm::vec3 tmin = glm::min(tmin_vec, tmax_vec);
             glm::vec3 tmax = glm::max(tmin_vec, tmax_vec);
 
-            f32 t_enter = std::max(std::max(tmin.x, tmin.y), tmin.z);
-            f32 t_exit  = std::min(std::min(tmax.x, tmax.y), tmax.z);
+            f32 t_enter = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
+            f32 t_exit  = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
 
             // if tmax < 0, ray (line) is intersecting AABB
             // but whole AABB is behind the camera

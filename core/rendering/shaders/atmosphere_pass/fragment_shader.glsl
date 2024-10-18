@@ -2,7 +2,7 @@
 // danielshervheim.com
 // modifications by Luis S. Ruisinger, 2024
 
-#version 330 core
+#version 410 core
 
 // Normalization factors from the precomputation phase.
 const vec2 RAYLEIGH_NORM = vec2(0.0, 0.05588319);

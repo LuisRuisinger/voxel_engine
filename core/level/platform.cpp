@@ -225,11 +225,8 @@ namespace core::level::platform {
         };
 
         for (auto &[k ,v] : this->queued_chunks) {
-            if (k == v->index()) {
-                thread_pool.enqueue_detach(
-                        compress,
-                        v);
-            }
+            if (k == v->index())
+                thread_pool.enqueue_detach(compress, v);
         }
     }
 

@@ -14,8 +14,8 @@ namespace core::opengl::opengl_window {
 
     auto OpenGLWindow::init() -> GLFWwindow * {
         glfwInit();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 #ifdef __APPLE__
@@ -74,6 +74,11 @@ namespace core::opengl::opengl_window {
         };
 
 #ifdef DEBUG
+        GLint no_of_extensions = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &no_of_extensions);
+        for (auto i = 0; i < no_of_extensions; ++i)
+            LOG(std::string { reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, i)) });
+
         GLint max_layers;
         glGetIntegerv (GL_MAX_ARRAY_TEXTURE_LAYERS, &max_layers);
         DEBUG_LOG("max layers", max_layers);

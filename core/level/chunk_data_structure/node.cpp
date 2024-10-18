@@ -23,7 +23,7 @@ namespace core::level::node {
     static constexpr const u64 vertex_clear_mask = 0x0003FFFFFFFF00FFU;
 
     /** @brief Object containing a compressed representation of the sides of a voxel. */
-    static const model::voxel::CubeStructure cube_structure = {};
+    //static const model::voxel::CubeStructure cube_structure = {};
 
     /**
      * @brief  Updates the mask inside the packed voxel data and recursivly builds a face mask.
@@ -150,7 +150,7 @@ namespace core::level::node {
 
                 // we often only see 1 face
                 if (faces & (1 << i)) [[unlikely]] {
-                    __m256i vertexVec = _mm256_or_si256(cube_structure.mesh()[i], voxelVec);
+                    __m256i vertexVec = _mm256_or_si256(model::voxel::cube_structure.mesh()[i], voxelVec);
                     _mm256_store_si256(
                             const_cast<__m256i *>(&args._voxelVec[args.actual_size]),
                             vertexVec);
@@ -180,9 +180,9 @@ namespace core::level::node {
      * @return Counter how many leaves contain the bitmask.
      */
     auto Node::count_mask(u64 mask) -> size_t {
-        size_t sum = 0;
-
+        auto sum = 0;
         auto segments = this->packed_data >> 56;
+
         if (segments) {
             for (auto i = 0; i < 8; ++i)
                 if (segments & (1 << i))

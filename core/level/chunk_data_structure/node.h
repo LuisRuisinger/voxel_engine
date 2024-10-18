@@ -57,14 +57,11 @@ namespace core::level::node {
         // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 8 | voxelID: 8 (exactly 32)
 
         // unused: 14 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
-        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 8 | voxelID: 8 (exactly 32)
+        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | unused: 7 | voxelID: 9 (exactly 32)
 
         // offsetX: 3 | offsetY: 3 | offsetZ: 3 | uv: 4 | unused: 1 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
-        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | normals: 3 | unused: 5 | voxelID: 8 (exactly 32)
+        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | normals: 3 | unused: 4 | voxelID: 9 (exactly 32)
 
-        //  TODO: new ??
-        // offsetX: 3 | offsetY: 3 | offsetZ: 3 | uv: 4 | unused: 1 | curX: 5 | curY: 5 | curZ: 5 | scale: 3 (exactly 32)
-        // chunkIndex2D: 12 | chunkSegmentOffsetY: 4 | normals: 3 | unused: 2 | texture_offset : 2 | voxelID: 9 (exactly 32)
     };
 
     static_assert(sizeof(Node) == 2 * sizeof(Node *));

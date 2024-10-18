@@ -53,29 +53,34 @@ namespace core::rendering::renderer {
         auto resize(i32, i32) -> void;
 
     private:
-        std::unordered_map<
-                RenderType,
-                Renderable<BaseInterface> *> sub_renderer;
+        std::vector<std::pair<RenderType, Renderable<BaseInterface> *>> sub_renderer;
 
         framebuffer::Framebuffer depth_map_buffer;
-        shader::Shader depth_map_pass;
+        shader::Program depth_map_pass;
 
         framebuffer::Framebuffer g_buffer;
-        shader::Shader g_pass;
+        shader::Program g_pass;
 
         framebuffer::Framebuffer atmosphere_buffer;
         skybox_renderer::SkyboxRenderer skybox;
 
         framebuffer::Framebuffer ssao_buffer;
-        shader::Shader ssao_pass;
+        shader::Program ssao_pass;
 
         framebuffer::Framebuffer ssao_blur_buffer;
-        shader::Shader ssao_blur_pass;
+        shader::Program ssao_blur_pass;
 
-        shader::Shader lighting_pass;
+        framebuffer::Framebuffer water_buffer;
+        shader::Program water_pass;
+
+        shader::Program lighting_pass;
 
         GLuint quad_VAO;
         GLuint quad_VBO;
+
+        GLuint ls_matrices_UBO;
+
+        u32 water_normal_tex;
     };
 }
 

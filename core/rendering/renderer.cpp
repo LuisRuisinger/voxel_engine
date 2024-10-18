@@ -60,27 +60,23 @@ namespace core::rendering::renderer {
 
             // allocate buffer
             target.buffer.resize(1);
-            const u32 shadow_width_height = RENDER_RADIUS * 2 * CHUNK_SIZE;
+            const u32 shadow_resolution = RENDER_RADIUS * 2 * CHUNK_SIZE;
 
             glGenTextures(1, &target.buffer[0]);
-            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
-            glTexImage2D(
-                    GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
-                    shadow_width_height, shadow_width_height, 0,
-                    GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            glBindTexture(GL_TEXTURE_2D_ARRAY, target.buffer[0]);
+            glTexImage3D(
+                    GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F,
+                    shadow_resolution, shadow_resolution, 4,
+                    0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-            f32 border_color[] = {
-                    1.0F, 1.0F, 1.0F, 1.0F
-            };
-
-            glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border_color);
-
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, target.buffer[0], 0);
+            const f32 border_color[] = { 1.0F, 1.0F, 1.0F, 1.0F };
+            glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, border_color);
+            glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, target.buffer[0], 0);
 
             // explicitly telling OpenGL that we won't read or write color data
             // a framebuffer cannot be complete without a single color buffer
@@ -95,12 +91,21 @@ namespace core::rendering::renderer {
         this->depth_map_buffer = { init_depth_map_pass, destroy_depth_map_pass };
         this->depth_map_buffer.bind();
         glEnable(GL_DEPTH_TEST);
+
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        f32 factor = 1.0F;
+        f32 units = 1.0F;
+        glPolygonOffset(factor, units);
+
+        glEnable(GL_CULL_FACE);
         glCullFace(GL_FRONT);
+        glFrontFace(GL_CCW);
 
         // lighting pass
         auto res_depth_map_pass = this->depth_map_pass.init(
-                "depth_map_pass/vertex_shader.glsl",
-                "depth_map_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("depth_map_pass/vertex_shader.glsl"),
+                shader::Shader<shader::GEOMETRY_SHADER>("depth_map_pass/geometry_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("depth_map_pass/fragment_shader.glsl"));
 
         if (res_depth_map_pass.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res_depth_map_pass.unwrapErr());
@@ -108,10 +113,17 @@ namespace core::rendering::renderer {
         }
 
         this->depth_map_pass.use();
-        this->depth_map_pass.registerUniformLocation("view");
-        this->depth_map_pass.registerUniformLocation("projection");
         this->depth_map_pass.registerUniformLocation("worldbase");
         this->depth_map_pass.registerUniformLocation("render_radius");
+
+        GLuint block_index = glGetUniformBlockIndex(this->depth_map_pass.shader_id(), "LSMatrices");
+        glUniformBlockBinding(this->depth_map_pass.shader_id(), block_index, 0);
+
+        glGenBuffers(1, &this->ls_matrices_UBO);
+        glBindBuffer(GL_UNIFORM_BUFFER, this->ls_matrices_UBO);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4x4) * 4, nullptr, GL_STATIC_DRAW);
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0, this->ls_matrices_UBO);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         this->depth_map_buffer.unbind();
 
@@ -127,8 +139,8 @@ namespace core::rendering::renderer {
 
         // lighting pass
         auto res = this->lighting_pass.init(
-                "shading_pass/vertex_shader.glsl",
-                "shading_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("shading_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("shading_pass/fragment_shader.glsl"));
 
         if (res.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
@@ -139,17 +151,31 @@ namespace core::rendering::renderer {
         this->lighting_pass.registerUniformLocation("g_position");
         this->lighting_pass.registerUniformLocation("g_normal");
         this->lighting_pass.registerUniformLocation("g_albedospec");
+        this->lighting_pass.registerUniformLocation("g_depth");
+
         this->lighting_pass.registerUniformLocation("g_atmosphere");
         this->lighting_pass.registerUniformLocation("g_depth_map");
         this->lighting_pass.registerUniformLocation("g_ssao");
+
+        this->lighting_pass.registerUniformLocation("g_water");
+        this->lighting_pass.registerUniformLocation("g_water_normal");
+        this->lighting_pass.registerUniformLocation("g_water_depth");
 
         // sun shading attributes
         this->lighting_pass.registerUniformLocation("light_direction");
         this->lighting_pass.registerUniformLocation("view_direction");
 
         // transformation matrices
-        this->lighting_pass.registerUniformLocation("depth_map_view");
-        this->lighting_pass.registerUniformLocation("depth_map_projection");
+        this->lighting_pass.registerUniformLocation("view");
+        this->lighting_pass.registerUniformLocation("cascade_count");
+        this->lighting_pass.registerUniformLocation("far_z");
+
+        for (auto i = 0; i < 4; ++i) {
+            this->lighting_pass.registerUniformLocation("cascade_plane_distances[" + std::to_string(i) + "]");
+        }
+
+        GLuint block_index1 = glGetUniformBlockIndex(this->lighting_pass.shader_id(), "LSMatrices");
+        glUniformBlockBinding(this->lighting_pass.shader_id(), block_index1, 0);
 
         // screen-space quad
         f32 quad_vertices[] = {
@@ -172,7 +198,17 @@ namespace core::rendering::renderer {
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-        // geometry pass
+        /*
+         *
+         *
+         *
+         *
+         * geometry pass
+         *
+         *
+         *
+         */
+
         auto init = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
 
             // allocate buffers
@@ -236,18 +272,18 @@ namespace core::rendering::renderer {
 
         this->g_buffer = { init, destroy };
         this->g_buffer.bind();
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->init();
+        get_sub_renderer(RenderType::CHUNK_RENDERER)._crtp_init();
 
         glEnable(GL_DEPTH_TEST);
         // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         glEnable(GL_CULL_FACE);
-        glCullFace(GL_BACK);
+        glCullFace(GL_FRONT);
         glFrontFace(GL_CCW);
 
         auto res_g_buffer = this->g_pass.init(
-                "geometry_pass/vertex_shader.glsl",
-                "geometry_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("geometry_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("geometry_pass/fragment_shader.glsl"));
 
         if (res_g_buffer.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res_g_buffer.unwrapErr());
@@ -263,6 +299,72 @@ namespace core::rendering::renderer {
         this->g_pass.registerUniformLocation("texture_array");
 
         this->g_buffer.unbind();
+
+        /*
+         *
+         *
+         *
+         * water pass
+         *
+         *
+         *
+         */
+
+        this->water_buffer = { init, destroy };
+        this->water_buffer.bind();
+        get_sub_renderer(RenderType::WATER_RENDERER)._crtp_init();
+
+        OPENGL_VERIFY(glGenTextures(1, &this->water_normal_tex));
+        OPENGL_VERIFY(glBindTexture(GL_TEXTURE_2D, this->water_normal_tex));
+
+        // Set texture parameters
+        OPENGL_VERIFY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+        OPENGL_VERIFY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+        OPENGL_VERIFY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+        OPENGL_VERIFY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+
+        i32 width, height, nr_channels;
+        auto data = stbi_load("../resources/maps/water_normal.jpg", &width, &height, &nr_channels, 0);
+
+        OPENGL_VERIFY(
+                glTexImage2D(
+                        GL_TEXTURE_2D,
+                        0,
+                        GL_RGB,
+                        width,
+                        height,
+                        0,
+                        GL_RGB,
+                        GL_UNSIGNED_BYTE,
+                        data));
+
+        OPENGL_VERIFY(glBindTexture(GL_TEXTURE_2D, 0));
+
+        glEnable(GL_DEPTH_TEST);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+        glFrontFace(GL_CCW);
+
+        auto res_water_buffer = this->water_pass.init(
+                shader::Shader<shader::VERTEX_SHADER>("water_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("water_pass/fragment_shader.glsl"));
+
+        if (res_water_buffer.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res_water_buffer.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        // setting up uniforms
+        this->water_pass.use();
+        this->water_pass.registerUniformLocation("view");
+        this->water_pass.registerUniformLocation("projection");
+        this->water_pass.registerUniformLocation("worldbase");
+        this->water_pass.registerUniformLocation("render_radius");
+        this->water_pass.registerUniformLocation("water_normal_tex");
+
+        this->water_buffer.unbind();
 
         /*
          *
@@ -298,8 +400,8 @@ namespace core::rendering::renderer {
         this->ssao_buffer.bind();
 
         auto res_ssao = this->ssao_pass.init(
-                "ssao_pass/vertex_shader.glsl",
-                "ssao_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("ssao_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("ssao_pass/fragment_shader.glsl"));
 
         if (res_ssao.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res_ssao.unwrapErr());
@@ -342,8 +444,8 @@ namespace core::rendering::renderer {
         this->ssao_blur_buffer.bind();
 
         auto res_ssao_blur = this->ssao_blur_pass.init(
-                "ssao_pass/vertex_shader.glsl",
-                "ssao_blur_pass/fragment_shader.glsl");
+                shader::Shader<shader::VERTEX_SHADER>("ssao_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("ssao_blur_pass/fragment_shader.glsl"));
 
         if (res_ssao_blur.isErr()) {
             LOG(util::log::LOG_LEVEL_ERROR, res_ssao_blur.unwrapErr());
@@ -357,7 +459,8 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::prepare_frame(state::State &state) -> void {
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_prepare_frame(state);
+        for (auto &[_, v] : this->sub_renderer)
+            v->prepare_frame(state);
     }
 
     auto Renderer::frame(state::State &state) -> void {
@@ -366,9 +469,16 @@ namespace core::rendering::renderer {
         auto player_projection = state.player.get_camera().get_projection_matrix();
 
         auto sun_orientation = state.sun.get_orientation();
-        auto sun_view = state.sun.get_view_matrix();
-        auto sun_projection = state.sun.get_projection_matrix();
+        auto world_pos = state.platform.get_world_root();
 
+        // TODO: shift this to sun or depth renderer with tickable ??
+        const auto &ls_matrices = state.sun.light_space_matrices;
+        glBindBuffer(GL_UNIFORM_BUFFER, this->ls_matrices_UBO);
+
+        for (auto i = 0; i < ls_matrices.size(); ++i) {
+            glBufferSubData(GL_UNIFORM_BUFFER, i * sizeof(glm::mat4x4), sizeof(glm::mat4x4), &ls_matrices[i]);
+        }
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
         // depth map pass
         // injecting another shader into the chunk renderer to just extract depth information
@@ -378,18 +488,16 @@ namespace core::rendering::renderer {
         glClear(GL_DEPTH_BUFFER_BIT);
 
         this->depth_map_pass.use();
-        this->depth_map_pass["view"] = sun_view;
-        this->depth_map_pass["projection"] = sun_projection;
 
-        this->depth_map_pass["worldbase"] = state.platform.get_world_root();
+        this->depth_map_pass["worldbase"] = world_pos;
         this->depth_map_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
         this->depth_map_pass.upload_uniforms();
 
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
+        get_sub_renderer(RenderType::CHUNK_RENDERER)._crtp_frame(state);
         this->depth_map_buffer.unbind();
+        glViewport(0, 0, this->g_buffer.get_width(), this->g_buffer.get_height());
 
         // geometry pass
-        glViewport(0, 0, this->g_buffer.get_width(), this->g_buffer.get_height());
         this->g_buffer.bind();
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -397,20 +505,47 @@ namespace core::rendering::renderer {
 
         // binding the 2D texture array containing the textures of all tiles
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D_ARRAY, state.tile_manager.texture_array);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, level::tiles::tile_manager::tile_manager.texture_array);
 
         this->g_pass.use();
         this->g_pass["view"] = player_view;
         this->g_pass["projection"] = player_projection;
-        this->g_pass["worldbase"] = state.platform.get_world_root();
+        this->g_pass["worldbase"] = world_pos;
         this->g_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
         this->g_pass["texture_array"] = 0;
         this->g_pass.upload_uniforms();
 
-        this->sub_renderer[RenderType::CHUNK_RENDERER]->_crtp_frame(state);
+        get_sub_renderer(RenderType::CHUNK_RENDERER)._crtp_frame(state);
         this->g_buffer.unbind();
 
+        /*
+         *
+         *
+         *
+         * water pass
+         *
+         *
+         *
+         */
 
+        this->water_buffer.bind();
+
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, this->water_normal_tex);
+
+        this->water_pass.use();
+        this->water_pass["view"] = player_view;
+        this->water_pass["projection"] = player_projection;
+        this->water_pass["worldbase"] = world_pos;
+        this->water_pass["render_radius"] = static_cast<u32>(RENDER_RADIUS);
+        this->water_pass["water_normal_tex"] = 0;
+        this->water_pass.upload_uniforms();
+
+        get_sub_renderer(RenderType::WATER_RENDERER)._crtp_frame(state);
+        this->water_buffer.unbind();
 
         /*
          *
@@ -487,15 +622,26 @@ namespace core::rendering::renderer {
         this->lighting_pass["g_position"] = 0;
         this->lighting_pass["g_normal"] = 1;
         this->lighting_pass["g_albedospec"] = 2;
-        this->lighting_pass["g_atmosphere"] = 3;
-        this->lighting_pass["g_depth_map"] = 4;
-        this->lighting_pass["g_ssao"] = 5;
+        this->lighting_pass["g_depth"] = 3;
+
+        this->lighting_pass["g_atmosphere"] = 4;
+        this->lighting_pass["g_depth_map"] = 5;
+        this->lighting_pass["g_ssao"] = 6;
+
+        this->lighting_pass["g_water"] = 7;
+        this->lighting_pass["g_water_normal"] = 8;
+        this->lighting_pass["g_water_depth"] = 9;
 
         this->lighting_pass["light_direction"] = sun_orientation;
         this->lighting_pass["view_direction"] = player_pos;
 
-        this->lighting_pass["depth_map_view"] = sun_view;
-        this->lighting_pass["depth_map_projection"] = sun_projection;
+        this->lighting_pass["view"] = player_view;
+        this->lighting_pass["far_z"] = 640.0F;
+        this->lighting_pass["cascade_count"] = static_cast<i32>(ls_matrices.size());
+
+        for (auto i = 0; i < state.sun.shadow_cascades_level.size(); ++i)
+            this->lighting_pass["cascade_plane_distances[" + std::to_string(i) + "]"] = state.sun.shadow_cascades_level[i];
+
         this->lighting_pass.upload_uniforms();
 
         // position
@@ -510,17 +656,34 @@ namespace core::rendering::renderer {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[2]);
 
-        // atmosphere color
+        // g buffer fragment depth
         glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[3]);
+
+        // atmosphere color
+        glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_2D, this->atmosphere_buffer.buffer[0]);
 
         // shadow map depth
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, this->depth_map_buffer.buffer[0]);
+        glActiveTexture(GL_TEXTURE5);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, this->depth_map_buffer.buffer[0]);
 
         // ssao color
-        glActiveTexture(GL_TEXTURE5);
+        glActiveTexture(GL_TEXTURE6);
         glBindTexture(GL_TEXTURE_2D, this->ssao_blur_buffer.buffer[0]);
+
+        // water position
+        glActiveTexture(GL_TEXTURE7);
+        glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[0]);
+
+        // water normal
+        glActiveTexture(GL_TEXTURE8);
+        glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[1]);
+
+        // water fragment depth
+        glActiveTexture(GL_TEXTURE9);
+        glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[3]);
+
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -531,15 +694,29 @@ namespace core::rendering::renderer {
     }
 
     auto Renderer::get_sub_renderer(RenderType render_type) -> Renderable<BaseInterface> & {
-        return *this->sub_renderer[render_type];
+        for (const auto &[k, v] : this->sub_renderer)
+            if (k == render_type)
+                return *v;
+
+#if defined(__GNUC__)
+        __builtin_unreachable();
+#elif defined(_MSC_VER)
+        __assume(false);
+#endif
     }
 
     auto Renderer::add_sub_renderer(RenderType type, Renderable<BaseInterface> *renderer) -> void {
-        this->sub_renderer[type] = renderer;
+        this->sub_renderer.emplace_back(type, renderer);
     }
 
     auto Renderer::remove_sub_renderer(RenderType render_type) -> void {
-        this->sub_renderer.erase(render_type);
+        this->sub_renderer.erase(
+                std::remove_if(
+                        this->sub_renderer.begin(),
+                        this->sub_renderer.end(),
+                        [render_type](auto &e) {
+                            return e.first == render_type;
+                        }));
     }
 
     auto Renderer::resize(i32 width, i32 height) -> void {
@@ -547,5 +724,6 @@ namespace core::rendering::renderer {
         this->ssao_buffer.resize(width, height);
         this->ssao_blur_buffer.resize(width, height);
         this->atmosphere_buffer.resize(width, height);
+        this->water_buffer.resize(width, height);
     }
 }

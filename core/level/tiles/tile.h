@@ -14,17 +14,22 @@
 namespace core::level::tiles::tile {
     using namespace util;
 
+    const constexpr u8 can_cull_other = 1 << 7;
+    const constexpr u8 can_be_culled_by_other = 1 << 6;
+    const constexpr u8 can_cull_itself = 1 << 5;
+
     enum Type : u16 {
         GRASS = 0,
         DIRT  = 1,
         COBBLESTONE = 2,
         STONE = 3,
         STONE_BLOCK = 4,
-        STONE_BRICK = 5
+        STONE_BRICK = 5,
+        WATER = 6
     };
 
     struct Tile : public collidable::Collidable {
-        std::bitset<8> flags;
+        u8 flags { 0 };
         std::shared_ptr<model::voxel::CubeStructure> mesh;
         Type type;
         std::string texture;
@@ -36,6 +41,13 @@ namespace core::level::tiles::tile {
         virtual auto set_state(glm::vec3) -> void {};
         virtual auto on_destroy(glm::vec3) -> void {};
         virtual auto emit(glm::vec3) -> void {};
+
+        auto can_cull(const Tile &other) const -> bool {
+            return
+                ((this->type == other.type) && (this->flags & can_cull_itself)) ||
+                ((this->type != other.type) && (this->flags & can_cull_other) &&
+                 (other.flags & can_be_culled_by_other));
+        }
     };
 }
 
