@@ -65,7 +65,7 @@ namespace core::level::chunk {
         auto generate(glm::vec2) -> void;
 
         template <rendering::renderer::RenderType R>
-        auto insert(glm::vec3, u16, platform::Platform *platform, bool recombine = true) -> void;
+        auto insert(glm::vec3, u16, bool recombine = true) -> void;
 
         template <rendering::renderer::RenderType R>
         auto remove(glm::vec3) -> void;
@@ -73,13 +73,13 @@ namespace core::level::chunk {
         auto cull(state::State &) const -> void;
         auto update_and_render(u16, state::State &) -> void;
 
-        auto find(glm::vec3, platform::Platform *platform) -> node::Node *;
+        auto find(glm::vec3) -> node::Node *;
 
         template <rendering::renderer::RenderType R>
         auto find(std::function<f32(const glm::vec3 &, const u32)> &) -> f32;
 
         auto update_occlusion(node::Node *, node::Node *, u64, u64) -> void;
-        auto visible(const util::camera::Camera &, const platform::Platform &) const -> bool;
+        auto visible(const util::camera::Camera &, const glm::vec2 &) const -> bool;
         auto index() const -> u16;
         auto add_neigbor(Position, std::shared_ptr<Chunk>) -> void;
         auto recombine() -> void;

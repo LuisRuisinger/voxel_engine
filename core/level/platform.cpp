@@ -109,17 +109,23 @@ namespace core::level::platform {
      * @param thread_pool Threadpool to parallel destroy unused chunks.
      */
     auto Platform::unload_chunks(threading::thread_pool::Tasksystem<> &thread_pool) -> void {
-        static auto destroy = [](std::shared_ptr<chunk::Chunk> ptr) -> void {
-            // ASSERT_EQ(ptr.get());
+        static auto destroy = [](chunk::Chunk *ptr) -> void {
+            ASSERT_EQ(ptr);
+            delete ptr;
         };
 
         DEBUG_LOG("Unloading chunks");
 
         std::vector<decltype(this->chunks)::key_type> to_erase;
         for (auto &[_, k] : this->queued_chunks) {
+            if (k == nullptr)
+                continue;
 
             bool active = false;
             for (const auto &[__, v] : this->active_chunks) {
+                if (v == nullptr)
+                    continue;
+
                 if (k == v) {
                     active = true;
                     break;
@@ -127,7 +133,7 @@ namespace core::level::platform {
             }
 
             if (!active) {
-                thread_pool.enqueue_detach(destroy, std::move(this->chunks[k]));
+                thread_pool.enqueue_detach(destroy, this->chunks[k].get());
                 to_erase.push_back(k);
             }
         }
@@ -202,7 +208,13 @@ namespace core::level::platform {
                         init_neighbors(x, z);
                     }
                     else {
-                        auto ptr = std::make_shared<chunk::Chunk>(INDEX(x, z));
+
+                        // uses and empty destructor because we can guarantee that the
+                        // destructor lambda of the threadpool will destroy the shared pointer
+                        // this needs to be done to ensure the race to 0 won't happen
+                        auto ptr = std::shared_ptr<chunk::Chunk>(
+                                new chunk::Chunk { static_cast<u16>(INDEX(x, z)) },
+                                [](auto *){});
                         auto chunk = ptr.get();
 
                         this->chunks[chunk] = std::move(ptr);
@@ -270,25 +282,14 @@ namespace core::level::platform {
 
         if (this->queue_ready) {
             for (const auto& [k, v] : this->active_chunks_vec) {
-                if (v) {
-                    state.render_pool.enqueue_detach(
-                            update_render_fun,
-                            k,
-                            v,
-                            state);
-                }
+                state.render_pool.enqueue_detach(update_render_fun, k, v, state);
             }
 
             this->queue_ready = false;
         }
         else [[likely]] {
             for (const auto& [_, v] : this->active_chunks_vec) {
-                if (v) {
-                    state.render_pool.enqueue_detach(
-                            render_fun,
-                            v,
-                            state);
-                }
+                state.render_pool.enqueue_detach(render_fun, v, state);
             }
         }
 
@@ -300,8 +301,8 @@ namespace core::level::platform {
         return this->current_root;
     }
 
-    auto Platform::get_nearest_chunks(const glm::vec3 &pos)
-        -> std::optional<std::array<chunk::Chunk *, 4>> {
+    auto Platform::get_nearest_chunks(
+            const glm::vec3 &pos) -> std::optional<std::array<chunk::Chunk *, 4>> {
         std::unique_lock lock { this->mutex };
 
         auto root = glm::vec2 {

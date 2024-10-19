@@ -85,32 +85,32 @@ namespace core::rendering::skybox_renderer {
 
         this->indices_amount = indices.size();
 
-        glGenVertexArrays(1, &this->VAO);
-        glBindVertexArray(this->VAO);
+        OPENGL_VERIFY(glGenVertexArrays(1, &this->VAO));
+        OPENGL_VERIFY(glBindVertexArray(this->VAO));
 
-        glGenBuffers(1, &this->VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-        glBufferData(
+        OPENGL_VERIFY(glGenBuffers(1, &this->VBO));
+        OPENGL_VERIFY(glBindBuffer(GL_ARRAY_BUFFER, this->VBO));
+        OPENGL_VERIFY(glBufferData(
                 GL_ARRAY_BUFFER,
                 vertices.size() * sizeof(decltype(vertices)::value_type),
                 vertices.data(),
-                GL_STATIC_DRAW);
+                GL_STATIC_DRAW));
 
-        glGenBuffers(1, &this->EBO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-        glBufferData(
+        OPENGL_VERIFY(glGenBuffers(1, &this->EBO));
+        OPENGL_VERIFY(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO));
+        OPENGL_VERIFY(glBufferData(
                 GL_ELEMENT_ARRAY_BUFFER,
                 indices.size() * sizeof(decltype(indices)::value_type),
                 indices.data(),
-                GL_STATIC_DRAW);
+                GL_STATIC_DRAW));
 
         auto stride = sizeof(decltype(vertices)::value_type) * 3;
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0);
-        glEnableVertexAttribArray(0);
+        OPENGL_VERIFY(glVertexAttribPointer(0, 3, GL_FLOAT, false, stride, 0));
+        OPENGL_VERIFY(glEnableVertexAttribArray(0));
 
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+        OPENGL_VERIFY(glBindVertexArray(0));
+        OPENGL_VERIFY(glBindBuffer(GL_ARRAY_BUFFER, 0));
+        OPENGL_VERIFY(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0));
 
         // textures
         auto file_read = [](std::string file_name) -> u32 {
@@ -158,7 +158,7 @@ namespace core::rendering::skybox_renderer {
         auto camera = state.player.get_camera().get_position();
 
         this->shader.use();
-        glBindVertexArray(this->VAO);
+        OPENGL_VERIFY(glBindVertexArray(this->VAO));
 
         // vertex shader uniforms
         this->shader["view"] = view;
@@ -176,16 +176,14 @@ namespace core::rendering::skybox_renderer {
 
         this->shader.upload_uniforms();
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, this->ray_tex);
+        OPENGL_VERIFY(glActiveTexture(GL_TEXTURE0));
+        OPENGL_VERIFY(glBindTexture(GL_TEXTURE_2D, this->ray_tex));
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, this->mie_tex);
+        OPENGL_VERIFY(glActiveTexture(GL_TEXTURE1));
+        OPENGL_VERIFY(glBindTexture(GL_TEXTURE_2D, this->mie_tex));
 
-        glDrawElements(GL_TRIANGLES,
-                       this->indices_amount,
-                       GL_UNSIGNED_INT,
-                       nullptr);
+        OPENGL_VERIFY(glDrawElements(
+                GL_TRIANGLES, this->indices_amount, GL_UNSIGNED_INT, nullptr));
     }
 }
 

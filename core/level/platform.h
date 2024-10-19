@@ -29,7 +29,7 @@ namespace core::level::platform {
         LOADING     = 2,
         COMPRESSING = 3,
         SWAPPING    = 4,
-        UNLOADING   = 5,
+        UNLOADING   = 5
     };
 
 class Platform :

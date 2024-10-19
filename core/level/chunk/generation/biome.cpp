@@ -21,13 +21,13 @@ namespace core::level::chunk::generation::biome {
         for (auto y = max_y + 1; y < WATER_LEVEL; ++y) {
             auto pos = glm::vec3{x, y, z};
             chunk.insert<rendering::renderer::RenderType::WATER_RENDERER>(
-                    pos, tiles::tile::WATER, nullptr, false);
+                    pos, tiles::tile::WATER, false);
         }
 
         for (auto y = 0; y <= max_y; ++y) {
             auto pos = glm::vec3{x, y, z};
             chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
-                    pos, tiles::tile::STONE, nullptr, false);
+                    pos, tiles::tile::STONE, false);
         }
     }
 
@@ -47,13 +47,13 @@ namespace core::level::chunk::generation::biome {
         for (auto y = max_y - 3; y <= max_y; ++y) {
             auto pos = glm::vec3 { x, y, z };
             chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
-                    pos, tiles::tile::GRASS, nullptr, false);
+                    pos, tiles::tile::GRASS, false);
         }
 
         for (auto y = 0; y < max_y - 3; ++y) {
             auto pos = glm::vec3 { x, y, z };
             chunk.insert<rendering::renderer::RenderType::CHUNK_RENDERER>(
-                    pos, tiles::tile::STONE, nullptr, false);
+                    pos, tiles::tile::STONE, false);
         }
     }
 

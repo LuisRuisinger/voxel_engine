@@ -75,7 +75,7 @@ namespace core::level::chunk {
         }
     }
 
-    auto Chunk::find(glm::vec3 position, platform::Platform *platform) -> node::Node * {
+    auto Chunk::find(glm::vec3 position) -> node::Node * {
 
         // inter-chunk-finding
         if (position.x >= CHUNK_SIZE) {
@@ -84,7 +84,7 @@ namespace core::level::chunk {
                     if (auto ptr = w.lock()) {
                         position.x -= CHUNK_SIZE;
                         ASSERT_EQ(ptr.get());
-                        return ptr->find(position, platform);
+                        return ptr->find(position);
                     }
                 }
         }
@@ -94,7 +94,7 @@ namespace core::level::chunk {
                     if (auto ptr = w.lock()) {
                         position.x += CHUNK_SIZE;
                         ASSERT_EQ(ptr.get());
-                        return ptr->find(position, platform);
+                        return ptr->find(position);
                     }
                 }
         }
@@ -104,7 +104,7 @@ namespace core::level::chunk {
                     if (auto ptr = w.lock()) {
                         position.z -= CHUNK_SIZE;
                         ASSERT_EQ(ptr.get());
-                        return ptr->find(position, platform);
+                        return ptr->find(position);
                     }
                 }
         }
@@ -114,7 +114,7 @@ namespace core::level::chunk {
                     if (auto ptr = w.lock()) {
                         position.z += CHUNK_SIZE;
                         ASSERT_EQ(ptr.get());
-                        return ptr->find(position, platform);
+                        return ptr->find(position);
                     }
                 }
         }
@@ -145,7 +145,7 @@ namespace core::level::chunk {
     template <>
     auto Chunk::insert<RenderType::CHUNK_RENDERER>(
             const glm::vec3 position,
-            u16 voxel_ID, platform::Platform *platform,
+            u16 voxel_ID,
             bool recombine) -> void {
         auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
         auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
@@ -169,12 +169,12 @@ namespace core::level::chunk {
         f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
 
         // occlusion culling
-        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}), LEFT_BIT, RIGHT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}), RIGHT_BIT, LEFT_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}), BOTTOM_BIT, TOP_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}), TOP_BIT, BOTTOM_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}), BACK_BIT, FRONT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}), FRONT_BIT, BACK_BIT);
 
         // recombining voxels
         if (recombine) {
@@ -186,7 +186,7 @@ namespace core::level::chunk {
     template <>
     auto Chunk::insert<RenderType::WATER_RENDERER>(
             const glm::vec3 position,
-            u16 voxel_ID, platform::Platform *platform,
+            u16 voxel_ID,
             bool recombine) -> void {
         auto normalized_vec = CHUNK_SEGMENT_Y_NORMALIZE(position);
         auto &segment = this->chunk_segments[CHUNK_SEGMENT_Y_DIFF(position)];
@@ -210,12 +210,12 @@ namespace core::level::chunk {
         f32 offset = 1 << ((node->packed_data >> SHIFT_HIGH) & MASK_3);
 
         // occlusion culling
-        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}, platform), LEFT_BIT, RIGHT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}, platform), RIGHT_BIT, LEFT_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}, platform), BOTTOM_BIT, TOP_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}, platform), TOP_BIT, BOTTOM_BIT);
-        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}, platform), BACK_BIT, FRONT_BIT);
-        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}, platform), FRONT_BIT, BACK_BIT);
+        update_occlusion(node, find(position - glm::vec3 {1, 0, 0}), LEFT_BIT, RIGHT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {1, 0, 0}), RIGHT_BIT, LEFT_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 1, 0}), BOTTOM_BIT, TOP_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 1, 0}), TOP_BIT, BOTTOM_BIT);
+        update_occlusion(node, find(position - glm::vec3 {0, 0, 1}), BACK_BIT, FRONT_BIT);
+        update_occlusion(node, find(position + glm::vec3 {0, 0, 1}), FRONT_BIT, BACK_BIT);
 
         // recombining voxels
         if (recombine) {
@@ -456,8 +456,7 @@ namespace core::level::chunk {
     }
 
     auto Chunk::visible(
-            const util::camera::Camera &camera,
-            const platform::Platform &platform) const -> bool {
+            const util::camera::Camera &camera, const glm::vec2 &world_offset) const -> bool {
         const u64 face_mask = this->faces & static_cast<u64>(camera.get_mask());
         if (!face_mask || !this->size)
             return false;
@@ -469,7 +468,7 @@ namespace core::level::chunk {
                         static_cast<i32>(this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
                 };
 
-        return camera.check_in_frustum(platform.get_world_root() + offset, CHUNK_SIZE);
+        return camera.check_in_frustum(world_offset + offset, CHUNK_SIZE);
     }
 
     auto Chunk::add_neigbor(Position position, std::shared_ptr<Chunk> neighbor) -> void {
