@@ -19,7 +19,6 @@
 #include "reflections.h"
 
 namespace util::log {
-
     enum Level : u8 {
         LOG_LEVEL_NORMAL,
         LOG_LEVEL_WARN,
@@ -89,8 +88,6 @@ namespace util::log {
     }
 
     struct _End {};
-    static constexpr auto end = _End{};
-
     struct _Log {
         _Log(std::string file, std::string caller, const size_t line)
             : file   { file   },
@@ -161,7 +158,7 @@ namespace util::log {
             std::string file = __builtin_FILE(),
             std::string caller = __builtin_FUNCTION(),
             const size_t line = __builtin_LINE()) -> _Log {
-        return _Log{file, caller, line};
+        return _Log { file, caller, line };
     }
 
     template <typename ...Args>
@@ -170,7 +167,7 @@ namespace util::log {
             std::string caller,
             const u64 line,
             Args ...args) -> void {
-        (out(file, caller, line) << ... << std::forward<Args>(args)) << end;
+        (out(file, caller, line) << ... << std::forward<Args>(args)) << _End{};
     }
 }
 

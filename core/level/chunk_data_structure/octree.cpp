@@ -16,7 +16,7 @@ namespace core::level::octree {
     auto Octree::removePoint(u16 position) -> void {}
 
     auto Octree::cull(
-            const glm::vec3 &position,
+            const glm::ivec3 &position,
             const util::camera::Camera &camera,
             const VERTEX *voxelVec,
             u64 &actual_size) const

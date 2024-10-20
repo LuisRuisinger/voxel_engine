@@ -29,8 +29,6 @@ namespace util::player {
         auto get_camera() -> Camera &;
         auto tick(core::state::State &state) -> void;
 
-        auto update_delta_time(f64) -> void;
-
     private:
         std::shared_ptr<Camera> camera_hook;
         f64 delta_time;

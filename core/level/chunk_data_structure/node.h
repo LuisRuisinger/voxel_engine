@@ -25,7 +25,7 @@ namespace core::state {
 
 namespace core::level::node {
     struct Args {
-        const glm::vec3 &_point;
+        const glm::ivec3 &_point;
         const util::camera::Camera &_camera;
         const VERTEX *_voxelVec;
         u64 &actual_size;

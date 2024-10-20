@@ -16,37 +16,42 @@ namespace util::aabb_ray_intersection {
     }
 
     auto Ray::intersect(core::level::platform::Platform &platform) -> Intersection {
-        auto opt = platform.get_nearest_chunks(this->origin);
-        if (!opt)
-            return std::nullopt;
-
+        const auto chunks = platform.get_nearest_chunks(this->origin);
         const auto &world_root = platform.get_world_root();
         this->origin.x -= world_root.x;
         this->origin.z -= world_root.y;
 
         static std::function<f32(const glm::vec3 &, const u32)> fun =
                 [this](const glm::vec3 &pos, const u32 scale) -> f32 {
-                        if (scale == BASE_SIZE) {
-                            return aabb::AABB<f32>()
-                                    .translate(pos)
-                                    .translate(0.5F)
-                                    .intersection(this->origin, this->direction);
+                        try {
+                            if (scale == BASE_SIZE) {
+                                return aabb::AABB<f32>()
+                                        .translate(pos)
+                                        .translate(0.5F)
+                                        .intersection(this->origin, this->direction);
+                            }
+                            else {
+                                return aabb::AABB<f32>()
+                                        .translate(pos)
+                                        .scale_center(static_cast<f32>(scale))
+                                        .scale_center(0.5F)
+                                        .intersection(this->origin, this->direction);
+                            }
                         }
-                        else {
-                            return aabb::AABB<f32>()
-                                    .translate(pos)
-                                    .scale_center(static_cast<f32>(scale))
-                                    .scale_center(0.5F)
-                                    .intersection(this->origin, this->direction);
+                        catch (std::exception &err) {
+                            LOG(err.what());
                         }
-        };
+
+                        // fallback on undefined error
+                        return std::numeric_limits<f32>::max();
+                };
 
         auto ray_scale = std::numeric_limits<f32>::max();
-        for (const auto& chunk : opt.value()) {
+        for (const auto chunk : chunks) {
             if (!chunk)
                 continue;
 
-            auto ret = chunk->find<core::rendering::renderer::RenderType::CHUNK_RENDERER>(fun);
+            auto ret = chunk->find(fun);
             ray_scale = ret < ray_scale ? ret : ray_scale;
         }
 

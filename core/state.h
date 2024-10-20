@@ -5,11 +5,12 @@
 #ifndef OPENGL_3D_ENGINE_STATE_H
 #define OPENGL_3D_ENGINE_STATE_H
 
-#include "level/model/voxel.h"
-#include "memory/linear_allocator.h"
-#include "memory/arena_allocator.h"
+#include "../core/opengl/opengl_window.h"
+#include "../core/level/model/voxel.h"
+#include "../core/memory/linear_allocator.h"
+#include "../core/memory/arena_allocator.h"
+#include "../core/threading/thread_pool.h"
 
-#include "threading/thread_pool.h"
 #include "../util/traits.h"
 
 namespace core::rendering::renderer {
@@ -47,13 +48,18 @@ namespace core::state {
         rendering::renderer::Renderer        &renderer;
         level::platform::Platform            &platform;
 
-
         util::player::Player                 &player;
         util::sun::Sun                       &sun;
 
+        // ticks
         u32 max_tick_count = 2400;
         u32 current_tick = 0;
         u64 ticks_since_start = 0;
+
+        // frames
+        f64 delta_time = 0;
+        f64 last_frame = 0;
+        f64 time = 0;
 
         State(threading::thread_pool::Tasksystem<> &render_pool,
               threading::thread_pool::Tasksystem<> &chunk_tick_pool,
@@ -75,6 +81,10 @@ namespace core::state {
         auto tick(core::state::State &) -> void {
             this->current_tick = (this->current_tick + 1) % this->max_tick_count;
             ++this->ticks_since_start;
+
+            this->time = glfwGetTime();
+            this->delta_time = this->time - this->last_frame;
+            this->last_frame = time;
         }
     };
 }

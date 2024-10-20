@@ -126,7 +126,7 @@ namespace core::level::node {
                     (this->packed_data >> 35) & MASK_5
             };
 
-            if ((type = args._camera.frustum_collision(args._point + position, scale)) ==
+            if ((type = args._camera.frustum_collision(glm::vec3(args._point) + position, scale)) ==
                 util::culling::CollisionType::OUTSIDE) {
                 return;
             }

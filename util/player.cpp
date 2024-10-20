@@ -58,17 +58,15 @@ namespace util::player {
     }
 
     auto Player::tick(core::state::State &state) -> void {
-        this->intersection = aabb_ray_intersection::Ray(
-                this->camera_hook->get_position(),
-                this->camera_hook->get_front()).intersect(state.platform);
+        this->delta_time = state.delta_time;
+        this->intersection =
+                aabb_ray_intersection::Ray(
+                        this->camera_hook->get_position(),
+                        this->camera_hook->get_front()).intersect(state.platform);
 
         if (this->intersection) {
             const auto &ref = this->intersection.value();
         }
-    }
-
-    auto Player::update_delta_time(f64 dt) -> void {
-        this->delta_time = dt;
     }
 
     auto Player::get_camera() -> Camera & {

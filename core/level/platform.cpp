@@ -24,6 +24,8 @@
 
 namespace core::level::platform {
 
+
+
     /**
      * @brief Update platform if needed. Load new chunks if threshold is hit.
      * @param thread_pool Pool to offload tasks.
@@ -39,69 +41,57 @@ namespace core::level::platform {
                 std::lround(static_cast<i32>(cameraPos.z / CHUNK_SIZE)) * CHUNK_SIZE
         };
 
-        switch (this->level_state) {
+        static auto init_fun = [&](Init) -> PlatformState {
+            this->new_root = new_root_candidate;
+            load_chunks(state.chunk_tick_pool);
+            return Loading {};
+        };
 
-            // the initial state of a platform - nothing is loaded
-            case INIT: {
-                this->new_root = new_root_candidate;
-                load_chunks(state.chunk_tick_pool);
-                this->level_state = LOADING;
+        static auto idle_fun = [&](Idle) -> PlatformState {
+            if (this->queue_ready || !LOAD_THRESHOLD(this->current_root, new_root_candidate))
+                return Idle {};
 
-                break;
-            }
+            if (!state.chunk_tick_pool.no_tasks())
+                return Idle {};
 
-            // no threshold has been passed
-            case IDLE: {
-                if (this->queue_ready || !LOAD_THRESHOLD(this->current_root, new_root_candidate))
-                    break;
+            this->new_root = new_root_candidate;
+            load_chunks(state.chunk_tick_pool);
+            return Loading {};
+        };
 
-                if (!state.chunk_tick_pool.no_tasks())
-                    break;
+        static auto loading_fun = [&](Loading) -> PlatformState {
+            if (!state.chunk_tick_pool.no_tasks())
+                return Loading {};
 
-                this->new_root = new_root_candidate;
-                load_chunks(state.chunk_tick_pool);
-                this->level_state = LOADING;
+            compress_chunks(state.chunk_tick_pool);
+            return Compressing {};
+        };
 
-                break;
-            };
+        static auto compressing_fun = [&](Compressing) -> PlatformState  {
+            if (!state.chunk_tick_pool.no_tasks())
+                return Compressing {};
 
-            // loading and initializing new chunks
-            case LOADING: {
-                if (!state.chunk_tick_pool.no_tasks())
-                    break;
+            swap_chunks();
+            return Swapping {};
+        };
 
-                compress_chunks(state.chunk_tick_pool);
-                this->level_state = COMPRESSING;
+        static auto swapping_fun = [&](Swapping) -> PlatformState  {
+            unload_chunks(state.chunk_tick_pool);
+            return Unloading {};
+        };
 
-                break;
-            };
+        static auto unloading_fun = [&](Unloading) -> PlatformState  {
+            if (!state.chunk_tick_pool.no_tasks())
+                return Unloading {};
 
-            // compressing the SVO's inside the chunks
-            case COMPRESSING: {
-                if (!state.chunk_tick_pool.no_tasks())
-                    break;
+            return Idle {};
+        };
 
-                swap_chunks();
-                this->level_state = SWAPPING;
-                break;
-            }
+        static auto visitor = overload {
+            init_fun, idle_fun, loading_fun, compressing_fun, swapping_fun, unloading_fun
+        };
 
-            // sliding window swap of active renderable chunks
-            case SWAPPING: {
-                unload_chunks(state.chunk_tick_pool);
-                this->level_state = UNLOADING;
-                break;
-            };
-
-            // unloading inactive, old chunks
-            case UNLOADING: {
-                if (!state.chunk_tick_pool.no_tasks())
-                    break;
-
-                this->level_state = IDLE;
-                break;
-            };
-        }
+        this->platform_state = std::visit(visitor, this->platform_state);
     }
 
     /**
@@ -201,7 +191,7 @@ namespace core::level::platform {
                             this->new_root - this->current_root) / static_cast<f32>(CHUNK_SIZE);
 
                     if (DISTANCE_2D(glm::vec2(-0.5), old_pos) < RENDER_RADIUS &&
-                        this->level_state == IDLE) {
+                        std::holds_alternative<Idle>(this->platform_state)) {
 
                         this->queued_chunks[INDEX(x, z)] =
                                 this->active_chunks[INDEX(old_pos.x, old_pos.y)];
@@ -301,28 +291,18 @@ namespace core::level::platform {
         return this->current_root;
     }
 
-    auto Platform::get_nearest_chunks(
-            const glm::vec3 &pos) -> std::optional<std::array<chunk::Chunk *, 4>> {
-        std::unique_lock lock { this->mutex };
+    auto Platform::get_nearest_chunks(const glm::ivec3 &pos) -> std::array<chunk::Chunk *, 4> {
+        auto root = pos - glm::ivec3(this->current_root.x, 0, this->current_root.y);
+        root = root / CHUNK_SIZE - 1;
 
-        auto root = glm::vec2 {
-                static_cast<i32>(pos.x / CHUNK_SIZE) - 1,
-                static_cast<i32>(pos.z / CHUNK_SIZE) - 1
+        root.x += (std::abs(pos.x) % CHUNK_SIZE > CHUNK_SIZE / 2) * ((pos.x > 0) - (pos.x <= 0));
+        root.z += (std::abs(pos.z) % CHUNK_SIZE > CHUNK_SIZE / 2) * ((pos.z > 0) - (pos.z <= 0));
+
+        return {
+            this->active_chunks[INDEX(root.x,     root.z)],
+            this->active_chunks[INDEX(root.x + 1, root.z)],
+            this->active_chunks[INDEX(root.x,     root.z + 1)],
+            this->active_chunks[INDEX(root.x + 1, root.z + 1)]
         };
-
-        if (std::abs(static_cast<i32>(pos.x)) % CHUNK_SIZE > CHUNK_SIZE / 2)
-            root.x += pos.x > 0 ? 1 : -1;
-
-        if (std::abs(static_cast<i32>(pos.z)) % CHUNK_SIZE > CHUNK_SIZE / 2)
-            root.y += pos.z > 0 ? 1 : -1;
-
-        auto arr = std::array {
-                this->active_chunks[INDEX(root.x,     root.y)],
-                this->active_chunks[INDEX(root.x + 1, root.y)],
-                this->active_chunks[INDEX(root.x,     root.y + 1)],
-                this->active_chunks[INDEX(root.x + 1, root.y + 1)]
-        };
-
-        return std::make_optional(std::move(arr));
     }
 }

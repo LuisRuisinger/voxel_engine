@@ -23,16 +23,22 @@
 namespace core::level::platform {
     using namespace util;
 
-    enum State : u8 {
-        INIT        = 0,
-        IDLE        = 1,
-        LOADING     = 2,
-        COMPRESSING = 3,
-        SWAPPING    = 4,
-        UNLOADING   = 5
-    };
+    struct Init {};
+    struct Idle {};
+    struct Loading{};
+    struct Compressing{};
+    struct Swapping{};
+    struct Unloading{};
 
-class Platform :
+    template<typename ...Ts>
+    struct overload : Ts... { using Ts::operator()...; };
+
+    template<typename ...Ts>
+    overload(Ts...) -> overload<Ts...>;
+
+    using PlatformState = std::variant<Init, Idle, Loading, Compressing, Swapping, Unloading>;
+
+    class Platform :
         public traits::Tickable<Platform>,
         public traits::Updateable<Platform> {
     public:
@@ -43,7 +49,7 @@ class Platform :
         auto update(state::State &state) -> void;
         auto get_world_root() const -> glm::vec2;
         auto get_visible_faces(util::camera::Camera &camera) -> size_t;
-        auto get_nearest_chunks(const glm::vec3 &) -> std::optional<std::array<chunk::Chunk *, 4>>;
+        auto get_nearest_chunks(const glm::ivec3 &) -> std::array<chunk::Chunk *, 4>;
 
     private:
         auto unload_chunks(threading::thread_pool::Tasksystem<> &) -> void;
@@ -62,7 +68,8 @@ class Platform :
         glm::vec2 new_root = {0.0F, 0.0F};
         std::mutex mutex;
         std::atomic<bool> queue_ready    = false;
-        State level_state = INIT;
+
+        PlatformState platform_state;
     };
 }
 

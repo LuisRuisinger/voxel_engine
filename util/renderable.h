@@ -73,8 +73,10 @@ namespace util::renderable {
         }
 
         auto draw() -> void {
-            drop_buffer();
+            if (!this->vertex_count)
+                return;
 
+            drop_buffer();
             OPENGL_VERIFY(glDrawElements(
                     GL_TRIANGLES,
                     static_cast<u32>(this->vertex_count * 1.5F),
@@ -219,7 +221,6 @@ namespace util::renderable {
         }
 
         auto drop_buffer() -> void {
-            ASSERT_EQ(this->buffer_handle);
             OPENGL_VERIFY(glUnmapBuffer(GL_ARRAY_BUFFER));
             this->buffer_handle = nullptr;
             this->buffer_offset = 0;

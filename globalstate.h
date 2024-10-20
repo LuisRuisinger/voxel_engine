@@ -99,20 +99,15 @@ public:
 
         DEBUG_LOG("Init scheduled executor callbacks")
         this->executor.enqueue_detach(std::move([&]() -> void {
-            this->time = glfwGetTime();
-            this->delta_time = this->time - this->last_frame;
-            this->last_frame = time;
-            this->state.player.update_delta_time(this->delta_time);
 
+            // must happen first to update deltatime / tick updates
             this->state.tick(state);
-            this->state.player.tick(state);
-            this->state.platform.tick(state);
 
-            // the sun tick must happen after player movement because the depth map orientation
-            // and size is calculated using the player position / player camera orientation
-            // and the now changed sun position and orientation
+            this->state.platform.tick(state);
+            this->state.player.tick(state);
             this->sun.tick(state);
 
+            // keyboard input
             this->key_map.run_repeat();
         }));
     }
@@ -173,14 +168,13 @@ private:
     // memory
     core::memory::arena_allocator::ArenaAllocator allocator;
 
-    // concurrency
+    // executor
     core::threading::executor::ScheduledExecutor<> executor;
+
+    // pools
     core::threading::thread_pool::Tasksystem<> render_pool;
     core::threading::thread_pool::Tasksystem<> chunk_tick_pool;
     core::threading::thread_pool::Tasksystem<> normal_tick_pool;
-
-    // tile system
-    // static core::level::tiles::tile_manager::TileManager tile_manager;
 
     // rendering
     core::rendering::renderer::Renderer renderer;
@@ -193,12 +187,9 @@ private:
     // utils
     util::player::Player player;
     util::sun::Sun sun;
-    core::state::State state;
 
-    // frames
-    f64 delta_time;
-    f64 last_frame;
-    f64 time;
+    // game state
+    core::state::State state;
 };
 
 #endif //OPENGL_3D_ENGINE_GLOBALSTATE_H

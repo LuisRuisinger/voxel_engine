@@ -30,21 +30,12 @@ namespace util::culling {
         auto cube_visible(const glm::vec3 &point, u32 scale) const -> bool;
         auto square_visible(const glm::vec2 &point, u32 scale) const -> bool;
 
-        auto cube_visible(glm::vec3 &&point, u32 scale) const -> bool;
-        auto square_visible(glm::vec2 &&point, u32 scale) const -> bool;
-
         auto cube_visible_type(const glm::vec3 &point, u32 scale) const -> CollisionType;
         auto squere_visible_type(const glm::vec2 &point, u32 scale) const -> CollisionType;
-
-        auto cube_visible_type(glm::vec3 &&point, u32 scale) const -> CollisionType;
-        auto squere_visible_type(glm::vec2 &&point, u32 scale) const -> CollisionType;
 
     private:
         auto sphere_frustum_collision(const glm::vec3 &point, f32 radius) const -> CollisionType;
         auto cirle_frustuM_collision(const glm::vec2 &point, f32 radius) const -> CollisionType;
-
-        auto sphere_frustum_collision(glm::vec3 &&point, f32 radius) const -> CollisionType;
-        auto cirle_frustuM_collision(glm::vec2 &&point, f32 radius) const -> CollisionType;
 
         glm::vec3 cam_pos;
         glm::vec3 x_vec;

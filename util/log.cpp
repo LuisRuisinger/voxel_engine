@@ -11,18 +11,14 @@ namespace util::log {
             std::string file,
             std::string caller,
             const size_t line) -> void {
-        // Normalize and strip the project root directory from the file path
-        std::filesystem::path file_path = std::filesystem::canonical(file);
-        std::string f = file_path.string();
-
-        // Remove the project root prefix
+        const std::filesystem::path file_path = std::filesystem::canonical(file);
         const std::string project_root = PROJECT_ROOT_DIR;
-        size_t pos = f.find(PROJECT_ROOT_DIR);
-        if (pos != std::string::npos) {
-            f = f.substr(pos + project_root.length() + 1);
-        }
 
-        // Remove the file extension
+        auto f = file_path.string();
+        auto pos = f.find(PROJECT_ROOT_DIR);
+        if (pos != std::string::npos)
+            f = f.substr(pos + project_root.length() + 1);
+
         f = std::regex_replace(f, std::regex("\\.(cpp|h)$"), "");
 
         std::ostringstream oss;
@@ -37,10 +33,14 @@ namespace util::log {
             << "[" << caller << "] "
             << "| " << out;
 
-        if (oss.str().back() != '\n') {
+        if (oss.str().back() != '\n')
             oss << '\n';
-        }
 
-        kind != Level::LOG_LEVEL_ERROR ? std::cout << oss.str() : std::cerr << oss.str();
+        if (Level::LOG_LEVEL_ERROR) {
+            std::cerr << oss.str();
+        }
+        else {
+            std::cout << oss.str();
+        }
     }
 }

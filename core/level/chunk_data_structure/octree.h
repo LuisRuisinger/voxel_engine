@@ -29,7 +29,7 @@ namespace core::level::octree {
         auto addPoint(u64) -> node::Node *;
         auto removePoint(u16) -> void;
         auto cull(
-                const glm::vec3 &,
+                const glm::ivec3 &,
                 const util::camera::Camera &,
                 const VERTEX *,
                 u64 &) const
