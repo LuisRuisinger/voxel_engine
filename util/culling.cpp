@@ -3,6 +3,7 @@
 //
 
 #include "culling.h"
+#include "log.h"
 
 namespace util::culling {
     auto Frustum::set_cam_internals(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void {
@@ -48,29 +49,28 @@ namespace util::culling {
     }
 
     auto Frustum::sphere_frustum_collision(
-            const glm::vec3 &point,
-            f32 radius) const -> CollisionType {
+            const glm::vec3 &point, f32 radius) const -> CollisionType {
         glm::vec3 v = point - this->cam_pos;
-
-        auto ax = glm::dot(v, this->x_vec);
-        auto ay = glm::dot(v, this->y_vec);
         auto az = glm::dot(v, this->z_vec);
 
+        if (az < this->near_distance || az > this->far_distance) {
+            return OUTSIDE;
+        }
+
+        auto ay = glm::dot(v, this->y_vec);
         auto az_t = az * this->tang;
         auto sr = this->sphere_factor_x * radius;
 
-        if (ay > az_t + sr || ay < -az_t - sr)
+        if (ay > az_t + sr || ay < -az_t - sr) {
             return OUTSIDE;
+        }
 
+        auto ax = glm::dot(v, this->x_vec);
         auto max_az_x = az_t * this->ratio;
-        if (ax > max_az_x + sr || ax < -max_az_x - sr)
+
+        if (ax > max_az_x + sr || ax < -max_az_x - sr) {
             return OUTSIDE;
-
-        if (ay > az_t - sr || ay < -az_t + sr)
-            return INTERSECT;
-
-        if (ax > max_az_x - sr || -max_az_x + sr)
-            return INTERSECT;
+        }
 
         return INSIDE;
     }
