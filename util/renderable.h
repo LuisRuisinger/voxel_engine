@@ -10,7 +10,7 @@
 #include "../core/opengl/opengl_verify.h"
 
 #include "indices_generator.h"
-#include "aliases.h"
+#include "defines.h"
 
 namespace util::renderable {
     using namespace core::rendering;

@@ -10,7 +10,7 @@
 #include <chrono>
 
 #include "glm/vec3.hpp"
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 
 namespace core::rendering::interface {
     auto init(GLFWwindow *) -> void;

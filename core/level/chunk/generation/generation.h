@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_GENERATION_H
 #define OPENGL_3D_ENGINE_GENERATION_H
 
-#include "../../../util/aliases.h"
+#include "../../../util/defines.h"
 #include "../../../util/perlin_noise.hpp"
 
 namespace core::level::chunk {

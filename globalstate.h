@@ -26,7 +26,7 @@ class Engine {
 public:
     auto init() -> void {
         DEBUG_LOG("Engine init");
-        auto window = this->window_handler.init();
+        this->window = this->window_handler.init();
 
         DEBUG_LOG("Init framebuffer size callbacks");
         this->window_handler.add_framebuffer_size_callback(
@@ -136,26 +136,26 @@ public:
     }
 
     Engine()
-        : window_handler   {                         },
-          key_map          {                         },
-          allocator        {                         },
-          renderer         {                         },
-          executor         {                         },
-          render_pool      {                         },
-          chunk_tick_pool  {                         },
-          normal_tick_pool {                         },
-          chunk_renderer   { &this->allocator        },
-          water_renderer   { &this->allocator        },
-          platform         {                         },
-          player           { this->key_map },
-          sun              {                         },
+        : window_handler   {                                                                     },
+          key_map          {                                                                     },
+          allocator        {                                                                     },
+          renderer         {                                                                     },
+          executor         {                                                                     },
+          render_pool      {                                                                     },
+          chunk_tick_pool  {                                                                     },
+          normal_tick_pool {                                                                     },
+          chunk_renderer   { &this->allocator, core::memory::linear_allocator::voxel_buffer_size },
+          water_renderer   { &this->allocator, core::memory::linear_allocator::water_buffer_size },
+          platform         {                                                                     },
+          player           { this->key_map                                                       },
+          sun              {                                                                     },
           state            { this->render_pool,
                              this->chunk_tick_pool,
                              this->normal_tick_pool,
                              this->renderer,
                              this->platform,
                              this->player,
-                             this->sun               }
+                             this->sun                                                           }
     {}
 
 
@@ -169,7 +169,7 @@ private:
     core::memory::arena_allocator::ArenaAllocator allocator;
 
     // executor
-    core::threading::executor::ScheduledExecutor<> executor;
+    core::threading::executor::ScheduledExecutor<50> executor;
 
     // pools
     core::threading::thread_pool::Tasksystem<> render_pool;
@@ -190,6 +190,9 @@ private:
 
     // game state
     core::state::State state;
+
+    // window
+    GLFWwindow *window;
 };
 
 #endif //OPENGL_3D_ENGINE_GLOBALSTATE_H

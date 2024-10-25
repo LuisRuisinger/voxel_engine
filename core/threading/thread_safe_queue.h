@@ -11,8 +11,9 @@
 #include <mutex>
 #include <optional>
 #include <future>
+#include <atomic>
 
-#include "../../util/log.h"
+#include "../util/log.h"
 
 namespace core::threading {
     template<typename Lock>
@@ -33,7 +34,6 @@ namespace core::threading {
          * @param  t Rvalue reference of template parameter T.
          * @return Boolean indicating if pushing was successful.
          */
-
         auto try_push(T &&t) -> bool {
             {
                 std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
@@ -50,7 +50,6 @@ namespace core::threading {
          * @param  t Reference to instance of template parameter T.
          * @return Boolean indicating if popping was successful.
          */
-
         auto try_pop(T &t) -> bool {
             {
                 std::unique_lock<std::mutex> lock { this->mutex, std::try_to_lock };
@@ -61,6 +60,22 @@ namespace core::threading {
                 this->queue.pop_front();
             }
             return true;
+        }
+
+        auto try_priority_push(T &&t) -> bool {
+            {
+                std::unique_lock<std::mutex> lock { this->mutex, std::try_lock };
+                if (!lock)
+                    return false;
+
+                this->queue.push_front(std::forward<T>(t));
+            }
+
+            return true;
+        }
+
+        auto try_top() -> T * {
+            return nullptr;
         }
 
     private:

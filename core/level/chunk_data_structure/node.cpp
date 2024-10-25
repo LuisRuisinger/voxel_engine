@@ -120,13 +120,14 @@ namespace core::level::node {
         if (((this->packed_data & node_inline::exponent_and) > node_inline::exponent_check) &&
             (type == util::culling::INTERSECT)) {
             const auto scale = 1 << ((this->packed_data >> SHIFT_HIGH) & MASK_3);
-            const auto position = glm::vec3 {
+            auto position = glm::vec3 {
                     (this->packed_data >> 45) & MASK_5,
                     (this->packed_data >> 40) & MASK_5,
                     (this->packed_data >> 35) & MASK_5
             };
+            position += glm::vec3(args._point);
 
-            if ((type = args._camera.frustum_collision(glm::vec3(args._point) + position, scale)) ==
+            if ((type = args._camera.frustum_collision(position, scale)) ==
                 util::culling::CollisionType::OUTSIDE) {
                 return;
             }

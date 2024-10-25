@@ -13,7 +13,7 @@
 
 #include "../core/opengl/opengl_verify.h"
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/result.h"
 #include "../util/log.h"
 

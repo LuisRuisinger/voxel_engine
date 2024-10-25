@@ -20,7 +20,7 @@
 
 #include "thread_safe_queue.h"
 #include "spmc_queue.h"
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../util/log.h"
 #include "../../util/assert.h"
 #include "thread.h"
@@ -45,10 +45,7 @@ namespace core::threading::thread_pool {
               task_queue            { thread_count }
         {
             for (size_t i = 0; i < this->thread_instance_count; ++i) {
-                this->thread_instances.emplace_back(
-                        [&, idx = i] {
-                            run(idx);
-                        });
+                this->thread_instances.emplace_back([&, i] { run(i); });
             }
         }
 
@@ -72,12 +69,13 @@ namespace core::threading::thread_pool {
          */
         template <typename F>
         auto try_schedule(F &&f) -> bool {
-            u32 i = this->enqueue_task_index.fetch_add(1, std::memory_order_release) %
+            const u32 i = this->enqueue_task_index.fetch_add(1, std::memory_order_release) %
                     this->thread_instance_count;
 
             for (size_t n = 0; n < this->thread_instance_count; ++n) {
-                if (this->task_queue[(i + n) % this->thread_instance_count].try_push(
-                        std::forward<F>(f))) {
+                const auto idx = (i + n) % this->thread_instance_count;
+
+                if (this->task_queue[idx].try_push(std::forward<F>(f))) {
                     this->enqueued_tasks_count.fetch_add(1, std::memory_order_relaxed);
                     this->active_tasks_count.fetch_add(1, std::memory_order_relaxed);
                     this->tasks_available.notify_one();
@@ -87,6 +85,18 @@ namespace core::threading::thread_pool {
             }
 
             return false;
+        }
+
+        template <typename F, typename ...Args>
+        requires std::invocable<F, Args...> &&
+                 std::is_same_v<void, std::invoke_result_t<F &&, Args &&...>>
+        ALWAYS_INLINE
+        auto construct_detached_task(F &&fun, Args &&...args) -> std::function<void()> {
+            return [
+                fun = std::forward<F>(fun),
+                ...args = std::forward<Args>(args)]() mutable -> void {
+                    WRAPPED_EXEC(std::invoke(fun, args...));
+            };
         }
 
         /**
@@ -100,16 +110,12 @@ namespace core::threading::thread_pool {
         requires std::invocable<F, Args...> &&
                  std::is_same_v<void, std::invoke_result_t<F &&, Args &&...>>
         auto enqueue_detach(F &&fun, Args &&...args) -> void {
-            auto task = [
-                    fun = std::forward<F>(fun),
-                    ...args = std::forward<Args>(args)]() mutable -> void {
-                    WRAPPED_EXEC(std::invoke(fun, args...));
-            };
+            auto task = construct_detached_task(std::forward<F>(fun), std::forward<Args>(args)...);
 
             // trying until enqueued
             while (!try_schedule(std::move(task)));
         }
-
+        
         /**
          * @brief  Enqueue a task with async result.
          * @tparam F An invokable type.
@@ -128,7 +134,9 @@ namespace core::threading::thread_pool {
             auto promise = std::promise<Ret>(packaged_task.getfuture());
             auto future  = promise.get_future();
 
-            auto task = [func = std::move(f), ... largs = std::move(args), promise = std::move(promise)]() mutable {
+            auto task = [
+                    func = std::move(f),
+                    ... largs = std::move(args), promise = std::move(promise)]() mutable -> void {
                 try {
                     if constexpr (std::is_same_v<ReturnType, void>) {
                         func(largs...);
@@ -208,6 +216,8 @@ namespace core::threading::thread_pool {
             DEBUG_LOG("Thread id " + std::to_string(i) + " init");
             worker_id = i;
 
+            //static_cast<T *>(this)->run(i);
+
             Function_type task;
             bool dequeue;
 
@@ -264,8 +274,6 @@ namespace core::threading::thread_pool {
         std::condition_variable tasks_available;
         std::condition_variable tasks_finished;
     };
-
-
 }
 
 #endif //OPENGL_3D_ENGINE_THREAD_POOL_H

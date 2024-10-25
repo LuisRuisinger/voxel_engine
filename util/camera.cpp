@@ -5,7 +5,7 @@
 #include <algorithm>
 
 #include "camera.h"
-#include "aliases.h"
+#include "defines.h"
 #include "log.h"
 
 #define HORIZONTAL_THRESHOLD 0.55F

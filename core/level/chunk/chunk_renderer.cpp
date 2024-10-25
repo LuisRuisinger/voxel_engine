@@ -6,8 +6,8 @@
 #include "../util/player.h"
 
 namespace core::level::chunk::chunk_renderer {
-    ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator)
-            : allocator { allocator },
+    ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator, size_t allocator_size)
+            : allocator { allocator, allocator_size },
               storage(std::thread::hardware_concurrency())
     {}
 
@@ -25,8 +25,10 @@ namespace core::level::chunk::chunk_renderer {
         auto _batch = batch(sizeof(VERTEX));
         for (auto i = 0; i < this->storage.size(); ++i) {
             this->storage[i].clear();
+
+            auto *ptr = this->allocator.allocate(_batch, sizeof(VERTEX));
             this->storage[i].push_back({
-                .mem = this->allocator.allocate<VERTEX>(_batch),
+                .mem = reinterpret_cast<VERTEX *>(ptr),
                 .capacity = _batch,
                 .size = 0
             });
@@ -91,10 +93,12 @@ namespace core::level::chunk::chunk_renderer {
 
         if (vec.back().size + len > vec.back().capacity) [[unlikely]] {
             auto _batch = batch(sizeof(VERTEX));
+            auto *ptr = this->allocator.allocate(_batch, sizeof(VERTEX));
+
             vec.push_back({
-                this->allocator.allocate<VERTEX>(_batch),
-                _batch,
-                0
+                .mem = reinterpret_cast<VERTEX *>(ptr),
+                .capacity = _batch,
+                .size = 0
             });
 
             ASSERT_EQ(vec.back().mem);

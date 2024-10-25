@@ -7,7 +7,7 @@
 
 #include <fstream>
 
-#include "aliases.h"
+#include "defines.h"
 #include "log.h"
 
 namespace util::bin_file {

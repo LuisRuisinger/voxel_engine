@@ -13,7 +13,7 @@
 #include "../rendering/renderer.h"
 #include "../threading/thread_pool.h"
 
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../util/reflections.h"
 #include "../state.h"
 #include "../../util/traits.h"

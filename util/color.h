@@ -8,7 +8,7 @@
 #include <array>
 
 #include "../core/opengl/opengl_verify.h"
-#include "aliases.h"
+#include "defines.h"
 
 namespace util {
     namespace color {

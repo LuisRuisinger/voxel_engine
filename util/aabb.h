@@ -10,7 +10,7 @@
 #define GLM_FORCE_AVX
 #endif
 
-#include "aliases.h"
+#include "defines.h"
 
 #if defined(__GNUC__) || defined(__clang__)
     #define INLINE __attribute__((always_inline))

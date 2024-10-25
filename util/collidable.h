@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "aabb.h"
-#include "aliases.h"
+#include "defines.h"
 
 namespace util::collidable {
 

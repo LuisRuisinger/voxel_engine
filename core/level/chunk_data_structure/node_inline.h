@@ -22,7 +22,7 @@
 #include "node.h"
 
 #include "../util/assert.h"
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/aabb.h"
 
 #define BASE_SIZE     0x1

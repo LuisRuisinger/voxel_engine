@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_AABB_RAY_INTERSECTION_H
 #define OPENGL_3D_ENGINE_AABB_RAY_INTERSECTION_H
 
-#include "aliases.h"
+#include "defines.h"
 
 #include "../core/level/platform.h"
 

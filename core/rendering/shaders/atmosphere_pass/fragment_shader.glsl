@@ -31,21 +31,23 @@ in vec3 WorldPosition;
 
 out vec4 FragColor;
 
-float RayleighPhaseFunction(float cosTheta) {
+float RayleighPhaseFunction(float cos_theta) {
     // Original rayleigh phase function.
-    // return 0.75 * (1 + pow(cosTheta, 2));
+    // return 0.75 * (1 + pow(cos_theta, 2));
 
     // Modified to better account for sun-view azimuth as described in Section 4.1 of:
     // http://publications.lib.chalmers.se/records/fulltext/203057/203057.pdf
-    return 0.8 * (1.4 + 0.5*cosTheta);
+    return 0.8F * (1.4F + 0.5F * cos_theta);
 }
 
-float MiePhaseFunction(float cosTheta, float g) {
+float MiePhaseFunction(float cos_theta, float g) {
     float g2 = g * g;
-    float t2 = cosTheta * cosTheta;
-    float result = 3.0 / 2.0;
+    float t2 = cos_theta * cos_theta;
+    
+    float result = 1.5F;
     result *= (1.0 - g2) / (2.0 + g2);
-    result *= (1.0 + t2) / pow(1.0 + g2 - 2.0*g*t2, 3.0/2.0);
+    result *= (1.0 + t2) / pow(1.0 + g2 - 2.0F * g * t2, 1.5F);
+    
     return result;
 }
 
@@ -70,8 +72,8 @@ void main() {
     // at the highest y angle <=> inverse of (0, -1, 0) : (0, 1, 0) the limit of the dot
     // product is reached resulting in -1 => yields 0 for u
     // therefore we only observe the lower 50% of the texture to calculate the ambient texture
-    float u = 0.5 * (1.0 + sign(cosV)*pow(abs(cosV), 1.0/3.0));
-    float v = 0.5 * (1.0 + sign(cosL)*pow(abs(cosL), 1.0/3.0));
+    float u = 0.5F * (1.0F + sign(cosV)*pow(abs(cosV), 1.0/3.0));
+    float v = 0.5F * (1.0F + sign(cosL)*pow(abs(cosL), 1.0/3.0));
 
     // Sample the textures.
     vec3 rayleigh = texture(rayleighTexture, vec2(u, v)).rgb;
@@ -84,14 +86,14 @@ void main() {
     // Calculate the view-sun angle for the phase function.
     // Note: we clamp it between [0, 1] or else we would get the sun
     // on both sides of the light direction.
-    float cosTheta = dot(viewDir, lightDir);
+    float cos_theta = dot(viewDir, lightDir);
 
     // changed from saturate
-    cosTheta = clamp(cosTheta, 0.0F, 1.0F);
+    cos_theta = clamp(cos_theta, 0.0F, 1.0F);
 
     // Apply the phase function.
-    rayleigh *= RayleighPhaseFunction(cosTheta);
-    mie *= MiePhaseFunction(cosTheta, mieG);
+    rayleigh *= RayleighPhaseFunction(cos_theta);
+    mie *= MiePhaseFunction(cos_theta, mieG);
 
     // Compute the scattering, and apply the spectral irradiance to
     // get the spectral radiance for this fragment.
@@ -104,8 +106,7 @@ void main() {
     // the spectral radiance to RGB values.
     vec3 rgb = radiance * SPECTRAL_TO_RGB;
 
-    if (acos(cosTheta) < SUN_ANGULAR_RADIUS)
-    {
+    if (acos(cos_theta) < SUN_ANGULAR_RADIUS) {
         // TODO: this is not physically correct. It only works for exposure < 1.
         // Technically it should be multiplied by the transmittance.
         rgb /= SPECTRAL_IRRADIANCE * vec3(exposure);

@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_KEYMAP_H
 #define OPENGL_3D_ENGINE_KEYMAP_H
 
-#include "aliases.h"
+#include "defines.h"
 
 enum Mousemap : u32 {
     MOUSE_BUTTON_LEFT   = 0,

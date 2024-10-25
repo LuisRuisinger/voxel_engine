@@ -11,7 +11,7 @@
 #include <ranges>
 #include <atomic>
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/assert.h"
 
 #define KByte(_v)  ((_v) * 1000)
@@ -24,23 +24,7 @@
 
 #define HUGE_PAGE  (MiByte(2))
 
-#if defined(__GNUC__) || defined(__clang__)
-    #define INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-#define INLINE __forceinline
-#else
-    #define INLINE inline
-#endif
-
 namespace core::memory::memory {
-    template <typename T>
-    struct SLL {
-        size_t size;
-        T *ptr;
-        std::atomic<bool> used;
-        std::atomic<SLL<T> *> next;
-    };
-
     enum Error : u8 {
         ALLOC_FAILED,
         ALLOC_PAGE_FAILED,
@@ -59,11 +43,11 @@ namespace core::memory::memory {
      * @return The alignment in bytes as uintptr_t.
      */
     template <typename T>
-    INLINE auto ptr_offset(void *ptr) noexcept -> uintptr_t {
+    ALWAYS_INLINE
+    auto ptr_offset(void *ptr) noexcept -> uintptr_t {
         constexpr const uintptr_t align = sizeof(T) - 1;
         return ((~reinterpret_cast<uintptr_t>(ptr)) + 1) & align;
     }
 }
 
-#undef INLINE
 #endif //OPENGL_3D_ENGINE_MEMORY_H

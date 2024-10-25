@@ -18,7 +18,7 @@
 #include "../core/rendering/framebuffer.h"
 #include "../core/rendering/skybox_renderer.h"
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/camera.h"
 #include "../util/renderable.h"
 
@@ -32,6 +32,11 @@ namespace core::rendering::renderer {
         UI_RENDERER,
         DIAGNOSTICS_RENDERER,
         SKYBOX_RENDERER
+    };
+
+    template <typename T>
+    class Pass {
+
     };
 
     class Renderer {
@@ -53,6 +58,14 @@ namespace core::rendering::renderer {
         auto resize(i32, i32) -> void;
 
     private:
+        auto init_geometry_pass() -> void;
+        auto init_shading_pass() -> void;
+        auto init_atmosphere_pass() -> void;
+        auto init_ssao_pass() -> void;
+        auto init_ssao_blur_pass() -> void;
+        auto init_depth_map_pass() -> void;
+        auto init_water_pass() -> void;
+
         std::vector<std::pair<RenderType, Renderable<BaseInterface> *>> sub_renderer;
 
         framebuffer::Framebuffer depth_map_buffer;
@@ -77,7 +90,6 @@ namespace core::rendering::renderer {
 
         GLuint quad_VAO;
         GLuint quad_VBO;
-
         GLuint ls_matrices_UBO;
 
         u32 water_normal_tex;

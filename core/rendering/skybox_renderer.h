@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_SKYBOX_RENDERER_H
 #define OPENGL_3D_ENGINE_SKYBOX_RENDERER_H
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/renderable.h"
 
 namespace core::rendering::skybox_renderer {

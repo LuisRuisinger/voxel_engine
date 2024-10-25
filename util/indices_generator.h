@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_INDICES_GENERATOR_H
 #define OPENGL_3D_ENGINE_INDICES_GENERATOR_H
 
-#include "aliases.h"
+#include "defines.h"
 
 #define INDICES_PER_FACE 6
 

@@ -12,7 +12,7 @@
 #include <string>
 
 #include "glm/gtc/matrix_transform.hpp"
-#include "../../../util/aliases.h"
+#include "../../../util/defines.h"
 
 #define TEX_DIFF "texture_diffuse"
 #define TEX_SPEC "texture_specular"

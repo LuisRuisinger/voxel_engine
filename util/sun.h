@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_SUN_H
 #define OPENGL_3D_ENGINE_SUN_H
 
-#include "aliases.h"
+#include "defines.h"
 #include "traits.h"
 #include "camera.h"
 #include "aabb.h"

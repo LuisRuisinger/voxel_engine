@@ -269,7 +269,7 @@ namespace core::level::platform {
         // check if new chunks need to be added to the active pool
         // try lock to ensure no amount of frame freeze happens
         std::unique_lock lock { this->mutex };
-
+        
         if (this->queue_ready) {
             for (const auto& [k, v] : this->active_chunks_vec) {
                 state.render_pool.enqueue_detach(update_render_fun, k, v, state);

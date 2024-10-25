@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_TIME_H
 #define OPENGL_3D_ENGINE_TIME_H
 
-#include "aliases.h"
+#include "defines.h"
 #include "traits.h"
 
 namespace util::time {

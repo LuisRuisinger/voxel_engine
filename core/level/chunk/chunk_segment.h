@@ -10,7 +10,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include "../../../util/aliases.h"
+#include "../../../util/defines.h"
 #include "../chunk_data_structure/octree.h"
 
 namespace core::level::platform {

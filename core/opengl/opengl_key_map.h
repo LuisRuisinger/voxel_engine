@@ -8,7 +8,7 @@
 #include <memory>
 #include <map>
 
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../util/keymap.h"
 
 namespace core::opengl::opengl_key_map {

@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_CHUNK_RENDERER_H
 #define OPENGL_3D_ENGINE_CHUNK_RENDERER_H
 
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../memory/linear_allocator.h"
 #include "../../memory/arena_allocator.h"
 #include "../../util/renderable.h"
@@ -26,7 +26,7 @@ namespace core::level::chunk::chunk_renderer {
 
     class ChunkRenderer : public util::renderable::Renderable<ChunkRenderer> {
     public:
-        ChunkRenderer(arena_allocator::ArenaAllocator *);
+        ChunkRenderer(arena_allocator::ArenaAllocator *, size_t);
 
         // renderable
         auto init() -> void;

@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_BINARY_CONVERSION_H
 #define OPENGL_3D_ENGINE_BINARY_CONVERSION_H
 
-#include "aliases.h"
+#include "defines.h"
 
 #include <stdlib.h>
 #include <type_traits>

@@ -14,7 +14,7 @@
 #include <stack>
 #include <functional>
 
-#include "../../../util/aliases.h"
+#include "../../../util/defines.h"
 #include "glad/glad.h"
 #include "node_inline.h"
 #include "node.h"

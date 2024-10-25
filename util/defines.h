@@ -2,8 +2,8 @@
 // Created by Luis Ruisinger on 29.03.24.
 //
 
-#ifndef OPENGL_3D_ENGINE_ALIASES_H
-#define OPENGL_3D_ENGINE_ALIASES_H
+#ifndef OPENGL_3D_ENGINE_DEFINES_H
+#define OPENGL_3D_ENGINE_DEFINES_H
 
 #include <cstdint>
 #include <cmath>
@@ -11,6 +11,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
+using usize = size_t;
 using u8  = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -26,7 +27,7 @@ using f64 = double_t;
 #define MIN_HEIGHT          -128
 #define HEIGHT_01           528
 #define CHUNK_SIZE          32
-#define RENDER_RADIUS       16
+#define RENDER_RADIUS       8
 #define RENDER_DISTANCE     (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
 #define SQRT_2              1.4142135623730951F
 #define DEFAULT_WIDTH       1920
@@ -50,12 +51,23 @@ using f64 = double_t;
             static constexpr size_t count = sizeof(enum_size) / sizeof(i32); \
     }
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define ALWAYS_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define ALWAYS_INLINE __forceinline
+#else
+    #define ALWAYS_INLINE inline
+#endif
+
 #ifdef __AVX2__
 #include <immintrin.h>
     #define VERTEX __m256i
 #else
     #define VERTEX u64
 #endif
+
+#define IS_POW_2(x) \
+    (!((x) & ((x) - 1)))
 
 namespace util {
     template <typename C, typename ...Args>
@@ -69,4 +81,4 @@ namespace util {
     }
 }
 
-#endif //OPENGL_3D_ENGINE_ALIASES_H
+#endif //OPENGL_3D_ENGINE_DEFINES_H

@@ -9,7 +9,7 @@
 #include <functional>
 #include <atomic>
 
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../util/result.h"
 #include "../../util/assert.h"
 
@@ -19,31 +19,33 @@ namespace core::threading::spmc_queue {
     class SPMCQueue {
     public:
         SPMCQueue()
-                : buffer { std::unique_ptr<T[]> { new T[Capacity] } } {
+            : buffer { std::unique_ptr<T[]> { new T[Capacity] } }
+        {
             this->first.store(0, std::memory_order_relaxed);
             this->last.store(0, std::memory_order_relaxed);
         }
 
         ~SPMCQueue() =default;
 
-        template <typename _T, unsigned _Capacity>
-        SPMCQueue(const SPMCQueue<_T, _Capacity> &) =delete;
+        template <typename OT, unsigned OCapacity>
+        SPMCQueue(const SPMCQueue<OT, OCapacity> &) =delete;
 
-        template <typename _T, unsigned _Capacity>
-        SPMCQueue(SPMCQueue<_T, _Capacity> &&) =delete;
+        template <typename OT, unsigned OCapacity>
+        SPMCQueue(SPMCQueue<OT, OCapacity> &&) =delete;
 
-        template <typename _T, unsigned _Capacity>
-        auto operator=(const SPMCQueue<_T, _Capacity> &) -> SPMCQueue<_T, _Capacity> & =delete;
+        template <typename OT, unsigned OCapacity>
+        auto operator=(const SPMCQueue<OT, OCapacity> &) -> SPMCQueue<OT, OCapacity> & =delete;
 
-        template <typename _T, unsigned _Capacity>
-        auto operator=(SPMCQueue<_T, _Capacity> &&) -> SPMCQueue<_T, _Capacity> & =delete;
+        template <typename OT, unsigned OCapacity>
+        auto operator=(SPMCQueue<OT, OCapacity> &&) -> SPMCQueue<OT, OCapacity> & =delete;
 
         auto try_push(T &&t) -> bool {
             u32 _last = this->last.load(std::memory_order_relaxed);
             u32 _next = inc(last);
 
-            if (_next == first.load(std::memory_order_acquire))
+            if (_next == first.load(std::memory_order_acquire)) {
                 return false;
+            }
 
             last.store(_next, std::memory_order_release);
             this->buffer.get()[_last] = std::forward<T>(t);
@@ -51,20 +53,21 @@ namespace core::threading::spmc_queue {
         }
 
         auto try_pop(T &t) -> bool {
-            for (;;) {
-                u32 _first = first.load(std::memory_order_relaxed);
-                if (_first == last.load(std::memory_order_acquire))
-                    return false;
-
-                if (first.compare_exchange_weak(
-                        _first,
-                        inc(_first),
-                        std::memory_order_release,
-                        std::memory_order_acquire)) {
-                    t = std::move(this->buffer.get()[_first]);
-                    return true;
-                }
+            u32 _first = first.load(std::memory_order_relaxed);
+            if (_first == last.load(std::memory_order_acquire)) {
+                return false;
             }
+
+            if (first.compare_exchange_weak(
+                    _first,
+                    inc(_first),
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
+                t = std::move(this->buffer.get()[_first]);
+                return true;
+            }
+            
+            return false;
         }
 
     private:

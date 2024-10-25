@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_BIOME_H
 #define OPENGL_3D_ENGINE_BIOME_H
 
-#include "../../../util/aliases.h"
+#include "../../../util/defines.h"
 #include "../../../util/perlin_noise.hpp"
 
 #define WATER_LEVEL 64

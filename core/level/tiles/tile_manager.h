@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_TILE_MANAGER_H
 #define OPENGL_3D_ENGINE_TILE_MANAGER_H
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/stb_image.h"
 #include "tile.h"
 

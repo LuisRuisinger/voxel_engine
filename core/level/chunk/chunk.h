@@ -17,7 +17,7 @@
 #include "../core/level/chunk/chunk_segment.h"
 #include "../core/level/chunk_data_structure/octree.h"
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/result.h"
 
 #define CHUNK_SEGMENT_YOFFS(y) \

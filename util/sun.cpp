@@ -11,7 +11,7 @@ namespace util::sun {
     constexpr const glm::vec3 axis = { 1.0F, 0.0F, 0.0F };
     constexpr const glm::vec3 sun_angle = { 0.0F, 0.0F, 1.0F };
 
-    Sun::Sun() : shadow_cascades_level { 16.0F, 32.0F, 64.0F, 384.0F } {}
+    Sun::Sun() : shadow_cascades_level { 16.0F, 48.0F, 128.0F, 384.0F } {}
 
     auto Sun::tick(core::state::State &state) -> void {
         const f32 rotation_angle = -2.0F * M_PI / static_cast<f32>(state.max_tick_count);
@@ -105,16 +105,17 @@ namespace util::sun {
     auto Frustum::calc_aabb() -> void {
 
         // scales the shadow frustum in all directions
-        constexpr const auto shadow_map_scaling = glm::vec3(1.5F, 1.5F, 1.0F);
+        // constexpr const auto shadow_map_scaling = glm::vec3(1.5F, 1.5F, 1.0F);
 
         // scales the shadow frustum the z coordinate
-        constexpr const f32 shadow_map_z_scaling = 10.0F;
+        constexpr const f32 shadow_map_z_scaling = 16.0F;
         constexpr const f32 shadow_map_inv_z_scaling = 1.0F / shadow_map_z_scaling;
 
-        for (const auto &v : this->corners)
-            this->aabb.add(glm::vec3(v));
+        for (const auto &v : this->corners) {
+            this->aabb.add(v);
+        }
 
-        this->aabb.scale_center(shadow_map_scaling);
+        // this->aabb.scale_center(shadow_map_scaling);
         this->aabb.min.z *= (this->aabb.min.z < 0.0F) ? shadow_map_z_scaling : shadow_map_inv_z_scaling;
         this->aabb.max.z *= (this->aabb.max.z < 0.0F) ? shadow_map_inv_z_scaling : shadow_map_z_scaling;
     }
@@ -127,7 +128,8 @@ namespace util::sun {
     }
 
     auto Frustum::transform(const glm::mat4 &mat) -> void {
-        for (auto &v : this->corners)
+        for (auto &v : this->corners) {
             v = mat * v;
+        }
     }
 }

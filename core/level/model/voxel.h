@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "mesh.h"
-#include "../util/aliases.h"
+#include "../util/defines.h"
 
 namespace core::level::model::voxel {
     class Voxel {

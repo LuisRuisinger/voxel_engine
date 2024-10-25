@@ -5,7 +5,7 @@
 #ifndef OPENGL_3D_ENGINE_FRAMEBUFFER_H
 #define OPENGL_3D_ENGINE_FRAMEBUFFER_H
 
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/result.h"
 
 namespace core::rendering::framebuffer {

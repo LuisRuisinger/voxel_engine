@@ -6,7 +6,7 @@
 #define OPENGL_3D_ENGINE_TILE_H
 
 #include "../model/voxel.h"
-#include "../util/aliases.h"
+#include "../util/defines.h"
 #include "../util/collidable.h"
 
 #include <bitset>

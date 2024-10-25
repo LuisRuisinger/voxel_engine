@@ -8,7 +8,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include "aliases.h"
+#include "defines.h"
 
 #define DEG2RAD 0.017453292F
 

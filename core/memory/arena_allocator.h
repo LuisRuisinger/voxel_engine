@@ -14,10 +14,16 @@
 namespace core::memory::arena_allocator {
     using Byte = u8;
 
+    template <typename T>
+    struct SLL {
+        size_t size;
+        T *ptr;
+        std::atomic<bool> used;
+        std::atomic<SLL<T> *> next;
+    };
+
     class ArenaAllocator {
     public:
-        using value_type = u8;
-
         ArenaAllocator();
         ~ArenaAllocator();
 
@@ -28,13 +34,14 @@ namespace core::memory::arena_allocator {
         auto operator=(ArenaAllocator &&other) noexcept -> ArenaAllocator & =delete;
 
         auto destroy() -> void;
-        auto deallocate(const Byte *ptr, [[maybe_unused]] const size_t len) -> void;
-        auto allocate(size_t size) -> Result<Byte *, memory::Error>;
+        auto deallocate(const Byte *ptr, [[maybe_unused]] const usize len) -> void;
+        auto allocate(size_t size) -> Byte *;
 
     private:
-        auto reuse_pages(memory::SLL<Byte> *, size_t) -> u8 *;
+        auto construct_page(usize size) -> SLL<u8> *;
+        auto reuse_pages(SLL<Byte> *, usize) -> Byte *;
 
-        std::atomic<memory::SLL<Byte> *> list;
+        std::atomic<SLL<Byte> *> list;
     };
 }
 

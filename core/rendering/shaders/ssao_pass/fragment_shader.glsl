@@ -5,6 +5,7 @@ out float FragColor;
 in vec2 TexCoords;
 
 uniform sampler2D g_depth;
+uniform sampler2D g_normal;
 uniform mat4 view;
 uniform mat4 projection;
 
@@ -49,7 +50,6 @@ vec3 normal_from_depth(float depth, vec2 tex_coords) {
     return normal;
 }
 
-
 void main() {
     const float falloff = 0.000001F;
     const float area = 0.0075F;
@@ -59,13 +59,14 @@ void main() {
     const float contrast = 1.0F;
 
     float frag_depth = texture(g_depth, TexCoords).r;
-    vec3 frag_pos = vec3(TexCoords, frag_depth);
-    vec3 frag_normal = normal_from_depth(frag_depth, TexCoords);
-
     if (frag_depth < 0.0F) {
         FragColor = 1.0F;
         return;
     }
+
+    vec3 frag_pos = vec3(TexCoords, frag_depth);
+    vec3 frag_normal = transpose(inverse(mat3(view))) * texture(g_normal, TexCoords).xyz;
+    frag_normal = normalize(frag_normal);
 
     // noise for TBN matrix
     int noise_s = int(sqrt(NOISE_AMOUNT));

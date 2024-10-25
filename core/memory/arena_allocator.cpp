@@ -2,49 +2,71 @@
 // Created by Luis Ruisinger on 23.08.24.
 //
 
+#ifdef _WIN32
+    #define WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+#else
+    #include <stdlib.h> 
+    #include <sys/mman.h> 
+#endif
+
 #include "arena_allocator.h"
 
 namespace core::memory::arena_allocator {
-    static auto construct_page(size_t size) -> Result<memory::SLL<u8> *, memory::Error> {
-        if (size < HUGE_PAGE) {
-            return Err(memory::INVALID_PAGE_SIZE);
-        }
+    auto ArenaAllocator::construct_page(usize size) -> SLL<u8> * {
+        ASSERT_EQ(IS_POW_2(HUGE_PAGE));
+        size = (size + HUGE_PAGE - 1) & -HUGE_PAGE;
 
-        auto *ptr = new memory::SLL<Byte> {
+        // new throws std::bad_alloc
+        SLL<Byte> *ptr;
+        try {
+            ptr = new SLL<Byte> {
                 .size = size,
                 .ptr = nullptr,
                 .used = true,
                 .next = nullptr
-        };
-
-        if (!ptr) {
-            return Err(memory::ALLOC_FAILED);
+            };
+        }
+        catch (std::exception &err) {
+            LOG(memory::Error::ALLOC_FAILED);
+            return nullptr;
         }
 
-        // memory aligned to huge pages
-        // because madvise operators on page aligned memory addresses
-        posix_memalign(
-                reinterpret_cast<void **>(&ptr->ptr),
-                HUGE_PAGE,
-                size);
+    #ifdef _WIN32
+        ptr->ptr = reinterpret_cast<Byte*>(VirtualAlloc(
+            nullptr,                       
+            size,                    
+            MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, 
+            PAGE_READWRITE));            
 
         if (!ptr->ptr) {
             ::operator delete(ptr);
             return Err(memory::ALLOC_PAGE_FAILED);
         }
 
-#ifdef __linux__
-            madvise(reinterpret_cast<void **>(&ptr->ptr), size, MADV_HUGEPAGE);
-#endif
+    #else
+        posix_memalign(reinterpret_cast<void **>(&ptr->ptr), HUGE_PAGE, size);
 
+        if (!ptr->ptr) {
+            delete ptr;
+            return nullptr;
+        }
+
+    #ifdef __linux__
+        madvise(reinterpret_cast<void **>(&ptr->ptr), size, MADV_HUGEPAGE);
+    #endif
+
+    #endif
         DEBUG_LOG(
-                std::to_string(size / HUGE_PAGE),
-                "pages allocated through posix_memalign");
-        return Ok(ptr);
-    }
+            std::to_string(size / HUGE_PAGE), 
+            "pages allocated through platform-specific method");
+        return ptr;
+}
+
 
     ArenaAllocator::ArenaAllocator()
-            : list { nullptr }
+        : list { nullptr }
     {
         ASSERT_NEQ(this->list.load(std::memory_order_relaxed));
         LOG("Arena allocator initialized")
@@ -55,10 +77,10 @@ namespace core::memory::arena_allocator {
     }
 
     auto ArenaAllocator::destroy() -> void {
-        memory::SLL<Byte> *page = list;
+        SLL<Byte> *page = list;
 
         while (page) {
-            memory::SLL<Byte> *dealloc = page;
+            SLL<Byte> *dealloc = page;
             page = page->next.load(std::memory_order_relaxed);
 
             ::operator delete(dealloc);
@@ -67,8 +89,8 @@ namespace core::memory::arena_allocator {
         this->list.store(nullptr, std::memory_order_release);
     }
 
-    auto ArenaAllocator::deallocate(const Byte *ptr, [[maybe_unused]] const size_t len) -> void {
-        memory::SLL<Byte> *page = list.load(std::memory_order_relaxed);
+    auto ArenaAllocator::deallocate(const Byte *ptr, [[maybe_unused]] const usize len) -> void {
+        SLL<Byte> *page = list.load(std::memory_order_relaxed);
 
         // linear search for page
         while (page && page->ptr != ptr) {
@@ -81,11 +103,13 @@ namespace core::memory::arena_allocator {
         page->used.store(false, std::memory_order_release);
     }
 
-    auto ArenaAllocator::reuse_pages(memory::SLL<Byte> *page, size_t size) -> u8 * {
+    auto ArenaAllocator::reuse_pages(SLL<Byte> *page, usize size) -> Byte * {
+        
         // check if any allocated page from the last frame is unused
         // thus can be given a new owner
-        while (page->next.load(std::memory_order_relaxed)) {
-
+        while (page) {
+            ASSERT_EQ(page);
+            
             auto used = page->used.load(std::memory_order_relaxed);
             if (used || page->size != size) {
                 page = page->next;
@@ -104,74 +128,55 @@ namespace core::memory::arena_allocator {
                 return page->ptr;
             }
 
-            page = page->next;
+            page = page->next.load(std::memory_order_relaxed);
         }
 
         return nullptr;
     }
 
-    auto ArenaAllocator::allocate(size_t size) -> Result<u8 *, memory::Error> {
-        memory::SLL<Byte> *page = this->list.load(std::memory_order_acquire);
-
-        // traversing all reset pages does only make sense if pages exist
-        // this is not the case if the root is nullptr
+    auto ArenaAllocator::allocate(usize size) -> Byte * {
+        SLL<Byte> *page = this->list.load(std::memory_order_acquire);
         if (page) {
             auto candidate = reuse_pages(page, size);
             if (candidate)
-                return Ok(candidate);
+                return candidate;
         }
 
         // in case no old pages are unused
         // allocate a new page and try to insert it into the linked list of pages
-        auto ret = construct_page(size);
-        if (ret.isErr()) {
-            return Err(ret.unwrapErr());
+        const auto head = construct_page(size);
+        if (!head) {
+            return nullptr;
         }
 
-        auto *head = ret.unwrap();
+        // try to replace the root if it is still nullptr
+        if (!page) {
+            if (list.compare_exchange_strong(
+                    page,
+                    head,
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
+                return head->ptr;
+            }
+        }
+
+        // in case the root is not nullptr we try to append
+        // to the list head a new head
         for (;;) {
-
-            // fetching the root to see if it is initialized
-            // if it is not the case we try to replace the root if a
-            // new linked list entry
-            page = list.load(std::memory_order_relaxed);
-
-            if (page) [[likely]] {
-
-                // in case the root is not nullptr we try to append
-                // to the list head a new head
-                for (;;) {
-                    while (page->next.load(std::memory_order_acquire)) {
-                        page = page->next.load(std::memory_order_acquire);
-                    }
-
-                    auto *next = page->next.load(std::memory_order_relaxed);
-                    if (!page->next.compare_exchange_weak(
-                            next,
-                            head,
-                            std::memory_order_release,
-                            std::memory_order_acquire)) {
-                        DEBUG_LOG("CAS failure");
-                        continue;
-                    }
-
-                    return Ok(head->ptr);
-                }
+            while (page->next.load(std::memory_order_acquire)) {
+                page = page->next.load(std::memory_order_acquire);
             }
-            else {
 
-                // try to replace the root if it is still nullptr
-                if (!list.compare_exchange_strong(
-                        page,
-                        head,
-                        std::memory_order_release,
-                        std::memory_order_acquire)) {
-                    DEBUG_LOG("Root has been set");
-                    continue;
-                }
-
-                return Ok(head->ptr);
+            auto *next = page->next.load(std::memory_order_relaxed);
+            if (!page->next.compare_exchange_weak(
+                    next,
+                    head,
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
+                continue;
             }
+
+            return head->ptr;
         }
     }
 }

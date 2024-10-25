@@ -44,11 +44,11 @@ namespace core::opengl::opengl_window {
         gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
         glfwSetInputMode(this->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-        auto cursor_position_callback = [](GLFWwindow *window, f64 xpos, f64 ypos) -> void {
-            if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+        auto cursor_position_callback = [](GLFWwindow *_window, f64 xpos, f64 ypos) -> void {
+            if (glfwGetKey(_window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
                 return;
 
-            auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(window));
+            auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(_window));
             auto pos_token = std::pair {
                 static_cast<f32>(xpos),
                 static_cast<f32>(ypos)
@@ -61,12 +61,12 @@ namespace core::opengl::opengl_window {
         glfwSetCursorPosCallback(this->window, std::move(cursor_position_callback));
 
         auto key_callback = [](
-                GLFWwindow *window,
+                GLFWwindow *_window,
                 i32 key,
                 i32 code,
                 i32 action,
                 i32 mods) -> void {
-            auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(window));
+            auto self = static_cast<decltype(this)>(glfwGetWindowUserPointer(_window));
             auto key_token = std::pair { action, key };
 
             for (const auto &[_, callback] : self->key_callbacks)

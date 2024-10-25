@@ -8,7 +8,7 @@
 #include <glad-3/include/glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "../../util/aliases.h"
+#include "../../util/defines.h"
 #include "../../util/log.h"
 #include "../../util/result.h"
 

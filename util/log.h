@@ -15,7 +15,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
-#include "aliases.h"
+#include "defines.h"
 #include "reflections.h"
 
 namespace util::log {
