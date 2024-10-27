@@ -10,7 +10,7 @@ namespace core::rendering::shader {
         glUseProgram(this->id);
     }
 
-    auto Program::registerUniformLocation(std::string name) const -> void {
+    auto Program::register_uniform(std::string name) const -> void {
         auto location = glGetUniformLocation(this->id, name.c_str());
         this->uniform_cache[name] = location;
     }

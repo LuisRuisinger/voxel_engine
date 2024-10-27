@@ -52,7 +52,8 @@ namespace core::state {
         util::sun::Sun                       &sun;
 
         // ticks
-        u32 max_tick_count = 180000;
+        //u32 max_tick_count = 180000;
+        u32 max_tick_count = 4000;
         u32 current_tick = 0;
         u64 ticks_since_start = 0;
 

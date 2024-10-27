@@ -65,6 +65,8 @@ namespace core::rendering::renderer {
         auto init_ssao_blur_pass() -> void;
         auto init_depth_map_pass() -> void;
         auto init_water_pass() -> void;
+        auto init_ssr_pass() -> void;
+        auto init_ssr_blur_pass() -> void;
 
         std::vector<std::pair<RenderType, Renderable<BaseInterface> *>> sub_renderer;
 
@@ -85,6 +87,12 @@ namespace core::rendering::renderer {
 
         framebuffer::Framebuffer water_buffer;
         shader::Program water_pass;
+
+        framebuffer::Framebuffer ssr_buffer;
+        shader::Program ssr_pass;
+
+        framebuffer::Framebuffer ssr_blur_buffer;
+        shader::Program ssr_blur_pass;
 
         shader::Program lighting_pass;
 

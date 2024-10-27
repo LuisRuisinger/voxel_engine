@@ -41,6 +41,9 @@ uniform int cascade_count;
 uniform float cascade_plane_distances[4];
 uniform float far_z;
 
+// ssr
+uniform sampler2D g_albedospec_ssr;
+
 // light space matrices
 layout (std140) uniform LSMatrices
 {
@@ -148,32 +151,34 @@ vec3 combined_water_color(vec3 frag_color, float frag_world_depth) {
     const vec3 water_color = vec3(0.0392f, 0.3627f, 0.6392f);
 
     float frag_water_depth = texture(g_water_depth, TexCoords).r;
-
-    if (frag_water_depth < frag_world_depth) {
-        float linearized_depth = linearize_depth(frag_world_depth);
-        float linearized_water_depth = linearize_depth(frag_water_depth);
-        float linearized_depth_diff = linearized_depth - linearized_water_depth;
-
-        float falloff = linearize_depth(frag_world_depth) - linearize_depth(frag_water_depth);
-        falloff /= 48.0F;
-        falloff = clamp(falloff, 0.0F, 1.0F);
-
-        vec3 frag_water_normal = texture(g_water_normal, TexCoords).xyz;
-        frag_color = mix(
-            water_color,
-            frag_color,
-            1.0F - falloff);
-
-
-        vec3 frag_water = texture(g_water, TexCoords).rgb;
-        vec3 frag_water_color = combined_color(
-            frag_water, frag_water_normal, water_color, 1.0F, 80.0F);
-
-        // fresnel
-        float fresnel = 0.8F - clamp(dot(-view_direction, frag_water_normal), 0.2F, 0.8F);
-        frag_color = mix(frag_water_color, frag_color, 0.4);
+    if (!(frag_water_depth < frag_world_depth)) {
+        return frag_color;
     }
 
+    float linearized_depth = linearize_depth(frag_world_depth);
+    float linearized_water_depth = linearize_depth(frag_water_depth);
+    float linearized_depth_diff = linearized_depth - linearized_water_depth;
+
+    float falloff = linearize_depth(frag_world_depth) - linearize_depth(frag_water_depth);
+    falloff /= 48.0F;
+    falloff = clamp(falloff, 0.0F, 0.8F);
+
+    vec3 frag_water_normal = texture(g_water_normal, TexCoords).xyz;
+    vec3 frag_water        = texture(g_water, TexCoords).rgb;
+    vec4 reflection_color  = texture(g_albedospec_ssr, TexCoords).rgba;
+
+    // fresnel
+    vec3 v = normalize(view_direction - frag_water);
+    float fresnel = clamp(dot(v, frag_water_normal), 0.1F, 0.8F);
+
+    float scale = (0.8F - fresnel) * (1.0F - reflection_color.a);
+    clamp(scale, 0.1F, 0.8F);
+    vec3 frag_water_color = mix(water_color, reflection_color.rgb, scale);
+    frag_water_color = combined_color(
+        frag_water, frag_water_normal, frag_water_color, 1.0F, 80.0F);
+
+    frag_color = mix(water_color, frag_color, 0.8F - falloff);
+    frag_color = mix(frag_water_color, frag_color, fresnel);
     return frag_color;
 }
 
@@ -195,7 +200,7 @@ vec3 combined_fog_color(vec3 frag_color, vec3 frag_pos, float frag_world_depth) 
 }
 
 void main() {
-    const vec3 water_color = vec3(0.0392f, 0.3627f, 0.6392f);
+    const vec3 water_color = vec3(0.0392F, 0.3627F, 0.6392F);
 
     vec3 frag_pos           = texture(g_position, TexCoords).rgb;
     vec3 frag_normal        = texture(g_normal, TexCoords).rgb;

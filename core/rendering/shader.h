@@ -157,7 +157,7 @@ namespace core::rendering::shader {
         }
 
         auto use() const -> void;
-        auto registerUniformLocation(std::string) const -> void;
+        auto register_uniform(std::string) const -> void;
         auto operator[](std::string) const -> Impl &;
         auto upload_uniforms() const -> void;
         auto shader_id() -> u32;

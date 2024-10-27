@@ -8,7 +8,7 @@
 namespace util::culling {
     auto Frustum::set_cam_internals(f32 angle, f32 ratio, f32 nearD, f32 farD) -> void {
         this->ratio = ratio;
-        this->far_distance  = farD;
+        this->far_distance  = farD + 2.0F * static_cast<f32>(CHUNK_SIZE);
         this->near_distance = nearD;
         this->angle = DEG2RAD * angle * 0.5F;
         this->tang  = tan(this->angle);
@@ -20,12 +20,12 @@ namespace util::culling {
     }
 
     auto Frustum::set_cam_definition(glm::vec3 position, glm::vec3 target, glm::vec3 up) -> void {
-        this->cam_pos = position;
-
         this->z_vec = glm::normalize(target - position);
         this->x_vec = glm::cross(this->z_vec, up);
         this->x_vec = glm::normalize(this->x_vec);
         this->y_vec = glm::cross(this->x_vec, this->z_vec);
+
+        this->cam_pos = position - (this->z_vec * 2.0F * static_cast<f32>(CHUNK_SIZE));
     }
 
     auto Frustum::cube_visible(const glm::vec3 &point, u32 scale) const -> bool {

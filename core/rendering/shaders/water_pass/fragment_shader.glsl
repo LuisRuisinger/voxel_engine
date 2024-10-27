@@ -17,4 +17,5 @@ void main() {
     normal.b = normal.g * 2.0F - 1.0F;
 
     gNormal = normalize(normal);
+    gNormal = vec3(0.0, 1.0, 0.0);
 }

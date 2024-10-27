@@ -15,7 +15,7 @@ const vec3 SPECTRAL_TO_RGB = vec3(133.3209, 88.51855, 112.7552);
 
 const float SUN_ANGULAR_RADIUS = 0.004675034;
 
-uniform vec3 lightDir;
+uniform vec3 light_direction;
 
 uniform sampler2D rayleighTexture;
 uniform sampler2D mieTexture;
@@ -27,7 +27,7 @@ uniform float mieG;
 
 uniform vec3 camera;
 
-in vec3 WorldPosition;
+in vec3 FragPos;
 
 out vec4 FragColor;
 
@@ -52,7 +52,7 @@ float MiePhaseFunction(float cos_theta, float g) {
 }
 
 void main() {
-    vec3 viewDir = normalize(WorldPosition - camera);
+    vec3 view_direction = normalize(FragPos - camera);
 
     // Calculate the view-zenith and sun-zenith angles.
     // negative for above 0 values in y i suppose
@@ -61,8 +61,8 @@ void main() {
 
     // but all values are equally used in the upper sphere => we can just interate
     // over the dot product
-    float cosV = dot(viewDir, vec3(0, -1, 0));
-    float cosL = dot(lightDir, vec3(0, 1, 0));
+    float cos_v = dot(view_direction, vec3(0, -1, 0));
+    float cos_l = dot(light_direction, vec3(0, 1, 0));
 
     // Convert the angles to texture coordinates using the parameterization function.
     // Note: we use abs+sign to avoid negative roots!
@@ -72,8 +72,8 @@ void main() {
     // at the highest y angle <=> inverse of (0, -1, 0) : (0, 1, 0) the limit of the dot
     // product is reached resulting in -1 => yields 0 for u
     // therefore we only observe the lower 50% of the texture to calculate the ambient texture
-    float u = 0.5F * (1.0F + sign(cosV)*pow(abs(cosV), 1.0/3.0));
-    float v = 0.5F * (1.0F + sign(cosL)*pow(abs(cosL), 1.0/3.0));
+    float u = 0.5F * (1.0F + sign(cos_v) * pow(abs(cos_v), 1.0/3.0));
+    float v = 0.5F * (1.0F + sign(cos_l) * pow(abs(cos_l), 1.0/3.0));
 
     // Sample the textures.
     vec3 rayleigh = texture(rayleighTexture, vec2(u, v)).rgb;
@@ -86,7 +86,7 @@ void main() {
     // Calculate the view-sun angle for the phase function.
     // Note: we clamp it between [0, 1] or else we would get the sun
     // on both sides of the light direction.
-    float cos_theta = dot(viewDir, lightDir);
+    float cos_theta = dot(view_direction, light_direction);
 
     // changed from saturate
     cos_theta = clamp(cos_theta, 0.0F, 1.0F);

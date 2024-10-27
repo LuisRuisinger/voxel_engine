@@ -38,7 +38,7 @@ namespace util::camera {
         set_frustum(
                 DEFAULT_FOV,
                 static_cast<f32>(DEFAULT_WIDTH) / static_cast<f32>(DEFAULT_HEIGHT),
-                -CHUNK_SIZE,
+                -0.1F,
                 CHUNK_SIZE * (RENDER_RADIUS + 4.0F));
         update();
         set_projection_matrix(DEFAULT_WIDTH, DEFAULT_HEIGHT);

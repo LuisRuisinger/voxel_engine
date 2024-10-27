@@ -25,18 +25,18 @@ namespace core::rendering::skybox_renderer {
         this->shader.use();
 
         // vertex shader uniforms
-        this->shader.registerUniformLocation("view");
-        this->shader.registerUniformLocation("projection");
-        this->shader.registerUniformLocation("camera");
+        this->shader.register_uniform("view");
+        this->shader.register_uniform("projection");
+        this->shader.register_uniform("camera");
 
         // fragment shader uniforms
-        this->shader.registerUniformLocation("lightDir");
-        this->shader.registerUniformLocation("rayleighTexture");
-        this->shader.registerUniformLocation("mieTexture");
-        this->shader.registerUniformLocation("exposure");
-        this->shader.registerUniformLocation("rayleighEnabled");
-        this->shader.registerUniformLocation("mieEnabled");
-        this->shader.registerUniformLocation("mieG");
+        this->shader.register_uniform("light_direction");
+        this->shader.register_uniform("rayleighTexture");
+        this->shader.register_uniform("mieTexture");
+        this->shader.register_uniform("exposure");
+        this->shader.register_uniform("rayleighEnabled");
+        this->shader.register_uniform("mieEnabled");
+        this->shader.register_uniform("mieG");
 
         std::vector<f32> vertices;
         std::vector<u32> indices;
@@ -166,7 +166,7 @@ namespace core::rendering::skybox_renderer {
         this->shader["camera"] = camera;
 
         // fragment shader uniforms
-        this->shader["lightDir"] = state.sun.get_orientation();
+        this->shader["light_direction"] = state.sun.get_orientation();
         this->shader["rayleighTexture"] = 0;
         this->shader["mieTexture"] = 1;
         this->shader["exposure"] = 0.9F;

@@ -100,11 +100,11 @@ namespace core::rendering::renderer {
 
         // setting up uniforms
         this->g_pass.use();
-        this->g_pass.registerUniformLocation("view");
-        this->g_pass.registerUniformLocation("projection");
-        this->g_pass.registerUniformLocation("worldbase");
-        this->g_pass.registerUniformLocation("render_radius");
-        this->g_pass.registerUniformLocation("texture_array");
+        this->g_pass.register_uniform("view");
+        this->g_pass.register_uniform("projection");
+        this->g_pass.register_uniform("worldbase");
+        this->g_pass.register_uniform("render_radius");
+        this->g_pass.register_uniform("texture_array");
 
         this->g_buffer.unbind();
     }
@@ -126,34 +126,37 @@ namespace core::rendering::renderer {
         }
 
         this->lighting_pass.use();
-        this->lighting_pass.registerUniformLocation("g_position");
-        this->lighting_pass.registerUniformLocation("g_normal");
-        this->lighting_pass.registerUniformLocation("g_albedospec");
-        this->lighting_pass.registerUniformLocation("g_depth");
+        this->lighting_pass.register_uniform("g_position");
+        this->lighting_pass.register_uniform("g_normal");
+        this->lighting_pass.register_uniform("g_albedospec");
+        this->lighting_pass.register_uniform("g_depth");
 
-        this->lighting_pass.registerUniformLocation("g_atmosphere");
-        this->lighting_pass.registerUniformLocation("g_depth_map");
-        this->lighting_pass.registerUniformLocation("g_ssao");
+        this->lighting_pass.register_uniform("g_atmosphere");
+        this->lighting_pass.register_uniform("g_depth_map");
+        this->lighting_pass.register_uniform("g_ssao");
 
-        this->lighting_pass.registerUniformLocation("g_water");
-        this->lighting_pass.registerUniformLocation("g_water_normal");
-        this->lighting_pass.registerUniformLocation("g_water_depth");
+        this->lighting_pass.register_uniform("g_water");
+        this->lighting_pass.register_uniform("g_water_normal");
+        this->lighting_pass.register_uniform("g_water_depth");
 
         // sun shading attributes
-        this->lighting_pass.registerUniformLocation("light_direction");
-        this->lighting_pass.registerUniformLocation("view_direction");
+        this->lighting_pass.register_uniform("light_direction");
+        this->lighting_pass.register_uniform("view_direction");
 
-        this->lighting_pass.registerUniformLocation("render_radius");
+        this->lighting_pass.register_uniform("render_radius");
 
         // transformation matrices
-        this->lighting_pass.registerUniformLocation("view");
-        this->lighting_pass.registerUniformLocation("cascade_count");
-        this->lighting_pass.registerUniformLocation("far_z");
+        this->lighting_pass.register_uniform("view");
+        this->lighting_pass.register_uniform("cascade_count");
+        this->lighting_pass.register_uniform("far_z");
 
         for (auto i = 0; i < 4; ++i) {
-            this->lighting_pass.registerUniformLocation(
+            this->lighting_pass.register_uniform(
                     "cascade_plane_distances[" + std::to_string(i) + "]");
         }
+
+        // ssr
+        this->lighting_pass.register_uniform("g_albedospec_ssr");
 
         GLuint block_index1 = glGetUniformBlockIndex(this->lighting_pass.shader_id(), "LSMatrices");
         glUniformBlockBinding(this->lighting_pass.shader_id(), block_index1, 0);
@@ -219,10 +222,10 @@ namespace core::rendering::renderer {
             std::exit(EXIT_FAILURE);
         }
 
-        this->ssao_pass.registerUniformLocation("view");
-        this->ssao_pass.registerUniformLocation("projection");
-        this->ssao_pass.registerUniformLocation("g_normal");
-        this->ssao_pass.registerUniformLocation("g_depth");
+        this->ssao_pass.register_uniform("view");
+        this->ssao_pass.register_uniform("projection");
+        this->ssao_pass.register_uniform("g_normal");
+        this->ssao_pass.register_uniform("g_depth");
 
         this->ssao_buffer.unbind();
     }
@@ -258,9 +261,88 @@ namespace core::rendering::renderer {
         }
 
         this->ssao_blur_pass.use();
-        this->ssao_blur_pass.registerUniformLocation("g_ssao");
+        this->ssao_blur_pass.register_uniform("g_ssao");
 
         this->ssao_blur_buffer.unbind();
+    }
+
+    auto Renderer::init_ssr_pass() -> void {
+        auto init = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
+
+            // allocate buffers
+            target.buffer.resize(1);
+
+            glGenTextures(1, &target.buffer[0]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.buffer[0], 0);
+        };
+
+        auto destroy = [](framebuffer::Framebuffer &target) {
+            glDeleteTextures(1, target.buffer.data());
+        };
+
+        this->ssr_buffer = { init, destroy };
+        this->ssr_buffer.bind();
+
+        auto res = this->ssr_pass.init(
+                shader::Shader<shader::VERTEX_SHADER>("ssao_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("ssr_pass/fragment_shader.glsl"));
+
+        if (res.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        this->ssr_pass.use();
+        this->ssr_pass.register_uniform("g_atmosphere");
+        this->ssr_pass.register_uniform("g_albedospec");
+        this->ssr_pass.register_uniform("g_depth");
+        this->ssr_pass.register_uniform("g_water_depth");
+        this->ssr_pass.register_uniform("g_water_normal");
+
+        this->ssr_pass.register_uniform("view");
+        this->ssr_pass.register_uniform("projection");
+
+        this->ssr_buffer.unbind();
+    }
+
+    auto Renderer::init_ssr_blur_pass() -> void {
+        auto init = [](framebuffer::Framebuffer &target, i32 width, i32 height) {
+
+            // allocate buffers
+            target.buffer.resize(1);
+
+            glGenTextures(1, &target.buffer[0]);
+            glBindTexture(GL_TEXTURE_2D, target.buffer[0]);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target.buffer[0], 0);
+        };
+
+        auto destroy = [](framebuffer::Framebuffer &target) {
+            glDeleteTextures(1, target.buffer.data());
+        };
+
+        this->ssr_blur_buffer = { init, destroy };
+        this->ssr_blur_buffer.bind();
+
+        auto res = this->ssr_blur_pass.init(
+                shader::Shader<shader::VERTEX_SHADER>("ssao_pass/vertex_shader.glsl"),
+                shader::Shader<shader::FRAGMENT_SHADER>("ssr_blur_pass/fragment_shader.glsl"));
+
+        if (res.isErr()) {
+            LOG(util::log::LOG_LEVEL_ERROR, res.unwrapErr());
+            std::exit(EXIT_FAILURE);
+        }
+
+        this->ssr_blur_pass.use();
+        this->ssr_blur_pass.register_uniform("g_ssr");
+
+        this->ssr_blur_buffer.unbind();
     }
 
     auto Renderer::init_depth_map_pass() -> void {
@@ -318,8 +400,8 @@ namespace core::rendering::renderer {
         }
 
         this->depth_map_pass.use();
-        this->depth_map_pass.registerUniformLocation("worldbase");
-        this->depth_map_pass.registerUniformLocation("render_radius");
+        this->depth_map_pass.register_uniform("worldbase");
+        this->depth_map_pass.register_uniform("render_radius");
 
         GLuint block_index = glGetUniformBlockIndex(this->depth_map_pass.shader_id(), "LSMatrices");
         glUniformBlockBinding(this->depth_map_pass.shader_id(), block_index, 0);
@@ -425,11 +507,11 @@ namespace core::rendering::renderer {
 
         // setting up uniforms
         this->water_pass.use();
-        this->water_pass.registerUniformLocation("view");
-        this->water_pass.registerUniformLocation("projection");
-        this->water_pass.registerUniformLocation("worldbase");
-        this->water_pass.registerUniformLocation("render_radius");
-        this->water_pass.registerUniformLocation("water_normal_tex");
+        this->water_pass.register_uniform("view");
+        this->water_pass.register_uniform("projection");
+        this->water_pass.register_uniform("worldbase");
+        this->water_pass.register_uniform("render_radius");
+        this->water_pass.register_uniform("water_normal_tex");
 
         this->water_buffer.unbind();
     }
@@ -463,6 +545,8 @@ namespace core::rendering::renderer {
         init_geometry_pass();
         init_shading_pass();
         init_atmosphere_pass();
+        init_ssr_pass();
+        init_ssr_blur_pass();
         init_ssao_pass();
         init_ssao_blur_pass();
         init_depth_map_pass();
@@ -558,6 +642,79 @@ namespace core::rendering::renderer {
 
         get_sub_renderer(RenderType::WATER_RENDERER)._crtp_frame(state);
         this->water_buffer.unbind();
+
+        /*
+         *
+         *
+         * SSR
+         *
+         *
+         */
+
+        this->ssr_buffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        this->ssr_pass.use();
+        glBindVertexArray(this->quad_VAO);
+
+        this->ssr_pass["g_albedospec"] = 0;
+        this->ssr_pass["g_depth"] = 1;
+        this->ssr_pass["g_atmosphere"] = 2;
+        this->ssr_pass["g_water_normal"] = 3;
+        this->ssr_pass["g_water_depth"] = 4;
+
+        this->ssr_pass["view"] = player_view;
+        this->ssr_pass["projection"] = player_projection;
+        this->ssr_pass.upload_uniforms();
+
+        // color
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[2]);
+
+        // g buffer fragment depth
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, this->g_buffer.buffer[3]);
+
+        // atmosphere color
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, this->atmosphere_buffer.buffer[0]);
+
+        // water normal
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[1]);
+
+        // water fragment depth
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[3]);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        this->ssr_buffer.unbind();
+
+        /*
+        *
+        *
+        * SSR blur
+        *
+        *
+        */
+        /*
+        this->ssr_blur_buffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        this->ssr_blur_pass.use();
+        glBindVertexArray(this->quad_VAO);
+
+        // ssao pass unfiltered
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, this->ssr_buffer.buffer[0]);;
+
+        this->ssr_blur_pass["g_ssr"] = 0;
+        this->ssr_blur_pass.upload_uniforms();
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        this->ssr_blur_buffer.unbind();
+         */
 
         /*
          *
@@ -660,6 +817,8 @@ namespace core::rendering::renderer {
             this->lighting_pass["cascade_plane_distances[" + std::to_string(i) + "]"] =
                     state.sun.shadow_cascades_level[i];
 
+        this->lighting_pass["g_albedospec_ssr"] = 10;
+
         this->lighting_pass.upload_uniforms();
 
         // position
@@ -702,6 +861,9 @@ namespace core::rendering::renderer {
         glActiveTexture(GL_TEXTURE9);
         glBindTexture(GL_TEXTURE_2D, this->water_buffer.buffer[3]);
 
+        // ssr color
+        glActiveTexture(GL_TEXTURE10);
+        glBindTexture(GL_TEXTURE_2D, this->ssr_buffer.buffer[0]);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
 

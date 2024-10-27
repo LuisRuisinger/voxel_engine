@@ -11,7 +11,7 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 camera;
 
-out vec3 WorldPosition;
+out vec3 FragPos;
 
 void main()  {
 
@@ -20,7 +20,7 @@ void main()  {
     vec4 posVS = view * posWS;
     vec4 posCS = projection * posVS;
 
-    WorldPosition = posWS.xyz;
+    FragPos = posWS.xyz;
 
     // Set z to w, in other words as far as possible.
     // This makes the skysphere render behind everything else.
