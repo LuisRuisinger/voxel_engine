@@ -12,6 +12,17 @@ uniform sampler2D g_water_normal;
 uniform mat4 view;
 uniform mat4 projection;
 
+#define NEAR_PLANE 0.1F
+#define FAR_PLANE 640.0F
+#define M_PI 3.1415926535897932384626433832795
+
+const float max_distance = 64.0F;
+
+float linearize_depth(float depth) {
+    float z_n = 2.0 * depth - 1.0;
+    return 2.0 * NEAR_PLANE * FAR_PLANE / (FAR_PLANE + NEAR_PLANE - z_n * (FAR_PLANE - NEAR_PLANE));
+}
+
 bool outside_screen_space(vec2 ray){
     return (ray.x < 0 || ray.x > 1 || ray.y < 0 || ray.y > 1);
 }
@@ -31,8 +42,12 @@ vec4 trace_ray(vec3 origin, vec3 direction, int iteration_count){
         float depth_diff = ray_pos.z - sample_depth;
 
         if((depth_diff < 0.00005F) && !(depth_diff < 0.0F)) {
-            float diff = length(ray_pos - origin) * 1.5F;
-            hit_color = vec4(texture(g_albedospec, ray_pos.xy).rgb, 1.0F);
+            float diff = (linearize_depth(origin.z) - linearize_depth(sample_depth)) / max_distance;
+            diff *= 2.0 * distance(ray_pos.xy, vec2(0.0F));
+            diff = clamp(diff, 0.0F, 1.0F);
+            diff -= 1.0F;
+
+            hit_color = vec4(texture(g_albedospec, ray_pos.xy).rgb, diff);
             break;
         }
     }
@@ -41,7 +56,6 @@ vec4 trace_ray(vec3 origin, vec3 direction, int iteration_count){
 }
 
 void main(){
-    const float max_distance = 64.0F;
     float frag_depth = texture(g_water_depth, TexCoords).r;
 
     vec3 frag_pos = vec3(TexCoords, frag_depth);

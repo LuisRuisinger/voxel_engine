@@ -45,11 +45,9 @@ uniform float far_z;
 uniform sampler2D g_albedospec_ssr;
 
 // light space matrices
-layout (std140) uniform LSMatrices
-{
+layout (std140) uniform LSMatrices {
     mat4 ls_matrices[4];
 };
-
 
 vec3 light_gradient() {
     const vec3 sun_light = vec3(1.0F);
@@ -169,13 +167,13 @@ vec3 combined_water_color(vec3 frag_color, float frag_world_depth) {
 
     // fresnel
     vec3 v = normalize(view_direction - frag_water);
-    float fresnel = clamp(dot(v, frag_water_normal), 0.1F, 0.8F);
+    float fresnel = clamp(dot(v, frag_water_normal), 0.1F, 0.9F);
 
-    float scale = (0.8F - fresnel) * (1.0F - reflection_color.a);
-    clamp(scale, 0.1F, 0.8F);
+    float scale = (0.9F - fresnel) * (1.0F - reflection_color.a);
+    clamp(scale, 0.1F, 0.9F);
+
     vec3 frag_water_color = mix(water_color, reflection_color.rgb, scale);
-    frag_water_color = combined_color(
-        frag_water, frag_water_normal, frag_water_color, 1.0F, 80.0F);
+    frag_water_color = combined_color(frag_water, frag_water_normal, frag_water_color, 1.0F, 80.0F);
 
     frag_color = mix(water_color, frag_color, 0.8F - falloff);
     frag_color = mix(frag_water_color, frag_color, fresnel);
