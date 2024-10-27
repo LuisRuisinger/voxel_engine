@@ -77,7 +77,10 @@ void main() {
 
     position.y -= 0.25F;
     FragPos = position;
-    FragNormal = object_space_texture_pos(scale);
+
+    float normal_map_scale_x = mod(position.x, 16.0F);
+    float normal_map_scale_z = mod(position.z, 16.0F);
+    FragNormal = object_space_texture_pos(scale) * vec2(normal_map_scale_x, normal_map_scale_z);
 
     gl_Position = projection * view * vec4(position, 1.0F);
 }
