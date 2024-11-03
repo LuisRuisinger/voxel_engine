@@ -7,7 +7,7 @@ in vec2 TexCoords;
 uniform sampler2D g_ssao;
 
 void main() {
-    const int radius = 1;
+    const int radius = 2;
     const float volume = pow(float(radius + 1), 2.0F);
 
     vec2 texel_size = 1.0F / textureSize(g_ssao, 0);

@@ -27,7 +27,7 @@ using f64 = double_t;
 #define MIN_HEIGHT          -128
 #define HEIGHT_01           528
 #define CHUNK_SIZE          32
-#define RENDER_RADIUS       8
+#define RENDER_RADIUS       16
 #define RENDER_DISTANCE     (RENDER_RADIUS * CHUNK_SIZE * 0.5F)
 #define SQRT_2              1.4142135623730951F
 #define DEFAULT_WIDTH       1920
