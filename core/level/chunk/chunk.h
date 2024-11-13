@@ -5,10 +5,9 @@
 #ifndef OPENGL_3D_ENGINE_CHUNK_H
 #define OPENGL_3D_ENGINE_CHUNK_H
 
-#include <iostream>
-#include <filesystem>
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
+#include <glm/ext.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <tuple>
 #include <type_traits>

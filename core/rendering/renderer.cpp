@@ -907,5 +907,7 @@ namespace core::rendering::renderer {
         this->ssao_blur_buffer.resize(width, height);
         this->atmosphere_buffer.resize(width, height);
         this->water_buffer.resize(width, height);
+        this->ssr_buffer.resize(width, height);
+        this->ssr_blur_buffer.resize(width, height);
     }
 }

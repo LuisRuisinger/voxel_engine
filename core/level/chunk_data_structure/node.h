@@ -20,7 +20,7 @@
 #include "../../../util/camera.h"
 
 namespace core::state {
-    class State;
+    struct State;
 }
 
 namespace core::level::node {

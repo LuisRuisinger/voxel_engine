@@ -30,24 +30,24 @@ public:
 
         DEBUG_LOG("Init framebuffer size callbacks");
         this->window_handler.add_framebuffer_size_callback(
-                0, std::move([&](std::pair<i32, i32> &ref) -> void {
+                0, [&](std::pair<i32, i32> &ref) -> void {
                     auto &camera = this->state.player.get_camera();
                     camera.set_frustum_aspect(
                             static_cast<f32>(ref.first) / static_cast<f32>(ref.second));
                     camera.set_projection_matrix(ref.first, ref.second);
-                }));
+                });
 
         this->window_handler.add_framebuffer_size_callback(
-                1, std::move([&](std::pair<i32, i32> &ref) -> void {
+                1, [&](std::pair<i32, i32> &ref) -> void {
                     this->renderer.resize(ref.first, ref.second);
-                }));
+                });
 
         DEBUG_LOG("Init cursor position callbacks");
         this->window_handler.add_cursor_position_callback(
-                0, std::move([&](std::pair<f32, f32> &ref) -> void {
+                0, [&](std::pair<f32, f32> &ref) -> void {
                     auto &camera = this->state.player.get_camera();
                     camera.rotate_camera(ref.first, ref.second);
-                }));
+                });
 
         DEBUG_LOG("Init key callbacks");
         this->window_handler.add_key_callback(
@@ -98,7 +98,7 @@ public:
         core::level::tiles::tile_manager::setup(core::level::tiles::tile_manager::tile_manager);
 
         DEBUG_LOG("Init scheduled executor callbacks")
-        this->executor.enqueue_detach(std::move([&]() -> void {
+        this->executor.enqueue_detach([&]() -> void {
 
             // must happen first to update deltatime / tick updates
             this->state.tick(state);
@@ -109,13 +109,11 @@ public:
 
             // keyboard input
             this->key_map.run_repeat();
-        }));
+        });
     }
 
     auto run() -> void {
-        auto window = this->window_handler.get_window();
-
-        while (!glfwWindowShouldClose(window)) {
+        while (!glfwWindowShouldClose(this->window)) {
             glfwPollEvents();
             this->renderer.prepare_frame(this->state);
 
@@ -127,7 +125,7 @@ public:
             core::rendering::interface::set_render_time(t_diff);
             this->renderer.frame(this->state);
 
-            glfwSwapBuffers(window);
+            glfwSwapBuffers(this->window);
         }
     }
 
@@ -139,11 +137,11 @@ public:
         : window_handler   {                                                                     },
           key_map          {                                                                     },
           allocator        {                                                                     },
-          renderer         {                                                                     },
           executor         {                                                                     },
           render_pool      {                                                                     },
           chunk_tick_pool  {                                                                     },
           normal_tick_pool {                                                                     },
+          renderer         {                                                                     },
           chunk_renderer   { &this->allocator, core::memory::linear_allocator::voxel_buffer_size },
           water_renderer   { &this->allocator, core::memory::linear_allocator::water_buffer_size },
           platform         {                                                                     },

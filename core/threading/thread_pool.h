@@ -216,11 +216,7 @@ namespace core::threading::thread_pool {
             DEBUG_LOG("Thread id " + std::to_string(i) + " init");
             worker_id = i;
 
-            //static_cast<T *>(this)->run(i);
-
             Function_type task;
-            bool dequeue;
-
             while (this->worker_runflag.load(std::memory_order_relaxed)) {
                 {
                     std::unique_lock<std::mutex> lock { this->mutex };

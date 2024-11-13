@@ -7,8 +7,8 @@
 
 namespace core::level::chunk::chunk_renderer {
     ChunkRenderer::ChunkRenderer(arena_allocator::ArenaAllocator *allocator, size_t allocator_size)
-            : allocator { allocator, allocator_size },
-              storage(std::thread::hardware_concurrency())
+            : storage   { std::thread::hardware_concurrency() },
+              allocator { allocator, allocator_size           }
     {}
 
     auto ChunkRenderer::init() -> void {

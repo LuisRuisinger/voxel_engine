@@ -1,8 +1,6 @@
 // Created by Luis Ruisinger on 18.02.24.
 //
 
-#include <random>
-
 #ifdef __AVX2__
 #define GLM_FORCE_AVX
 #endif
@@ -39,11 +37,12 @@ namespace core::level::chunk {
     Chunk::Chunk(u16 chunk_idx)
             : chunk_idx { static_cast<u16>(chunk_idx & 0xFFF) }
     {
-        this->chunk_pos = glm::ivec3 {
-                (this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS,
+        this->chunk_pos = {
+                static_cast<int>((this->chunk_idx % (RENDER_RADIUS * 2)) - RENDER_RADIUS),
                 0,
-                (this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS
+                static_cast<int>((this->chunk_idx / (RENDER_RADIUS * 2)) - RENDER_RADIUS)
         };
+
         this->chunk_pos *= static_cast<f32>(CHUNK_SIZE);
 
         for (u8 i = 0; i < CHUNK_SEGMENTS; ++i)

@@ -6,6 +6,11 @@ add_definitions(-DPROJECT_ROOT_DIR=\"${PROJECT_ROOT_DIR}\")
 
 set(CMAKE_CXX_STANDARD 20)
 
+find_package(GLM REQUIRED)
+message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
+find_package(GLFW3 REQUIRED)
+message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
+
 # Default to Release build if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -13,23 +18,27 @@ endif()
 
 # Set compiler flags based on the build type
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -mavx2 -DNDEBUG")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -mavx2 -DNDEBUG")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -g -DDEBUG")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -mavx2 -g -DDEBUG")
 endif()
 
+# Find OpenGL (you are already using this correctly)
 find_package(OpenGL REQUIRED)
 
+# Add GLFW subdirectory
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw-3.3.9)
-add_subdirectory(${CMAKE_SOURCE_DIR}/assimp)
+set(GLFW_BUILD_SHARED OFF CACHE BOOL "Build GLFW as a static library" FORCE)
 
-include_directories(${CMAKE_SOURCE_DIR}/assimp/include)
+# Add include directories
 include_directories(${CMAKE_SOURCE_DIR}/lib/glfw-3.3.9/include)
 include_directories(${CMAKE_SOURCE_DIR}/lib/glad-3/include)
 include_directories(${CMAKE_SOURCE_DIR}/lib/imgui)
 include_directories(${CMAKE_SOURCE_DIR}/lib)
 
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/lib/imgui)
+
+add_library(glad STATIC ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)
 add_library(imgui
         ${IMGUI_DIR}/imgui.cpp
         ${IMGUI_DIR}/imgui_draw.cpp
@@ -41,96 +50,34 @@ add_library(imgui
 
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
 
-set(ENABLE_BOOST_WORKAROUND ON)
-set(BUILD_STATIC_LIB ON)
-set(BUILD_ASSIMP_TOOLS  ON)
-set(ASSIMP_BUILD_STATIC_LIB ON)
-
-add_executable(
-        opengl_3d_engine
-        main.cpp
-        core/rendering/shader.cpp
-        util/stb_image.cpp
-        util/camera.cpp
-        core/level/model/mesh.cpp
-        core/level/chunk_data_structure/octree.cpp
-        core/level/chunk_data_structure/octree.h
-        core/level/platform.cpp
-        core/level/chunk/chunk.cpp
-        core/level/model/voxel.cpp
-        core/rendering/renderer.cpp
-        util/culling.cpp
-        globalstate.h
-        util/moveable.h
-        util/indices_generator.h
-        core/level/chunk/chunk_segment.cpp
-        core/level/chunk/chunk_segment.h
-        core/threading/thread_pool.h
-        core/threading/thread_safe_queue.h
-        core/level/chunk_data_structure/node.cpp
-        core/level/chunk_data_structure/node_inline.h
-        core/rendering/interface.cpp
-        util/log.cpp
-        util/log.h
-        util/assert.h
-        util/atomic_shared_ptr.h
-        util/perlin_noise.hpp
-        util/binary_conversion.h
-        core/memory/linear_allocator.h
-        core/memory/memory.h
-        core/memory/arena_allocator.h
-        core/memory/arena_allocator.cpp
-        core/threading/thread.h
-        core/opengl/opengl_window.cpp
-        core/opengl/opengl_key_map.cpp
-        util/keymap.h
-        util/player.cpp
-        util/player.h
-        util/interactable.h
-        core/opengl/opengl_verify.h
-        core/level/chunk/chunk_renderer.cpp
-        core/level/chunk/chunk_renderer.h
-        util/aabb_ray_intersection.cpp
-        util/aabb_ray_intersection.h
-        util/aabb.h
-        util/traits.h
-        util/time.cpp
-        util/time.h
-        util/collidable.h
-        core/rendering/framebuffer.cpp
-        core/rendering/framebuffer.h
-        util/sun.cpp
-        util/sun.h
-        core/level/chunk/generation/generation.cpp
-        core/level/chunk/generation/generation.h
-        core/level/chunk/generation/biome.h
-        core/level/chunk/generation/biome.cpp
-        core/level/tiles/tile.cpp
-        core/level/tiles/tile.h
-        core/level/tiles/impl/grass.cpp
-        core/level/tiles/impl/grass.h
-        core/level/tiles/impl/cobblestone.cpp
-        core/level/tiles/impl/cobblestone.h
-        core/level/tiles/impl/stone.cpp
-        core/level/tiles/impl/stone.h
-        core/level/tiles/impl/dirt.cpp
-        core/level/tiles/impl/dirt.h
-        core/level/tiles/tile_manager.cpp
-        core/level/tiles/tile_manager.h
-        core/level/tiles/impl/stone_brick.cpp
-        core/level/tiles/impl/stone_brick.h
-        core/rendering/skybox_renderer.h
-        core/rendering/skybox_renderer.cpp
-        util/bin_file.h
-        util/color.h
-        util/static_renderable.h
-        core/level/tiles/impl/water.cpp
-        core/level/tiles/impl/water.h
+# Use file(GLOB_RECURSE ...) to collect all .cpp files in your source directories
+file(GLOB_RECURSE SOURCES
+        ${CMAKE_SOURCE_DIR}/core/*.cpp
+        ${CMAKE_SOURCE_DIR}/util/*.cpp
+        # Add any other directories where your source files are located
 )
 
-target_sources(opengl_3d_engine PRIVATE ${CMAKE_SOURCE_DIR}/lib/glad-3/src/glad.c)
-target_link_libraries(opengl_3d_engine imgui glfw assimp)
+# Create the executable target
+add_executable(opengl_3d_engine
+        ${SOURCES}
+        ${CMAKE_SOURCE_DIR}/main.cpp
+)
 
+
+# Link OpenGL (already required above)
+target_link_libraries(opengl_3d_engine
+        OpenGL::GL
+        imgui
+        glfw
+        glad
+)
+
+# Handle special Apple-specific linking
 if (APPLE)
-    target_link_libraries(opengl_3d_engine "-framework Cocoa" "-framework IOKit" "-framework CoreFoundation")
+    target_link_libraries(opengl_3d_engine
+            "-framework Cocoa"
+            "-framework IOKit"
+            "-framework CoreFoundation"
+            "-framework OpenGL"
+    )
 endif()

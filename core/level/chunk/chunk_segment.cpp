@@ -6,18 +6,18 @@
 
 namespace core::level::chunk {
     ChunkSegment::ChunkSegment(u8 segmentIdx)
-        : segment_idx    { segmentIdx                         },
+        : voxel_root     { std::make_unique<octree::Octree>() },
+          water_root     { std::make_unique<octree::Octree>() },
           chunk_modified { false                              },
-          voxel_root     { std::make_unique<octree::Octree>() },
-          water_root     { std::make_unique<octree::Octree>() }
+          segment_idx    { segmentIdx                         }
     {}
 
     ChunkSegment::ChunkSegment(ChunkSegment &&other) noexcept
-        : segment_idx    { other.segment_idx                                 },
+        : voxel_root     { std::move(other.voxel_root)                       },
+          water_root     { std::move(other.water_root)                       },
           chunk_modified { other.chunk_modified                              },
           initialized    { other.initialized.load(std::memory_order_acquire) },
-          voxel_root     { std::move(other.voxel_root)                       },
-          water_root     { std::move(other.water_root)                       }
+          segment_idx    { other.segment_idx                                 }
     {
         other.chunk_modified = false;
     }

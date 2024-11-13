@@ -5,12 +5,12 @@
 #ifndef OPENGL_3D_ENGINE_LOG_H
 #define OPENGL_3D_ENGINE_LOG_H
 
-#include <iostream>
 #include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <iostream>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>

@@ -114,8 +114,8 @@ float linearize_depth(float depth) {
 
 vec3 combined_color(vec3 frag_pos, vec3 frag_normal, vec3 frag_color, float ao_factor, float s) {
     const float k_a = 0.35F;
-    const float k_d = 0.75F;
-    const float k_s = 0.55F;
+    const float k_d = 0.65F;
+    const float k_s = 0.35F;
     const vec3 ambient_light = vec3(1.0F);
 
     vec3 l = normalize(light_direction);
@@ -181,16 +181,21 @@ vec3 combined_water_color(vec3 frag_color, float frag_world_depth) {
 }
 
 vec3 combined_fog_color(vec3 frag_color, vec3 frag_pos, float frag_world_depth) {
-    const float density = 0.0025F;
-    const float gradient = 2.5F;
+    const float density = 0.007F;
+    const float gradient = 1.5F;
 
     vec3 atmosphere_color = texture(g_atmosphere, TexCoords).rgb;
     if (frag_world_depth == 1.0F) {
         return atmosphere_color;
     }
 
-    float no_fog_offset = max(float(render_radius) - 3.5F, 4.0F) * 32.0F;
-    float visiblity = exp(-1.0F * pow(linearize_depth(frag_world_depth) * density, gradient));
+    float no_fog_offset = max(float(render_radius) / 2.0F, 4.0F) * 32.0F;
+
+    float frag_distance_2D = distance(frag_pos.xz, view_direction.xz);
+    frag_distance_2D = frag_distance_2D - no_fog_offset;
+    frag_distance_2D = max(frag_distance_2D, 0.0);
+
+    float visiblity = exp(-1.0F * pow(frag_distance_2D * density, gradient));
     visiblity = clamp(visiblity, 0.0F, 1.0F);
 
     frag_color = mix(atmosphere_color, frag_color, visiblity);
@@ -206,7 +211,7 @@ void main() {
     float frag_world_depth  = texture(g_depth, TexCoords).r;
     float ambient_occlusion = texture(g_ssao, TexCoords).r;
 
-    frag_color = combined_color(frag_pos, frag_normal, frag_color, ambient_occlusion, 32.0F);
+    frag_color = combined_color(frag_pos, frag_normal, frag_color, ambient_occlusion, 16.0F);
     frag_color = combined_water_color(frag_color, frag_world_depth);
     frag_color = combined_fog_color(frag_color, frag_pos, frag_world_depth);
     frag_color = hdr(frag_color);

@@ -8,9 +8,6 @@
 #include <cstdint>
 #include <cmath>
 
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/type_ptr.hpp"
-
 using usize = size_t;
 using u8  = uint8_t;
 using u16 = uint16_t;
