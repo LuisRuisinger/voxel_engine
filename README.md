@@ -1,4 +1,6 @@
 # Voxel engine
+PoC project (archived). Ongoing work on a more generic and optimized voxel engine based on this project. 
+
 A rasterization based deferred renderer ontop of OpenGL. Features SSR from transparent surfaces like water, SSAO, Cascaded-shadow-maps, etc. 
 Supports day-night cycle with a dynamic skybox through atmospheric scattering.
 GLFW, GLAD and ImGUI needed as dependencies. Currently only supporting MacOS as platform. 
